@@ -41,25 +41,25 @@ public:
     //! get current frame. Short name on purpose.
     FrameData* gcf (void) {
         if (!this->vFrameData.empty()) {
-            return &(this->vFrameData[I]);
+            return &(this->vFrameData[this->I]);
         }
         return (FrameData*)0;
     }
     //! Get the current frame number, counting from 1 like a human.
     int getFrameNum (void) const {
-        return 1+I;
+        return 1+this->I;
     }
     // Get a pointer to the persistent Mat img member attribute
     Mat* getImg (void) {
-        return &(img);
+        return &(this->img);
     }
     //! Make the next frame current (or cycle back to the first)
     void nextFrame (void) {
-        ++I %= this->vFrameData.size();
+        ++this->I %= this->vFrameData.size();
     }
     //! Clone the current frame into Mat img
     void cloneFrame (void) {
-        this->img = this->vFrameData[I].frame.clone();
+        this->img = this->vFrameData[this->I].frame.clone();
     }
 };
 
