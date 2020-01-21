@@ -1,14 +1,26 @@
 # Stalefish
 
+## Compile using cmake
 
-compile on mac using:
+```bash
+mkdir build && cd build
+cmake ..
+make
+```
 
+Alternatively, compile on Mac/Linux using a single command (for now):
+
+```bash
+cd src
 g++ -o stalefish stalefish.cpp -i `pkg-config opencv --libs --cflags`
+```
+
+## Running the program
 
 run using e.g.,:
-
-./stalefish ../data/testimg1.tiff ../data/testimg2.tiff ../data/testimg3.tiff
-
+```
+./path/to/stalefish ../data/testimg1.tiff ../data/testimg2.tiff ../data/testimg3.tiff
+```
 left click points to draw segmented line, then
 
 Press "x" to fit the curve
