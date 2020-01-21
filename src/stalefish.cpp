@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <unistd.h>
 #include <opencv2/opencv.hpp>
 #include <opencv2/imgproc.hpp>
 #include <iostream>
@@ -56,7 +57,7 @@ int main(int argc, char** argv){
         if( frame.empty()){ cout <<  "Could not open or find the image" << std::endl; return -1;}
         F.push_back(frameData(frame.clone()));
     }
-    namedWindow("StaleFish",1);
+    namedWindow("StaleFish",WINDOW_AUTOSIZE);
     setMouseCallback("StaleFish", onmouse, &img);
 
     // *** MAIN LOOP ***
@@ -83,5 +84,6 @@ int main(int argc, char** argv){
             case ('w'):{ F[I].printMeans(); } break;
             case ('q'):{return 0;} break;
         }
+        usleep (1000);
     }
 }
