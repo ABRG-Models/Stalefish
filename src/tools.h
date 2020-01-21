@@ -72,7 +72,7 @@ vector<Point> rotate(vector<Point> P, double theta){
     vector<Point> P2(P.size());
     double cosTheta = cos(theta);
     double sinTheta = sin(theta);
-    for(int i=0;i<P.size();i++){
+    for(size_t i=0;i<P.size();i++){
         P2[i] = Point(P[i].x*cosTheta-P[i].y*sinTheta,P[i].x*sinTheta+P[i].y*cosTheta);
     }
     return P2;
@@ -86,7 +86,7 @@ vector<Point> tracePoly(vector<double> a,double minX,double maxX,int n){
     double y = 0.;
     for (int i=0;i<n;i++){
         y = 0.;
-        for(int j=0;j<a.size();j++){
+        for(size_t j=0;j<a.size();j++){
             y += a[j]*pow(x,j);
         }
         P[i] = Point(x,y);
@@ -100,12 +100,11 @@ vector<Point> tracePolyOrth(vector<double> a,double minX,double maxX,int n, doub
 
     double increment = (maxX-minX)/(double)(n-1);
     double x = minX;
-    double y = 0.;
     for (int i=0;i<n;i++){
         double t=0.;
         double y=0.;
         double p=0.;
-        for(int j=0;j<a.size();j++){
+        for(size_t j=0;j<a.size();j++){
             t += (double)j*a[j]*p;
             p = pow(x,j);
             y += a[j]*p;
@@ -127,7 +126,7 @@ vector<double> getPolyPixelVals(Mat frame, vector<Point> pp){
     vector<Point2i> positives;
     findNonZero(resultGray, positives);
     vector<double> polyPixelVals(positives.size());
-    for(int j=0;j<positives.size();j++){
+    for(size_t j=0;j<positives.size();j++){
         Scalar pixel = resultGray.at<uchar>(positives[j]);
         polyPixelVals[j] = (double)pixel.val[0]/255.;
     }

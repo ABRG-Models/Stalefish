@@ -39,10 +39,10 @@ public:
 
     void getBoxMeans(void){
         means.resize(boxes.size());
-        for(int i=0;i<boxes.size();i++){
+        for(size_t i=0;i<boxes.size();i++){
             vector<double> boxVals = getPolyPixelVals(frame,boxes[i]);
             means[i] = 0.;
-            for(int j=0;j<boxVals.size();j++){
+            for(size_t j=0;j<boxVals.size();j++){
                 means[i] += boxVals[j];
             }
             means[i] /= (double)boxVals.size();
@@ -51,14 +51,13 @@ public:
 
     void printMeans(void){
         cout<<"[";
-        for(int j=0;j<means.size();j++){
+        for(size_t j=0;j<means.size();j++){
             cout<<means[j]<<",";
         }
         cout<<"]"<<endl<<flush;
     }
 
     void updateFit(void){
-        double length = 40.;
         axiscoefs = polyfit(P,1);
         axis = tracePoly(axiscoefs,0,frame.cols,2);
         theta = atan(axiscoefs[1]);
@@ -66,7 +65,7 @@ public:
 
         maxX = -1e9;
         minX = +1e9;
-        for(int i=0;i<rotated.size();i++){
+        for(size_t i=0;i<rotated.size();i++){
             if(rotated[i].x>maxX){ maxX = rotated[i].x; }
             if(rotated[i].x<minX){ minX = rotated[i].x; }
         }

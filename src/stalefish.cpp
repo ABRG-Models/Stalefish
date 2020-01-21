@@ -85,10 +85,10 @@ void onmouse (int event, int x, int y, int flags, void* param) {
 
     circle (*pImg, pt, 5, Scalar(0,0,255), 1);
 
-    for (int i=1; i<cf->P.size(); i++) {
+    for (size_t i=1; i<cf->P.size(); i++) {
         line (*pImg, cf->P[i-1], cf->P[i], Scalar(255,0,0), 1);
     }
-    for (int i=0; i<cf->P.size(); i++){
+    for (size_t i=0; i<cf->P.size(); i++){
         circle (*pImg, cf->P[i], 5, Scalar(255,0,0), 1);
     }
 
@@ -96,13 +96,13 @@ void onmouse (int event, int x, int y, int flags, void* param) {
         line (*pImg, cf->P[cf->P.size()-1], pt, Scalar(255,0,0),1);
     }
 
-    for(int i=1; i<cf->fitted.size(); i++) {
+    for(size_t i=1; i<cf->fitted.size(); i++) {
         line (*pImg, cf->fitted[i-1], cf->fitted[i], Scalar(0,255,0), 1);
     }
 
     line (*pImg, cf->axis[0], cf->axis[1], Scalar(0,0,255), 1);
 
-    for (int i=0; i<cf->origins.size(); i++) {
+    for (size_t i=0; i<cf->origins.size(); i++) {
         line (*pImg, cf->origins[i], cf->tangents[i], Scalar(0,255,255), 1);
     }
 
@@ -126,7 +126,7 @@ int main(int argc, char** argv){
 
     double lenA = 10.;
     double lenB = 50.;
-    for (int i=1;i<argc;i++){
+    for (int i=1; i<argc; i++){
         char* imageName = argv[i];
         cout << "imread " << imageName << endl;
         Mat frame = imread(imageName, IMREAD_COLOR );
