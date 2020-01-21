@@ -37,75 +37,80 @@ public:
     Mat frame;
     vector<double> axiscoefs;
 
-    FrameData (const Mat frame) {
-        this->frame = frame;
-        axiscoefs.resize(2,0.);
-        axis.resize(2);
-        fitted.resize(nFit);
-        origins.resize(nBins+1);
-        tangents.resize(nBins+1);
-        polyOrder = 3;
-        nFit = 50;
-        nBins = 50;
+    FrameData (const Mat fr) {
+        this->frame = fr;
+        this->axiscoefs.resize (2, 0.0);
+        this->axis.resize (2);
+        this->fitted.resize (this->nFit);
+        this->origins.resize (this->nBins+1);
+        this->tangents.resize (this->nBins+1);
+        this->polyOrder = 3;
+        this->nFit = 50;
+        this->nBins = 50;
     };
 
     void removeLastPoint (void) {
-        if (!P.empty()) {
-            P.pop_back();
+        if (!this->P.empty()) {
+            this->P.pop_back();
         }
     }
 
     void getBoxMeans (void) {
-        means.resize(boxes.size());
-        for(size_t i=0;i<boxes.size();i++){
-            vector<double> boxVals = getPolyPixelVals(frame,boxes[i]);
-            means[i] = 0.;
-            for(size_t j=0;j<boxVals.size();j++){
-                means[i] += boxVals[j];
+        this->means.resize (this->boxes.size());
+        for (size_t i=0; i<this->boxes.size(); i++) {
+            vector<double> boxVals = getPolyPixelVals (this->frame, this->boxes[i]);
+            this->means[i] = 0.0;
+            for (size_t j=0; j<boxVals.size(); j++) {
+                this->means[i] += boxVals[j];
             }
-            means[i] /= (double)boxVals.size();
+            this->means[i] /= (double)boxVals.size();
         }
     }
 
     void printMeans (void) const {
-        cout<<"[";
-        for(size_t j=0;j<means.size();j++){
-            cout<<means[j]<<",";
+        cout << "[";
+        for (size_t j=0; j<this->means.size(); j++) {
+            cout << this->means[j] << ",";
         }
-        cout<<"]"<<endl<<flush;
+        cout << "]" << endl << flush;
     }
 
     //! Recompute the polynomial fit
     void updateFit (void) {
-        axiscoefs = polyfit(P,1);
-        axis = tracePoly(axiscoefs,0,frame.cols,2);
-        theta = atan(axiscoefs[1]);
-        vector<Point> rotated = rotate(P,-theta);
+        this->axiscoefs = polyfit (this->P, 1);
+        this->axis = tracePoly (this->axiscoefs, 0, this->frame.cols, 2);
+        this->theta = atan(this->axiscoefs[1]);
+        vector<Point> rotated = rotate (this->P, -this->theta);
 
-        maxX = -1e9;
-        minX = +1e9;
-        for(size_t i=0;i<rotated.size();i++){
-            if(rotated[i].x>maxX){ maxX = rotated[i].x; }
-            if(rotated[i].x<minX){ minX = rotated[i].x; }
+        this->maxX = -1e9;
+        this->minX = +1e9;
+        for (size_t i=0; i<rotated.size(); i++) {
+            if (rotated[i].x > this->maxX) { this->maxX = rotated[i].x; }
+            if (rotated[i].x < this->minX) { this->minX = rotated[i].x; }
         }
-        C = polyfit(rotated,polyOrder);
+        this->C = polyfit (rotated, this->polyOrder);
 
-        fitted = rotate(tracePoly(C,minX,maxX,nFit),theta);
+        this->fitted = rotate (tracePoly (this->C, this->minX, this->maxX, this->nFit), this->theta);
     }
 
     void refreshBoxes (const double lenA, const double lenB) {
 
-        origins = rotate(tracePolyOrth(C,minX,maxX,nBins+1,lenA),theta);
-        tangents = rotate(tracePolyOrth(C,minX,maxX,nBins+1,lenB),theta);
+        this->origins = rotate (tracePolyOrth (this->C, this->minX, this->maxX,
+                                               this->nBins+1, lenA),
+                                this->theta);
+        this->tangents = rotate (tracePolyOrth (this->C, this->minX, this->maxX,
+                                                this->nBins+1, lenB),
+                                 this->theta);
 
-        boxes.resize(nBins);
-        for(int i=0;i<nBins;i++){
+        this->boxes.resize(this->nBins);
+
+        for (int i=0; i<this->nBins; i++) {
             vector<Point> pts(4);
-            pts[0]=origins[i];
-            pts[1]=origins[i+1];
-            pts[2]=tangents[i+1];
-            pts[3]=tangents[i];
-            boxes[i]=pts;
+            pts[0] = this->origins[i];
+            pts[1] = this->origins[i+1];
+            pts[2] = this->tangents[i+1];
+            pts[3] = this->tangents[i];
+            this->boxes[i] = pts;
         }
     }
 
