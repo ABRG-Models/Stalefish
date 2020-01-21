@@ -1,7 +1,25 @@
 #pragma once
 
-class FrameData{
+#include <opencv2/opencv.hpp>
+#include <opencv2/imgproc.hpp>
+using cv::Mat;
+using cv::Point;
+using cv::Point2i;
+using cv::Scalar;
+#include <vector>
+using std::vector;
+#include <iostream>
+using std::cout;
+using std::endl;
+using std::flush;
+#include "tools.h"
 
+/*!
+ * A class to hold a cortical section image, user-supplied cortex edge points and the
+ * resulting fit (either polynomial, or, to come, Bezier curved).
+ */
+class FrameData
+{
 public:
 
     int polyOrder;
@@ -19,7 +37,7 @@ public:
     Mat frame;
     vector<double> axiscoefs;
 
-    FrameData(Mat frame){
+    FrameData (const Mat frame) {
         this->frame = frame;
         axiscoefs.resize(2,0.);
         axis.resize(2);
@@ -31,13 +49,13 @@ public:
         nBins = 50;
     };
 
-    void removeLastPoint(void){
-        if(P.size()){
+    void removeLastPoint (void) {
+        if (!P.empty()) {
             P.pop_back();
         }
     }
 
-    void getBoxMeans(void){
+    void getBoxMeans (void) {
         means.resize(boxes.size());
         for(size_t i=0;i<boxes.size();i++){
             vector<double> boxVals = getPolyPixelVals(frame,boxes[i]);
@@ -49,7 +67,7 @@ public:
         }
     }
 
-    void printMeans(void){
+    void printMeans (void) const {
         cout<<"[";
         for(size_t j=0;j<means.size();j++){
             cout<<means[j]<<",";
@@ -57,7 +75,8 @@ public:
         cout<<"]"<<endl<<flush;
     }
 
-    void updateFit(void){
+    //! Recompute the polynomial fit
+    void updateFit (void) {
         axiscoefs = polyfit(P,1);
         axis = tracePoly(axiscoefs,0,frame.cols,2);
         theta = atan(axiscoefs[1]);
@@ -74,7 +93,7 @@ public:
         fitted = rotate(tracePoly(C,minX,maxX,nFit),theta);
     }
 
-    void refreshBoxes(double lenA, double lenB){
+    void refreshBoxes (const double lenA, const double lenB) {
 
         origins = rotate(tracePolyOrth(C,minX,maxX,nBins+1,lenA),theta);
         tangents = rotate(tracePolyOrth(C,minX,maxX,nBins+1,lenB),theta);
@@ -89,4 +108,5 @@ public:
             boxes[i]=pts;
         }
     }
-};
+
+}; // FrameData

@@ -1,14 +1,13 @@
-#include <stdio.h>
-#include <unistd.h>
+#include "FrameData.h"
 #include <opencv2/opencv.hpp>
 #include <opencv2/imgproc.hpp>
-#include <iostream>
-#include <fstream>
-#include <math.h>
-#include "tools.h"
-#include "FrameData.h"
 using namespace cv;
-using namespace std;
+#include <iostream>
+using std::cout;
+using std::endl;
+#include <sstream>
+using std::stringstream;
+#include <unistd.h>
 
 //! Singleton pattern data manager class to hold framedata
 class DM
@@ -39,7 +38,7 @@ public:
         this->vFrameData.push_back (FrameData (frameImg.clone()));
     }
     //! Return the size of vFrameData
-    unsigned int getNumFrames (void) {
+    unsigned int getNumFrames (void) const {
         return this->vFrameData.size();
     }
     //! get current frame. Short name on purpose.
@@ -50,7 +49,7 @@ public:
         return (FrameData*)0;
     }
     //! Get the current frame number, counting from 1 like a human.
-    int getFrameNum (void) {
+    int getFrameNum (void) const {
         return 1+I;
     }
     // Get a pointer to the persistent Mat img member attribute
@@ -67,12 +66,12 @@ public:
     }
 };
 
-// Globally init datamanager instance pointer to null
+//! Globally initialise DM instance pointer to NULL
 DM* DM::pInstance = 0;
 
-// *** DISPLAY ***
-void onmouse (int event, int x, int y, int flags, void* param) {
-
+//! Global mouse callback. Could perhaps be a member of DM
+void onmouse (int event, int x, int y, int flags, void* param)
+{
     Point pt = Point(x,y);
     if (event == CV_EVENT_LBUTTONDOWN) {
         DM::i()->gcf()->P.push_back(pt);
@@ -115,10 +114,9 @@ void onmouse (int event, int x, int y, int flags, void* param) {
     imshow ("StaleFish", *pImg);
 }
 
-// *** MAIN PROGRAM ***
-
-int main(int argc, char** argv){
-
+//! Main entry point
+int main (int argc, char** argv)
+{
     if (argc < 2) {
         cout << "Please supply at least one image filename" << endl;
         return 1;
@@ -129,7 +127,7 @@ int main(int argc, char** argv){
     for (int i=1; i<argc; i++){
         char* imageName = argv[i];
         cout << "imread " << imageName << endl;
-        Mat frame = imread(imageName, IMREAD_COLOR );
+        Mat frame = imread(imageName, IMREAD_COLOR);
         if (frame.empty()) {
             cout <<  "Could not open or find the image" << endl;
             return -1;

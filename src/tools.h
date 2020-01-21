@@ -1,14 +1,23 @@
-#include <stdio.h>
+/*
+ * Polynomial fit algorithms. We should move these into morphologica as they're
+ * generally useful.
+ */
+
+#pragma once
+
 #include <opencv2/opencv.hpp>
 #include <opencv2/imgproc.hpp>
-#include <iostream>
-#include <fstream>
+using cv::Mat;
+using cv::Point;
+using cv::Scalar;
+#include <vector>
+using std::vector;
 #include <math.h>
-using namespace cv;
-using namespace std;
 
-vector<double> polyfit(vector<Point> P, int n){
-
+//! Compute a polynomial fit of order n on the user-supplied points P. Return the
+//! parameters of the fit.
+vector<double> polyfit (const vector<Point> P, int n)
+{
     int N = P.size();
 
     double X[2*n+1];
@@ -65,28 +74,31 @@ vector<double> polyfit(vector<Point> P, int n){
     }
 
     return a;
-
 }
 
-vector<Point> rotate(vector<Point> P, double theta){
+//! Carry out a rotational transformation on the points P, returning the result.
+vector<Point> rotate (const vector<Point> P, const double theta)
+{
     vector<Point> P2(P.size());
     double cosTheta = cos(theta);
     double sinTheta = sin(theta);
-    for(size_t i=0;i<P.size();i++){
-        P2[i] = Point(P[i].x*cosTheta-P[i].y*sinTheta,P[i].x*sinTheta+P[i].y*cosTheta);
+    for (size_t i=0; i<P.size(); i++) {
+        P2[i] = Point(P[i].x*cosTheta-P[i].y*sinTheta,
+                      P[i].x*sinTheta+P[i].y*cosTheta);
     }
     return P2;
 }
 
-vector<Point> tracePoly(vector<double> a,double minX,double maxX,int n){
+vector<Point> tracePoly (const vector<double> a, const double minX, const double maxX, const int n)
+{
     vector<Point> P(n);
 
     double increment = (maxX-minX)/(double)(n-1);
     double x = minX;
     double y = 0.;
-    for (int i=0;i<n;i++){
+    for (int i=0; i<n; i++) {
         y = 0.;
-        for(size_t j=0;j<a.size();j++){
+        for (size_t j=0; j<a.size(); j++) {
             y += a[j]*pow(x,j);
         }
         P[i] = Point(x,y);
@@ -95,7 +107,8 @@ vector<Point> tracePoly(vector<double> a,double minX,double maxX,int n){
     return P;
 }
 
-vector<Point> tracePolyOrth(vector<double> a,double minX,double maxX,int n, double len){
+vector<Point> tracePolyOrth (const vector<double> a, const double minX, const double maxX, const int n, const double len)
+{
     vector<Point> P(n);
 
     double increment = (maxX-minX)/(double)(n-1);
@@ -104,29 +117,30 @@ vector<Point> tracePolyOrth(vector<double> a,double minX,double maxX,int n, doub
         double t=0.;
         double y=0.;
         double p=0.;
-        for(size_t j=0;j<a.size();j++){
+        for (size_t j=0; j<a.size(); j++) {
             t += (double)j*a[j]*p;
             p = pow(x,j);
             y += a[j]*p;
         }
-        P[i] = Point(x+len*cos(atan(t)+M_PI*0.5),y+len*sin(atan(t)+M_PI*0.5));
+        P[i] = Point (x+len*cos(atan(t)+M_PI*0.5),
+                      y+len*sin(atan(t)+M_PI*0.5));
         x += increment;
     }
     return P;
 }
 
-vector<double> getPolyPixelVals(Mat frame, vector<Point> pp){
-
+vector<double> getPolyPixelVals (const Mat frame, const vector<Point> pp)
+{
     Point pts[4] = {pp[0],pp[1],pp[2],pp[3]};
     Mat mask = Mat::zeros(frame.rows, frame.cols, CV_8UC3);
-    fillConvexPoly(mask, pts, 4, cv::Scalar(255,255,255) );
+    fillConvexPoly (mask, pts, 4, Scalar(255,255,255));
     Mat result, resultGray;
-    frame.copyTo(result,mask);
-    cvtColor(result,resultGray,CV_BGR2GRAY);
+    frame.copyTo (result,mask);
+    cvtColor (result, resultGray, CV_BGR2GRAY);
     vector<Point2i> positives;
-    findNonZero(resultGray, positives);
-    vector<double> polyPixelVals(positives.size());
-    for(size_t j=0;j<positives.size();j++){
+    findNonZero (resultGray, positives);
+    vector<double> polyPixelVals (positives.size());
+    for (size_t j=0; j<positives.size(); j++) {
         Scalar pixel = resultGray.at<uchar>(positives[j]);
         polyPixelVals[j] = (double)pixel.val[0]/255.;
     }
