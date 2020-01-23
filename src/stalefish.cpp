@@ -115,6 +115,9 @@ int main (int argc, char** argv)
         case ('m'):{
             // Change 'mode'
             DM::i()->gcf()->toggleCurveType();
+            DM::i()->gcf()->updateFit();
+            DM::i()->gcf()->refreshBoxes(lenA,lenB);
+            DM::i()->gcf()->getBoxMeans();
             break;
         }
         case ('w'):

@@ -59,6 +59,11 @@ public:
     //@{
     //! An auto-fitting Bezier curve
     BezCurve bc;
+    //! But the auto fit curve isn't good enough to do the whole cortical curve, so
+    //! we'll need several in a BezCurvePath
+    BezCurvePath bcp;
+    //! And then an index into bcp...
+    int curvePathIndex;
     //@}
 
     //! Attributes which pertain either to polynomial or Bezier curves
@@ -161,8 +166,7 @@ public:
         this->bc.fit (user_points);
 
         // Update this->fitted
-        BezCurvePath bcp;
-        bcp.addCurve (this->bc);
+        this->bcp.addCurve (this->bc);
         vector<BezCoord> coords = bcp.getPoints (static_cast<unsigned int>(this->nFit));
         int i = 0;
         for (BezCoord& bcoord : coords) {
