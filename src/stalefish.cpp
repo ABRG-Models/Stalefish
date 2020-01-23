@@ -17,7 +17,7 @@ void onmouse (int event, int x, int y, int flags, void* param)
 {
     Point pt = Point(x,y);
     if (event == CV_EVENT_LBUTTONDOWN) {
-        DM::i()->gcf()->P.push_back(pt);
+        DM::i()->gcf()->P.push_back (pt);
     }
     DM::i()->cloneFrame();
 
@@ -50,8 +50,7 @@ void onmouse (int event, int x, int y, int flags, void* param)
 
     stringstream ss;
     ss << "Frame: " << DM::i()->getFrameNum() << "/" << DM::i()->getNumFrames()
-       << ", Poly order: " << cf->polyOrder
-       << ", Bins: " << cf->nBins;
+       << " " << DM::i()->gcf()->getFitInfo();
     putText (*pImg, ss.str(), Point(30,30), FONT_HERSHEY_SIMPLEX, 0.8, Scalar(0,0,0), 1, CV_AA);
 
     imshow ("StaleFish", *pImg);
@@ -77,12 +76,12 @@ int main (int argc, char** argv)
         }
         DM::i()->addFrame (frame);
     }
-    namedWindow("StaleFish", WINDOW_AUTOSIZE);
-    setMouseCallback("StaleFish", onmouse, DM::i()->getImg());
+    namedWindow ("StaleFish", WINDOW_AUTOSIZE);
+    setMouseCallback ("StaleFish", onmouse, DM::i()->getImg());
 
     // *** MAIN LOOP ***
     while (1) {
-        onmouse(CV_EVENT_MOUSEMOVE,0,0,0,NULL);
+        onmouse (CV_EVENT_MOUSEMOVE, 0, 0, 0, NULL);
         char k = waitKey(0);
         switch(k) {
         case('x'):
@@ -111,6 +110,11 @@ int main (int argc, char** argv)
         case ('b'):{
             DM::i()->gcf()->nBins ++;
             DM::i()->gcf()->nBins %= 100;
+            break;
+        }
+        case ('m'):{
+            // Change 'mode'
+            DM::i()->gcf()->toggleCurveType();
             break;
         }
         case ('w'):

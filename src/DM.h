@@ -27,12 +27,20 @@ public:
     static DM* i (void) {
         if (DM::pInstance == 0) {
             DM::pInstance = new DM;
+            DM::i()->init();
         }
         return DM::pInstance;
     }
+    void init (void) {
+        this->vFrameData.clear();
+    }
     //! Add a frame to vFrameData
     void addFrame (Mat& frameImg) {
-        this->vFrameData.push_back (FrameData (frameImg.clone()));
+        cout << "addFrame called" << endl;
+        FrameData fd(frameImg);
+        cout << "FrameData made" << endl;
+        this->vFrameData.push_back (fd);
+        cout << "FrameData pushed back" << endl;
     }
     //! Return the size of vFrameData
     unsigned int getNumFrames (void) const {

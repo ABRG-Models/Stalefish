@@ -33,7 +33,7 @@ endif()
 
 # Lib finding
 find_package(OpenCV REQUIRED)
-find_package(X11 REQUIRED)
+#find_package(X11 REQUIRED)
 
 if(APPLE)
   find_package (HDF5 REQUIRED)
@@ -50,7 +50,32 @@ else()
   set (JSONLIBLINK jsoncpp)
 endif(APPLE)
 
-include_directories(${OpenCV_INCLUDE_DIRS} ${X11_INC_SEARCH_PATH} ${HDF5_INCLUDE_DIR})
+include_directories(${OpenCV_INCLUDE_DIRS} ${HDF5_INCLUDE_DIR})
+# ${X11_INC_SEARCH_PATH} ?
+
+# Find libmorphologica using pkgconfig
+find_package(PkgConfig)
+if(PKG_CONFIG_FOUND)
+  message(STATUS "Have pkg_config, searching for libmorphologica...")
+
+  if(APPLE)
+    # Manually set PKG_CONFIG_PATH on Mac, as mac ports with by default search only in /opt/local
+    set(ENV{PKG_CONFIG_PATH}  "ENV{PKG_CONFIG_PATH}:${CMAKE_INSTALL_PREFIX}/lib/pkgconfig")
+  endif(APPLE)
+
+  pkg_check_modules(MORPH REQUIRED libmorphologica)
+  if (MORPH_FOUND)
+    message(STATUS "pkg_config found libmorphologica")
+    include_directories(${MORPH_INCLUDEDIR})
+    include_directories(${MORPH_INCLUDEDIR}/morph)
+    message(STATUS "Included morph includedir:  ${MORPH_INCLUDEDIR} and ${MORPH_INCLUDEDIR}/morph")
+  else()
+    message(FATAL_ERROR "You need libmorphologica from github.com/ABRG_Models/morphologica")
+  endif(MORPH_FOUND)
+else()
+  message(WARNING "There's no pkg-config on this system to check for libmorphologica. "
+    "You can set MORPH_LIB with `cmake -DMORPH_LIB=/pathto/lib` ...")
+endif()
 
 # Library code is compiled up as a shared library in lib/ (could also
 # be compiled static if needed)
