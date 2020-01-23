@@ -149,6 +149,10 @@ public:
     }
 
     void updateFitBezier (void) {
+        if (this->P.size() < 2) {
+            cout << "Too few points to fit" << endl;
+            return;
+        }
         vector<pair<float,float>> user_points;
         user_points.clear();
         for (auto pt : this->P) {
