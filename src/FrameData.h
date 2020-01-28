@@ -41,7 +41,7 @@ class FrameData
 {
 public:
     //! What curve type?
-    CurveType ct = CurveType::Poly;
+    CurveType ct = CurveType::Bezier;
 
     //! Polynomial fit specific attributes
     //@{
@@ -71,6 +71,10 @@ public:
     //@{
     //! The vector of user-supplied points from which to make a curve fit
     vector<Point> P;
+    //! A vector of vectors of points for multi-section Bezier curves
+    vector<vector<Point>> PP;
+    //! Index into PP
+    int pp_idx = 0;
     //! The means computed for the boxes.
     vector<double> means;
     //! Number of bins to create for the fit (one less than nFit)
@@ -129,7 +133,24 @@ public:
     void removeLastPoint (void) {
         if (!this->P.empty()) {
             this->P.pop_back();
+        } else {
+            // P is empty. Go to previous curve...
+            if (this->ct == CurveType::Bezier && this->pp_idx>0) {
+                this->P = this->PP[this->pp_idx--];
+                this->PP.pop_back();
+                this->P.pop_back();
+            }
         }
+    }
+
+    void nextCurve (void) {
+        if (this->ct == CurveType::Poly) {
+            // no op.
+            return;
+        }
+        this->PP.push_back (this->P);
+        this->P.clear();
+        this->pp_idx++;
     }
 
     void getBoxMeans (void) {
@@ -166,15 +187,32 @@ public:
             cout << "Too few points to fit" << endl;
             return;
         }
+
+        this->bcp.reset();
+
+        // Loop over PP first
+        for (auto _P : this->PP) {
+            vector<pair<double,double>> user_points;
+            user_points.clear();
+            for (auto pt : _P) {
+                cout << "Adding a PP point " << pt.x <<"," << pt.y << endl;
+                user_points.push_back (make_pair(pt.x, pt.y));
+            }
+            this->bc.fit (user_points);
+            // Update this->fitted
+            this->bcp.addCurve (this->bc);
+        }
+
         vector<pair<double,double>> user_points;
         user_points.clear();
         for (auto pt : this->P) {
+            cout << "Adding a P point " << pt.x <<"," << pt.y << endl;
             user_points.push_back (make_pair(pt.x, pt.y));
         }
         this->bc.fit (user_points);
+        this->bcp.addCurve (this->bc);
 
         // Update this->fitted
-        this->bcp.reset();
         this->bcp.addCurve (this->bc);
         this->bcp.computePoints (static_cast<unsigned int>(this->nFit));
         vector<BezCoord<double>> coords = this->bcp.getPoints();
@@ -241,8 +279,8 @@ public:
             pts[1] = this->pointsInner[i+1];
             pts[2] = this->pointsOuter[i+1];
             pts[3] = this->pointsOuter[i];
-            cout << "Define a box of width " << pointsInner[i] - pointsOuter[i]
-                 << ", length: " << pointsInner[i] - pointsInner[i+1] << endl;
+            //cout << "Define a box of width " << pointsInner[i] - pointsOuter[i]
+            //     << ", length: " << pointsInner[i] - pointsInner[i+1] << endl;
             this->boxes[i] = pts;
         }
     }

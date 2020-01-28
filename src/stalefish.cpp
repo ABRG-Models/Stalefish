@@ -25,6 +25,7 @@ void onmouse (int event, int x, int y, int flags, void* param)
     Mat* pImg = DM::i()->getImg();
     FrameData* cf = DM::i()->gcf();
 
+    // blue
     circle (*pImg, pt, 5, Scalar(0,0,255), 1);
 
     // red
@@ -130,6 +131,12 @@ int main (int argc, char** argv)
         case ('w'):
         {
             DM::i()->gcf()->printMeans();
+            break;
+        }
+        case (' '):
+        {
+            cout << "SPACE" << endl;
+            DM::i()->gcf()->nextCurve();
             break;
         }
         case ('q'):
