@@ -33,7 +33,7 @@ endif()
 
 # Lib finding
 find_package(OpenCV REQUIRED)
-#find_package(X11 REQUIRED)
+find_package(LAPACK REQUIRED)
 
 if(APPLE)
   find_package (HDF5 REQUIRED)
@@ -42,12 +42,15 @@ if(APPLE)
   # If omp is to be used:
   # include_directories(/opt/local/include/libomp)
   # link_libraries(-L/opt/local/lib/libomp omp)
+  find_package (Armadillo 9.20 HINTS /opt/local/lib REQUIRED)
 else()
   set (LIB_TYPE SHARED) # STATIC or SHARED
   string(TOLOWER ${LIB_TYPE} SEARCH_TYPE)
   find_package (HDF5 NAMES hdf5 COMPONENTS C ${SEARCH_TYPE} REQUIRED)
   set (HDF5LIBLINK ${HDF5_C_${LIB_TYPE}_LIBRARY})
   set (JSONLIBLINK jsoncpp)
+  # A simpler find package for armadillo on non-mac:
+  find_package(Armadillo REQUIRED)
 endif(APPLE)
 
 include_directories(${OpenCV_INCLUDE_DIRS} ${HDF5_INCLUDE_DIR})

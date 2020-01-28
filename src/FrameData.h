@@ -4,6 +4,7 @@
 #include <opencv2/imgproc.hpp>
 using cv::Mat;
 using cv::Point;
+using cv::Point2d;
 using cv::Point2i;
 using cv::Scalar;
 #include <vector>
@@ -58,10 +59,10 @@ public:
     //! Bezier curve attributes
     //@{
     //! An auto-fitting Bezier curve
-    BezCurve bc;
+    BezCurve<double> bc;
     //! But the auto fit curve isn't good enough to do the whole cortical curve, so
     //! we'll need several in a BezCurvePath
-    BezCurvePath bcp;
+    BezCurvePath<double> bcp;
     //! And then an index into bcp...
     int curvePathIndex;
     //@}
@@ -72,20 +73,25 @@ public:
     vector<Point> P;
     //! The means computed for the boxes.
     vector<double> means;
-    //! Number of bins to create for the fit
+    //! Number of bins to create for the fit (one less than nFit)
     int nBins;
-    //! Number of points to create from the fit
+    //! Number of points to create in the fit
     int nFit;
     //! A set of points created from the fit
     vector<Point> fitted;
+    //! For point in fitted, the tangent at that location
+    vector<Point2d> tangents;
+    //! For point in fitted, the normal at that location
+    vector<Point2d> normals;
     //! The axes for the fit
     vector<Point> axis;
     //! Coefficients for the axis
     vector<double> axiscoefs;
     //! origins for the lines making the box sides (some distance from the curve)
-    vector<Point> origins;
+    vector<Point> pointsInner;
     //! endpoints for the lines making the box sides (a greater distance from the curve)
-    vector<Point> tangents;
+    vector<Point> pointsOuter;
+
     //! The boxes that are drawn and from which to sample the gene expression
     vector<vector<Point> > boxes;
     //! The image data, required when sampling the image in one of the boxes.
@@ -98,11 +104,13 @@ public:
         this->axiscoefs.resize (2, 0.0);
         this->axis.resize (2);
         // NB: Init these before the next three resize() calls
-        this->nFit = 50;
-        this->nBins = 50;
+        this->nFit = 51;
+        this->nBins = nFit-1;
         this->fitted.resize (this->nFit);
-        this->origins.resize (this->nBins+1);
-        this->tangents.resize (this->nBins+1);
+        this->pointsInner.resize (this->nFit);
+        this->pointsOuter.resize (this->nFit);
+        this->tangents.resize (this->nFit);
+        this->normals.resize (this->nFit);
         this->polyOrder = 3;
     };
 
@@ -158,7 +166,7 @@ public:
             cout << "Too few points to fit" << endl;
             return;
         }
-        vector<pair<float,float>> user_points;
+        vector<pair<double,double>> user_points;
         user_points.clear();
         for (auto pt : this->P) {
             user_points.push_back (make_pair(pt.x, pt.y));
@@ -166,13 +174,18 @@ public:
         this->bc.fit (user_points);
 
         // Update this->fitted
+        this->bcp.reset();
         this->bcp.addCurve (this->bc);
         this->bcp.computePoints (static_cast<unsigned int>(this->nFit));
-        vector<BezCoord> coords = this->bcp.getPoints();
-        int i = 0;
-        for (BezCoord& bcoord : coords) {
-            if (i>=this->nFit) { break; }
-            this->fitted[i++] = Point(bcoord.x(),bcoord.y());
+        vector<BezCoord<double>> coords = this->bcp.getPoints();
+        vector<BezCoord<double>> tans = this->bcp.getTangents();
+        vector<BezCoord<double>> norms = this->bcp.getNormals();
+        for (int i = 0; i < this->nFit; ++i) {
+            this->fitted[i] = Point(coords[i].x(),coords[i].y());
+            this->tangents[i] = Point2d(tans[i].x(),tans[i].y());
+            this->normals[i] = Point2d(norms[i].x(),norms[i].y());
+            //cout << "norms[i]=" << norms[i] << endl;
+            //cout << "normals[i]=" << this->normals[i] << endl; // ok
         }
     }
 
@@ -197,32 +210,39 @@ public:
     //! Re-compute the boxes from the curve
     void refreshBoxes (const double lenA, const double lenB) {
 
+        cout << "Called, lenA=" << lenA << ", lenB=" << lenB << endl;
         if (this->ct == CurveType::Poly) {
-            this->origins = PolyFit::rotate (PolyFit::tracePolyOrth (this->pf, this->minX, this->maxX,
-                                                                     this->nBins+1, lenA),
+            this->pointsInner = PolyFit::rotate (PolyFit::tracePolyOrth (this->pf, this->minX, this->maxX,
+                                                                     this->nFit, lenA),
                                              this->theta);
-            this->tangents = PolyFit::rotate (PolyFit::tracePolyOrth (this->pf, this->minX, this->maxX,
-                                                                      this->nBins+1, lenB),
+            this->pointsOuter = PolyFit::rotate (PolyFit::tracePolyOrth (this->pf, this->minX, this->maxX,
+                                                                      this->nFit, lenB),
                                               this->theta);
         } else {
-            // We have this->fitted as a series of points, need to create origins and tangents...
-            vector<BezCoord> tans = this->bcp.getTangents();
-            int i = 0;
-            for (BezCoord& bcoord : tans) {
-                if (i>this->nBins) { break; }
-                this->tangents[i] = this->fitted[i] + Point(bcoord.x(),bcoord.y());
-                i++;
+            for (int i=0; i<this->nFit; i++) {
+                //cout << "fitted[i]: " << fitted[i] << endl;
+                //cout << "normals[i]: " << this->normals[i] << endl;
+                //cout << "normals[i]*lenA: " << (this->normals[i]*lenA) << endl;
+                Point2d normLenA = this->normals[i]*lenA;
+                Point2d normLenB = this->normals[i]*lenB;
+                //cout << "normals[i]*lenB: " << normLenB << endl;
+                this->pointsInner[i] = this->fitted[i] + Point2i((int)normLenA.x, (int)normLenA.y);
+                //cout << "pointsInner[i]: " << this->pointsInner[i] << endl;
+                this->pointsOuter[i] = this->fitted[i] + Point2i((int)normLenB.x, (int)normLenB.y);
+                //cout << "pointsOuter[i]: " << this->pointsOuter[i] << endl;
             }
         }
 
-        // Make the boxes from origins and tangents
+        // Make the boxes from pointsInner and pointsOuter
         this->boxes.resize (this->nBins);
         for (int i=0; i<this->nBins; i++) {
             vector<Point> pts(4);
-            pts[0] = this->origins[i];
-            pts[1] = this->origins[i+1];
-            pts[2] = this->tangents[i+1];
-            pts[3] = this->tangents[i];
+            pts[0] = this->pointsInner[i];
+            pts[1] = this->pointsInner[i+1];
+            pts[2] = this->pointsOuter[i+1];
+            pts[3] = this->pointsOuter[i];
+            cout << "Define a box of width " << pointsInner[i] - pointsOuter[i]
+                 << ", length: " << pointsInner[i] - pointsInner[i+1] << endl;
             this->boxes[i] = pts;
         }
     }

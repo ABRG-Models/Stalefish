@@ -49,9 +49,9 @@ void onmouse (int event, int x, int y, int flags, void* param)
     // blue. This is the not-yet-placed line
     line (*pImg, cf->axis[0], cf->axis[1], Scalar(0,0,255), 1);
 
-    // yellow. origins to tangents
-    for (size_t i=0; i<cf->origins.size(); i++) {
-        line (*pImg, cf->origins[i], cf->tangents[i], Scalar(0,255,255), 1);
+    // yellow. pointsInner to pointsOuter
+    for (size_t i=0; i<cf->pointsInner.size(); i++) {
+        line (*pImg, cf->pointsInner[i], cf->pointsOuter[i], Scalar(0,255,255), 1);
     }
 
     stringstream ss;
@@ -70,8 +70,8 @@ int main (int argc, char** argv)
         return 1;
     }
 
-    double lenA = 10.;
-    double lenB = 50.;
+    double lenA = 0.;
+    double lenB = 40.;
     for (int i=1; i<argc; i++){
         char* imageName = argv[i];
         cout << "imread " << imageName << endl;
@@ -114,6 +114,7 @@ int main (int argc, char** argv)
             break;
         }
         case ('b'):{
+            // Change to DM::i()->gcf()->incBins()
             DM::i()->gcf()->nBins ++;
             DM::i()->gcf()->nBins %= 100;
             break;
