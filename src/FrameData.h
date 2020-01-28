@@ -167,7 +167,8 @@ public:
 
         // Update this->fitted
         this->bcp.addCurve (this->bc);
-        vector<BezCoord> coords = bcp.getPoints (static_cast<unsigned int>(this->nFit));
+        this->bcp.computePoints (static_cast<unsigned int>(this->nFit));
+        vector<BezCoord> coords = this->bcp.getPoints();
         int i = 0;
         for (BezCoord& bcoord : coords) {
             if (i>=this->nFit) { break; }
@@ -205,6 +206,13 @@ public:
                                               this->theta);
         } else {
             // We have this->fitted as a series of points, need to create origins and tangents...
+            vector<BezCoord> tans = this->bcp.getTangents();
+            int i = 0;
+            for (BezCoord& bcoord : tans) {
+                if (i>this->nBins) { break; }
+                this->tangents[i] = this->fitted[i] + Point(bcoord.x(),bcoord.y());
+                i++;
+            }
         }
 
         // Make the boxes from origins and tangents
