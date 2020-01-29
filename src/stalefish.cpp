@@ -12,6 +12,16 @@ using std::endl;
 using std::stringstream;
 #include <unistd.h>
 
+// OpenCV functions mostly expect colours in Blue-Green-Red order
+#define SF_BLUE Scalar(255,0,0,10)
+#define SF_GREEN Scalar(0,255,0,10)
+#define SF_RED Scalar(0,0,255,10)
+#define SF_YELLOW Scalar(0,255,255,10)
+#define SF_BLACK Scalar(0,0,0)
+#define SF_WHITE Scalar(255,255,255)
+#define SF_C1 Scalar(238,121,159) // mediumpurple2
+#define SF_C2 Scalar(238,58,178) // darkorchid2
+
 //! Global mouse callback. Could perhaps be a member of DM
 void onmouse (int event, int x, int y, int flags, void* param)
 {
@@ -25,40 +35,65 @@ void onmouse (int event, int x, int y, int flags, void* param)
     Mat* pImg = DM::i()->getImg();
     FrameData* cf = DM::i()->gcf();
 
+    // red circle under the cursor
+    circle (*pImg, pt, 5, SF_RED, 2);
+
+    // First the lines in the preceding PP point-sets:
+    for (size_t j=0; j<cf->PP.size(); j++) {
+        Scalar linecol = j%2 ? SF_C1 : SF_C2;
+        for (size_t i=0; i<cf->PP[j].size(); i++) {
+            circle (*pImg, cf->PP[j][i], 5, linecol, 1);
+            if (i) { line (*pImg, cf->PP[j][i-1], cf->PP[j][i], linecol, 2); }
+        }
+    }
+    // Add the control points in similar colours
+    list<BezCurve<double>> theCurves = cf->bcp.curves;
+    size_t j = 0;
+    for (auto curv : theCurves) {
+        Scalar linecol = j%2 ? SF_C1 : SF_C2;
+        vector<pair<double,double>> ctrls = curv.getControls();
+        for (size_t cc = 0; cc<ctrls.size(); ++cc) {
+            Point p1(ctrls[cc].first, ctrls[cc].second);
+            circle (*pImg, p1, 5, linecol, 2);
+            if (cc==0 || cc==ctrls.size()-1) {
+                circle (*pImg, p1, 2, SF_BLACK, -1);
+            } else {
+                circle (*pImg, p1, 2, SF_WHITE, -1);
+            }
+        }
+        j++;
+    }
+
+    // Then the current point set:
+    for (size_t i=0; i<cf->P.size(); i++) {
+        circle (*pImg, cf->P[i], 5, SF_BLUE, 1);
+        if (i) { line (*pImg, cf->P[i-1], cf->P[i], SF_BLUE, 2); }
+    }
+
     // blue
-    circle (*pImg, pt, 5, Scalar(0,0,255), 1);
-
-    // red
-    for (size_t i=1; i<cf->P.size(); i++) {
-        line (*pImg, cf->P[i-1], cf->P[i], Scalar(255,0,0), 1);
-    }
-    // red
-    for (size_t i=0; i<cf->P.size(); i++){
-        circle (*pImg, cf->P[i], 5, Scalar(255,0,0), 1);
-    }
-
-    // red
     if (cf->P.size()) {
-        line (*pImg, cf->P[cf->P.size()-1], pt, Scalar(255,0,0),3);
+        line (*pImg, cf->P[cf->P.size()-1], pt, SF_BLUE, 1);
     }
 
     // green. This is the fit.
-    for(size_t i=1; i<cf->fitted.size(); i++) {
-        line (*pImg, cf->fitted[i-1], cf->fitted[i], Scalar(0,255,0), 1);
-    }
+    if (cf->showFit == true) {
+        for(size_t i=1; i<cf->fitted.size(); i++) {
+            line (*pImg, cf->fitted[i-1], cf->fitted[i], SF_GREEN, 1);
+        }
 
-    // blue. This is the not-yet-placed line
-    line (*pImg, cf->axis[0], cf->axis[1], Scalar(0,0,255), 1);
+        // Which line?
+        line (*pImg, cf->axis[0], cf->axis[1], SF_RED, 1);
 
-    // yellow. pointsInner to pointsOuter
-    for (size_t i=0; i<cf->pointsInner.size(); i++) {
-        line (*pImg, cf->pointsInner[i], cf->pointsOuter[i], Scalar(0,255,255), 1);
+        // yellow. pointsInner to pointsOuter
+        for (size_t i=0; i<cf->pointsInner.size(); i++) {
+            line (*pImg, cf->pointsInner[i], cf->pointsOuter[i], SF_YELLOW, 1);
+        }
     }
 
     stringstream ss;
     ss << "Frame: " << DM::i()->getFrameNum() << "/" << DM::i()->getNumFrames()
        << " " << DM::i()->gcf()->getFitInfo();
-    putText (*pImg, ss.str(), Point(30,30), FONT_HERSHEY_SIMPLEX, 0.8, Scalar(0,0,0), 1, CV_AA);
+    putText (*pImg, ss.str(), Point(30,30), FONT_HERSHEY_SIMPLEX, 0.8, SF_BLACK, 1, CV_AA);
 
     imshow ("StaleFish", *pImg);
 }
@@ -114,13 +149,21 @@ int main (int argc, char** argv)
             DM::i()->gcf()->polyOrder %= 10;
             break;
         }
-        case ('b'):{
+        case ('s'):
+        {
+            // show/unshow the fit and boxes
+            DM::i()->gcf()->toggleShowFit();
+            break;
+        }
+        case ('b'):
+        {
             // Change to DM::i()->gcf()->incBins()
             DM::i()->gcf()->nBins ++;
             DM::i()->gcf()->nBins %= 100;
             break;
         }
-        case ('m'):{
+        case ('m'):
+        {
             // Change 'mode'
             DM::i()->gcf()->toggleCurveType();
             DM::i()->gcf()->updateFit();
@@ -135,7 +178,6 @@ int main (int argc, char** argv)
         }
         case (' '):
         {
-            cout << "SPACE" << endl;
             DM::i()->gcf()->nextCurve();
             break;
         }

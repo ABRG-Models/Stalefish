@@ -95,9 +95,10 @@ public:
     vector<Point> pointsInner;
     //! endpoints for the lines making the box sides (a greater distance from the curve)
     vector<Point> pointsOuter;
-
     //! The boxes that are drawn and from which to sample the gene expression
     vector<vector<Point> > boxes;
+    //! Do we show the fit lines or not?
+    bool showFit = true;
     //! The image data, required when sampling the image in one of the boxes.
     Mat frame;
     //@}
@@ -148,8 +149,13 @@ public:
             // no op.
             return;
         }
+        // Don't add unless at least 3 points to fit:
+        if (this->P.size() < 3) {
+            return;
+        }
         this->PP.push_back (this->P);
         this->P.clear();
+        this->P.push_back (this->PP.back().back());
         this->pp_idx++;
     }
 
@@ -183,7 +189,8 @@ public:
     }
 
     void updateFitBezier (void) {
-        if (this->P.size() < 2) {
+
+        if (this->PP.empty() && this->P.size() < 2) {
             cout << "Too few points to fit" << endl;
             return;
         }
@@ -203,17 +210,18 @@ public:
             this->bcp.addCurve (this->bc);
         }
 
-        vector<pair<double,double>> user_points;
-        user_points.clear();
-        for (auto pt : this->P) {
-            cout << "Adding a P point " << pt.x <<"," << pt.y << endl;
-            user_points.push_back (make_pair(pt.x, pt.y));
+        if (this->P.size()>2) {
+            vector<pair<double,double>> user_points;
+            user_points.clear();
+            for (auto pt : this->P) {
+                cout << "Adding a P point " << pt.x <<"," << pt.y << endl;
+                user_points.push_back (make_pair(pt.x, pt.y));
+            }
+            this->bc.fit (user_points);
+            this->bcp.addCurve (this->bc);
         }
-        this->bc.fit (user_points);
-        this->bcp.addCurve (this->bc);
 
         // Update this->fitted
-        this->bcp.addCurve (this->bc);
         this->bcp.computePoints (static_cast<unsigned int>(this->nFit));
         vector<BezCoord<double>> coords = this->bcp.getPoints();
         vector<BezCoord<double>> tans = this->bcp.getTangents();
@@ -292,5 +300,10 @@ public:
             this->ct = CurveType::Poly;
         }
     }
+
+    void toggleShowFit (void) {
+        this->showFit = this->showFit ? false : true;
+    }
+
 
 }; // FrameData
