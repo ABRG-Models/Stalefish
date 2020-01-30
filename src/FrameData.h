@@ -205,6 +205,9 @@ public:
                 cout << "Adding a PP point " << pt.x <<"," << pt.y << endl;
                 user_points.push_back (make_pair(pt.x, pt.y));
             }
+            // Fixme: Create a BezCurve::fit method which can accept a 'last (2) control
+            // points of a preceding curve and use those to make the best fit which also
+            // keeps the derivatives identical at the join.
             this->bc.fit (user_points);
             // Update this->fitted
             this->bcp.addCurve (this->bc);
