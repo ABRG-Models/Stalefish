@@ -119,6 +119,16 @@ public:
         this->polyOrder = 3;
     };
 
+    void incBins (unsigned int num=1) {
+        this->nBins += num;
+        this->nFit += num;
+        this->fitted.resize (this->nFit);
+        this->pointsInner.resize (this->nFit);
+        this->pointsOuter.resize (this->nFit);
+        this->tangents.resize (this->nFit);
+        this->normals.resize (this->nFit);
+    }
+
     string getFitInfo (void) const {
         stringstream ss;
         if (this->ct == CurveType::Poly) {

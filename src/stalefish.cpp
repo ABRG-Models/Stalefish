@@ -163,9 +163,18 @@ int main (int argc, char** argv)
         }
         case ('b'):
         {
-            // Change to DM::i()->gcf()->incBins()
-            DM::i()->gcf()->nBins ++;
-            DM::i()->gcf()->nBins %= 100;
+            DM::i()->gcf()->incBins();
+            DM::i()->gcf()->updateFit();
+            DM::i()->gcf()->refreshBoxes(lenA,lenB);
+            DM::i()->gcf()->getBoxMeans();
+            break;
+        }
+        case ('B'):
+        {
+            DM::i()->gcf()->incBins(10);
+            DM::i()->gcf()->updateFit();
+            DM::i()->gcf()->refreshBoxes(lenA,lenB);
+            DM::i()->gcf()->getBoxMeans();
             break;
         }
         case ('m'):
