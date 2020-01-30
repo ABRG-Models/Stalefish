@@ -46,6 +46,8 @@ void onmouse (int event, int x, int y, int flags, void* param)
             if (i) { line (*pImg, cf->PP[j][i-1], cf->PP[j][i], linecol, 2); }
         }
     }
+
+#if 0
     // Add the control points in similar colours
     list<BezCurve<double>> theCurves = cf->bcp.curves;
     size_t j = 0;
@@ -63,6 +65,7 @@ void onmouse (int event, int x, int y, int flags, void* param)
         }
         j++;
     }
+#endif
 
     // Then the current point set:
     for (size_t i=0; i<cf->P.size(); i++) {
@@ -136,6 +139,9 @@ int main (int argc, char** argv)
         case('c'):
         {
             DM::i()->gcf()->removeLastPoint();
+            DM::i()->gcf()->updateFit();
+            DM::i()->gcf()->refreshBoxes(lenA,lenB);
+            DM::i()->gcf()->getBoxMeans();
             break;
         }
         case ('n'):

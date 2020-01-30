@@ -109,7 +109,7 @@ public:
         this->axiscoefs.resize (2, 0.0);
         this->axis.resize (2);
         // NB: Init these before the next three resize() calls
-        this->nFit = 51;
+        this->nFit = 101;
         this->nBins = nFit-1;
         this->fitted.resize (this->nFit);
         this->pointsInner.resize (this->nFit);
@@ -133,13 +133,20 @@ public:
 
     void removeLastPoint (void) {
         if (!this->P.empty()) {
+            cout << "P.pop_back()" << endl;
             this->P.pop_back();
+            cout << "P.popped_back()" << endl;
         } else {
             // P is empty. Go to previous curve...
+            cout << "check prev. curve, pp_idx=" << pp_idx << endl;
             if (this->ct == CurveType::Bezier && this->pp_idx>0) {
-                this->P = this->PP[this->pp_idx--];
+                cout << "Set P to PP[" << pp_idx-1 << "]" << endl;
+                this->P = this->PP[--this->pp_idx];
+                cout << "PP.pop_back()" << endl;
                 this->PP.pop_back();
-                this->P.pop_back();
+                cout << "PP.popped_back()" << endl;
+                //cout << "P.pop_back()" << endl;
+                //this->P.pop_back(); // Why was this here?
             }
         }
     }
@@ -157,6 +164,7 @@ public:
         this->P.clear();
         this->P.push_back (this->PP.back().back());
         this->pp_idx++;
+        cout << "nextCurve; pp_idx is now " << pp_idx << endl;
     }
 
     void getBoxMeans (void) {
@@ -205,7 +213,14 @@ public:
                 cout << "Adding a PP point " << pt.x <<"," << pt.y << endl;
                 user_points.push_back (make_pair(pt.x, pt.y));
             }
-            this->bc.fit (user_points);
+            if (this->bcp.isNull()) {
+                // No previous curves; fit just on user_points
+                this->bc.fit (user_points);
+            } else {
+                // Have previous curve, use last control of previous curve to make
+                // smooth transition.
+                this->bc.fit (user_points, this->bcp.curves.back());
+            }
             // Update this->fitted
             this->bcp.addCurve (this->bc);
         }
@@ -217,7 +232,13 @@ public:
                 cout << "Adding a P point " << pt.x <<"," << pt.y << endl;
                 user_points.push_back (make_pair(pt.x, pt.y));
             }
-            this->bc.fit (user_points);
+            if (this->bcp.isNull()) {
+                // No previous curves; fit just on user_points
+                this->bc.fit (user_points);
+            } else {
+                this->bc.fit (user_points, this->bcp.curves.back());
+            }
+
             this->bcp.addCurve (this->bc);
         }
 
