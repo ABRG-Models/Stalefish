@@ -213,6 +213,7 @@ public:
                 cout << "Adding a PP point " << pt.x <<"," << pt.y << endl;
                 user_points.push_back (make_pair(pt.x, pt.y));
             }
+
             if (this->bcp.isNull()) {
                 // No previous curves; fit just on user_points
                 this->bc.fit (user_points);
@@ -221,6 +222,7 @@ public:
                 // smooth transition.
                 this->bc.fit (user_points, this->bcp.curves.back());
             }
+
             // Update this->fitted
             this->bcp.addCurve (this->bc);
         }
