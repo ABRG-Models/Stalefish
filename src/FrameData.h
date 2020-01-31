@@ -59,7 +59,7 @@ public:
     //! Bezier curve attributes
     //@{
     //! An auto-fitting Bezier curve
-    BezCurve<double> bc;
+    //BezCurve<double> bc;
     //! But the auto fit curve isn't good enough to do the whole cortical curve, so
     //! we'll need several in a BezCurvePath
     BezCurvePath<double> bcp;
@@ -134,7 +134,17 @@ public:
         if (this->ct == CurveType::Poly) {
             ss << "Poly order: " << this->polyOrder << ", Bins: " << this->nBins;
         } else if (this->ct == CurveType::Bezier) {
-            ss << "Bezier order: " << this->bc.getOrder() << ", Bins: " << this->nBins;
+            stringstream bb;
+            bool first = true;
+            for (auto cv : this->bcp.curves) {
+                if (first) {
+                    bb << cv.getOrder();
+                    first = false;
+                } else {
+                    bb << "/" << cv.getOrder();
+                }
+            }
+            ss << "Bezier order: " << bb.str() << ", Bins: " << this->nBins;
         } else {
             ss << "unknown";
         }
@@ -224,17 +234,23 @@ public:
                 user_points.push_back (make_pair(pt.x, pt.y));
             }
 
+            BezCurve<double> bc;
             if (this->bcp.isNull()) {
                 // No previous curves; fit just on user_points
-                this->bc.fit (user_points);
+                bc.fit (user_points);
+                cout << "fit with no previous curve..." << endl;
+                this->bcp.addCurve (bc);
             } else {
                 // Have previous curve, use last control of previous curve to make
                 // smooth transition.
-                this->bc.fit (user_points, this->bcp.curves.back());
-            }
+                cout << "fit with previous curve..." << endl;
+                BezCurve<double> last = this->bcp.curves.back();
+                bc.fit (user_points, last);
+                this->bcp.removeCurve();
+                this->bcp.addCurve (last);
+                this->bcp.addCurve (bc);
 
-            // Update this->fitted
-            this->bcp.addCurve (this->bc);
+            }
         }
 
         if (this->P.size()>2) {
@@ -244,14 +260,20 @@ public:
                 cout << "Adding a P point " << pt.x <<"," << pt.y << endl;
                 user_points.push_back (make_pair(pt.x, pt.y));
             }
+            BezCurve<double> bc;
             if (this->bcp.isNull()) {
                 // No previous curves; fit just on user_points
-                this->bc.fit (user_points);
+                bc.fit (user_points);
+                cout << "fit P with no previous curve..." << endl;
+                this->bcp.addCurve (bc);
             } else {
-                this->bc.fit (user_points, this->bcp.curves.back());
+                BezCurve<double> last = this->bcp.curves.back();
+                bc.fit (user_points, last);
+                cout << "fit P with previous curve..." << endl;
+                this->bcp.removeCurve();
+                this->bcp.addCurve (last);
+                this->bcp.addCurve (bc);
             }
-
-            this->bcp.addCurve (this->bc);
         }
 
         // Update this->fitted
@@ -338,5 +360,7 @@ public:
         this->showFit = this->showFit ? false : true;
     }
 
-
+    void setShowFit (bool t) {
+        this->showFit = t;
+    }
 }; // FrameData

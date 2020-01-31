@@ -40,42 +40,51 @@ void onmouse (int event, int x, int y, int flags, void* param)
 
     // First the lines in the preceding PP point-sets:
     for (size_t j=0; j<cf->PP.size(); j++) {
-        Scalar linecol = j%2 ? SF_C1 : SF_C2;
+        Scalar linecol = j%2 ? SF_RED : SF_BLUE;
         for (size_t i=0; i<cf->PP[j].size(); i++) {
             circle (*pImg, cf->PP[j][i], 5, linecol, 1);
             if (i) { line (*pImg, cf->PP[j][i-1], cf->PP[j][i], linecol, 2); }
         }
     }
 
-#if 0
+#if 1
     // Add the control points in similar colours
     list<BezCurve<double>> theCurves = cf->bcp.curves;
     size_t j = 0;
     for (auto curv : theCurves) {
-        Scalar linecol = j%2 ? SF_C1 : SF_C2;
+        Scalar linecol = j%2 ? SF_RED : SF_BLUE;
         vector<pair<double,double>> ctrls = curv.getControls();
         for (size_t cc = 0; cc<ctrls.size(); ++cc) {
             Point p1(ctrls[cc].first, ctrls[cc].second);
-            circle (*pImg, p1, 5, linecol, 2);
+            circle (*pImg, p1, 5, linecol, -1);
+#if 0
             if (cc==0 || cc==ctrls.size()-1) {
                 circle (*pImg, p1, 2, SF_BLACK, -1);
             } else {
                 circle (*pImg, p1, 2, SF_WHITE, -1);
             }
+#endif
         }
+        Point ps(ctrls[0].first, ctrls[0].second);
+        Point pe(ctrls[1].first, ctrls[1].second);
+        line (*pImg, ps, pe, SF_GREEN, 1);
+        Point ps2(ctrls[ctrls.size()-2].first, ctrls[ctrls.size()-2].second);
+        Point pe2(ctrls[ctrls.size()-1].first, ctrls[ctrls.size()-1].second);
+        line (*pImg, ps2, pe2, SF_GREEN, 1);
+
         j++;
     }
 #endif
 
     // Then the current point set:
     for (size_t i=0; i<cf->P.size(); i++) {
-        circle (*pImg, cf->P[i], 5, SF_BLUE, 1);
-        if (i) { line (*pImg, cf->P[i-1], cf->P[i], SF_BLUE, 2); }
+        circle (*pImg, cf->P[i], 5, SF_C1, 1);
+        if (i) { line (*pImg, cf->P[i-1], cf->P[i], SF_C1, 2); }
     }
 
     // blue
     if (cf->P.size()) {
-        line (*pImg, cf->P[cf->P.size()-1], pt, SF_BLUE, 1);
+        line (*pImg, cf->P[cf->P.size()-1], pt, SF_C1, 1);
     }
 
     // green. This is the fit.
@@ -84,7 +93,7 @@ void onmouse (int event, int x, int y, int flags, void* param)
             line (*pImg, cf->fitted[i-1], cf->fitted[i], SF_GREEN, 1);
         }
 
-        // Which line?
+        // Axis line, relevant for polynomial fit
         line (*pImg, cf->axis[0], cf->axis[1], SF_RED, 1);
 
         // yellow. pointsInner to pointsOuter
@@ -131,6 +140,7 @@ int main (int argc, char** argv)
         switch(k) {
         case('x'):
         {
+            DM::i()->gcf()->setShowFit(true);
             DM::i()->gcf()->updateFit();
             DM::i()->gcf()->refreshBoxes(lenA,lenB);
             DM::i()->gcf()->getBoxMeans();
@@ -139,9 +149,9 @@ int main (int argc, char** argv)
         case('c'):
         {
             DM::i()->gcf()->removeLastPoint();
-            DM::i()->gcf()->updateFit();
-            DM::i()->gcf()->refreshBoxes(lenA,lenB);
-            DM::i()->gcf()->getBoxMeans();
+            //DM::i()->gcf()->updateFit();
+            //DM::i()->gcf()->refreshBoxes(lenA,lenB);
+            //DM::i()->gcf()->getBoxMeans();
             break;
         }
         case ('n'):
