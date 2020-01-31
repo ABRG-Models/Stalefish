@@ -20,6 +20,8 @@ using std::flush;
 #include <utility>
 using std::make_pair;
 using std::pair;
+#include <bitset>
+using std::bitset;
 #include "tools.h"
 #include <morph/BezCurvePath.h>
 using morph::BezCurvePath;
@@ -31,6 +33,13 @@ using morph::BezCoord;
 enum class CurveType {
     Poly,  // Variable order polynomial
     Bezier // Cubic Bezier
+};
+
+enum Flag {
+    ShowBoxes, // Show the yellow boxes?
+    ShowUsers, // Show the user points?
+    ShowCtrls, // Show the ctrl points of the fits?
+    ShowFits // Show the fits?
 };
 
 /*!
@@ -77,10 +86,17 @@ public:
     int pp_idx = 0;
     //! The means computed for the boxes.
     vector<double> means;
+private:
     //! Number of bins to create for the fit (one less than nFit)
     int nBins;
     //! Number of points to create in the fit
     int nFit;
+public:
+    //! Target number of bins; used by bins slider
+    int nBinsTarg;
+    //! The bin lengths, set with a slider.
+    int binA;
+    int binB;
     //! A set of points created from the fit
     vector<Point> fitted;
     //! For point in fitted, the tangent at that location
@@ -97,8 +113,8 @@ public:
     vector<Point> pointsOuter;
     //! The boxes that are drawn and from which to sample the gene expression
     vector<vector<Point> > boxes;
-    //! Do we show the fit lines or not?
-    bool showFit = true;
+    //! A bit set containing flags
+    bitset<8> flags;
     //! The image data, required when sampling the image in one of the boxes.
     Mat frame;
     //@}
@@ -109,24 +125,28 @@ public:
         this->axiscoefs.resize (2, 0.0);
         this->axis.resize (2);
         // NB: Init these before the next three resize() calls
-        this->nFit = 101;
-        this->nBins = nFit-1;
-        this->fitted.resize (this->nFit);
-        this->pointsInner.resize (this->nFit);
-        this->pointsOuter.resize (this->nFit);
-        this->tangents.resize (this->nFit);
-        this->normals.resize (this->nFit);
+        this->setBins (100);
         this->polyOrder = 3;
+        // Init flags
+        this->flags.set (ShowFits);
+        this->flags.set (ShowUsers);
+        //this->flags.set (ShowCtrls);
+        this->flags.set (ShowBoxes);
     };
 
-    void incBins (unsigned int num=1) {
-        this->nBins += num;
-        this->nFit += num;
+    void setBins (unsigned int num=1) {
+        this->nBins = num;
+        this->nBinsTarg = num;
+        this->nFit = num + 1;
         this->fitted.resize (this->nFit);
         this->pointsInner.resize (this->nFit);
         this->pointsOuter.resize (this->nFit);
         this->tangents.resize (this->nFit);
         this->normals.resize (this->nFit);
+    }
+
+    void incBins (unsigned int num=1) {
+        this->setBins (this->nBins + num);
     }
 
     string getFitInfo (void) const {
@@ -230,7 +250,7 @@ public:
             vector<pair<double,double>> user_points;
             user_points.clear();
             for (auto pt : _P) {
-                cout << "Adding a PP point " << pt.x <<"," << pt.y << endl;
+                //cout << "Adding a PP point " << pt.x <<"," << pt.y << endl;
                 user_points.push_back (make_pair(pt.x, pt.y));
             }
 
@@ -238,12 +258,12 @@ public:
             if (this->bcp.isNull()) {
                 // No previous curves; fit just on user_points
                 bc.fit (user_points);
-                cout << "fit with no previous curve..." << endl;
+                //cout << "fit with no previous curve..." << endl;
                 this->bcp.addCurve (bc);
             } else {
                 // Have previous curve, use last control of previous curve to make
                 // smooth transition.
-                cout << "fit with previous curve..." << endl;
+                //cout << "fit with previous curve..." << endl;
                 BezCurve<double> last = this->bcp.curves.back();
                 bc.fit (user_points, last);
                 this->bcp.removeCurve();
@@ -257,19 +277,19 @@ public:
             vector<pair<double,double>> user_points;
             user_points.clear();
             for (auto pt : this->P) {
-                cout << "Adding a P point " << pt.x <<"," << pt.y << endl;
+                //cout << "Adding a P point " << pt.x <<"," << pt.y << endl;
                 user_points.push_back (make_pair(pt.x, pt.y));
             }
             BezCurve<double> bc;
             if (this->bcp.isNull()) {
                 // No previous curves; fit just on user_points
                 bc.fit (user_points);
-                cout << "fit P with no previous curve..." << endl;
+                //cout << "fit P with no previous curve..." << endl;
                 this->bcp.addCurve (bc);
             } else {
                 BezCurve<double> last = this->bcp.curves.back();
                 bc.fit (user_points, last);
-                cout << "fit P with previous curve..." << endl;
+                //cout << "fit P with previous curve..." << endl;
                 this->bcp.removeCurve();
                 this->bcp.addCurve (last);
                 this->bcp.addCurve (bc);
@@ -309,9 +329,12 @@ public:
     }
 
     //! Re-compute the boxes from the curve
+    void refreshBoxes (const int lenA, const int lenB) {
+        this->refreshBoxes ((double)lenA, (double)lenB);
+    }
     void refreshBoxes (const double lenA, const double lenB) {
 
-        cout << "Called, lenA=" << lenA << ", lenB=" << lenB << endl;
+        // cout << "Called, lenA=" << lenA << ", lenB=" << lenB << endl;
         if (this->ct == CurveType::Poly) {
             this->pointsInner = PolyFit::rotate (PolyFit::tracePolyOrth (this->pf, this->minX, this->maxX,
                                                                      this->nFit, lenA),
@@ -356,11 +379,31 @@ public:
         }
     }
 
-    void toggleShowFit (void) {
-        this->showFit = this->showFit ? false : true;
+    void toggleShowBoxes (void) {
+        this->flags[ShowBoxes] = this->flags.test(ShowBoxes) ? false : true;
+    }
+    void setShowBoxes (bool t) {
+        this->flags[ShowBoxes] = t;
     }
 
-    void setShowFit (bool t) {
-        this->showFit = t;
+    void toggleShowFits (void) {
+        this->flags[ShowFits] = this->flags.test(ShowFits) ? false : true;
+    }
+    void setShowFits (bool t) {
+        this->flags[ShowFits] = t;
+    }
+
+    void toggleShowUsers (void) {
+        this->flags[ShowUsers] = this->flags.test(ShowUsers) ? false : true;
+    }
+    void setShowUsers (bool t) {
+        this->flags[ShowUsers] = t;
+    }
+
+    void toggleShowCtrls (void) {
+        this->flags[ShowCtrls] = this->flags.test(ShowCtrls) ? false : true;
+    }
+    void setShowCtrls (bool t) {
+        this->flags[ShowCtrls] = t;
     }
 }; // FrameData

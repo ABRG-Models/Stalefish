@@ -69,6 +69,8 @@ public:
     void cloneFrame (void) {
         this->img = this->vFrameData[this->I].frame.clone();
     }
+    //! The application window name
+    const string winName = "StaleFish";
 };
 
 //! Globally initialise DM instance pointer to NULL
