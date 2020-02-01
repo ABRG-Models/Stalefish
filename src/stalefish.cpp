@@ -101,7 +101,9 @@ static void onmouse (int event, int x, int y, int flags, void* param)
             line (*pImg, cf->fitted[i-1], cf->fitted[i], SF_GREEN, 1);
         }
         // Axis line, relevant for polynomial fit
-        line (*pImg, cf->axis[0], cf->axis[1], SF_RED, 1);
+        if (cf->ct == CurveType::Poly) {
+            line (*pImg, cf->axis[0], cf->axis[1], SF_RED, 1);
+        }
     }
 
     if (cf->flags.test(ShowBoxes) == true) {
@@ -123,6 +125,8 @@ static void onmouse (int event, int x, int y, int flags, void* param)
 static void ontrackbar_boxes (int val, void*)
 {
     FrameData* cf = DM::i()->gcf();
+    cf->binA = DM::i()->binA;
+    cf->binB = DM::i()->binB;
     cf->setShowBoxes (true);
     cf->refreshBoxes (-cf->binA, cf->binB);
     onmouse (CV_EVENT_MOUSEMOVE, -1, -1, 0, NULL);
@@ -131,6 +135,7 @@ static void ontrackbar_boxes (int val, void*)
 static void ontrackbar_nbins (int val, void*)
 {
     FrameData* cf = DM::i()->gcf();
+    cf->nBinsTarg = DM::i()->nBinsTarg;
     if (cf->nBinsTarg < 2) {
         cf->nBinsTarg = 2;
     }
@@ -139,6 +144,20 @@ static void ontrackbar_nbins (int val, void*)
     cf->updateFit();
     cf->refreshBoxes (-cf->binA, cf->binB);
     onmouse (CV_EVENT_MOUSEMOVE, -1, -1, 0, NULL);
+}
+
+static void createTrackbars (void)
+{
+    // Set up trackbars. Have to do this for each frame
+    string tbBinA = "Box A";
+    string tbBinB = "Box B";
+    string tbNBins = "Num bins";
+    createTrackbar (tbBinA, DM::i()->winName, &DM::i()->binA, 200, ontrackbar_boxes);
+    setTrackbarPos (tbBinA, DM::i()->winName, DM::i()->binA);
+    createTrackbar (tbBinB, DM::i()->winName, &DM::i()->binB, 200, ontrackbar_boxes);
+    setTrackbarPos (tbBinB, DM::i()->winName, DM::i()->binB);
+    createTrackbar (tbNBins, DM::i()->winName, &DM::i()->nBinsTarg, 200, ontrackbar_nbins);
+    setTrackbarPos (tbNBins, DM::i()->winName, DM::i()->nBinsTarg);
 }
 
 //! Main entry point
@@ -163,17 +182,11 @@ int main (int argc, char** argv)
     // Make sure there's an image in DM to start with
     DM::i()->cloneFrame();
     setMouseCallback (DM::i()->winName, onmouse, DM::i()->getImg());
-
-    // Set up trackbars
-    string tbBinA = "Box A";
-    string tbBinB = "Box B";
-    string tbNBins = "Num bins";
-    createTrackbar (tbBinA, DM::i()->winName, &DM::i()->gcf()->binA, 200, ontrackbar_boxes);
-    setTrackbarPos (tbBinA, DM::i()->winName, 0);
-    createTrackbar (tbBinB, DM::i()->winName, &DM::i()->gcf()->binB, 200, ontrackbar_boxes);
-    setTrackbarPos (tbBinB, DM::i()->winName, 40);
-    createTrackbar (tbNBins, DM::i()->winName, &DM::i()->gcf()->nBinsTarg, 200, ontrackbar_nbins);
-    setTrackbarPos (tbBinA, DM::i()->winName, 0);
+    createTrackbars();
+    // Init current frame with binA, binB and nBinsTarg:
+    DM::i()->gcf()->binA = DM::i()->binA;
+    DM::i()->gcf()->binB = DM::i()->binB;
+    DM::i()->gcf()->nBinsTarg = DM::i()->nBinsTarg;
 
     // *** MAIN LOOP ***
     while (1) {

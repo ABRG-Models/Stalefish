@@ -64,6 +64,9 @@ public:
     //! Make the next frame current (or cycle back to the first)
     void nextFrame (void) {
         ++this->I %= this->vFrameData.size();
+        DM::i()->gcf()->binA = DM::i()->binA;
+        DM::i()->gcf()->binB = DM::i()->binB;
+        DM::i()->gcf()->nBinsTarg = DM::i()->nBinsTarg;
     }
     //! Clone the current frame into Mat img
     void cloneFrame (void) {
@@ -74,6 +77,11 @@ public:
     //! Saved/last cursor position
     int x = 0;
     int y = 0;
+    //! Target number of bins; used by bins slider. Apply this to the framedata
+    int nBinsTarg = 100;
+    //! The bin lengths, set with a slider.
+    int binA = 0;
+    int binB = 40;
 };
 
 //! Globally initialise DM instance pointer to NULL
