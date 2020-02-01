@@ -172,21 +172,25 @@ public:
     }
 
     void removeLastPoint (void) {
-        if (!this->P.empty()) {
-            cout << "P.pop_back()" << endl;
+        if (this->PP.empty() && this->P.size() == 1) {
+            // Normal behaviour, just remove point from P
             this->P.pop_back();
-            cout << "P.popped_back()" << endl;
+
+        } else if (!this->PP.empty() && this->P.size() == 1) {
+            // Remove point from P and...
+            this->P.pop_back();
+            // Because it is the same locn, the last point from PP.back(), too
+            this->removeLastPoint();
+
+        } else if (!this->P.empty()) {
+            this->P.pop_back();
+
         } else {
-            // P is empty. Go to previous curve...
-            cout << "check prev. curve, pp_idx=" << pp_idx << endl;
+            // P is empty, go to previous curve and remove a point from that
             if (this->ct == CurveType::Bezier && this->pp_idx>0) {
-                cout << "Set P to PP[" << pp_idx-1 << "]" << endl;
                 this->P = this->PP[--this->pp_idx];
-                cout << "PP.pop_back()" << endl;
                 this->PP.pop_back();
-                cout << "PP.popped_back()" << endl;
-                //cout << "P.pop_back()" << endl;
-                //this->P.pop_back(); // Why was this here?
+                this->P.pop_back();
             }
         }
     }

@@ -26,6 +26,12 @@ using std::stringstream;
 static void onmouse (int event, int x, int y, int flags, void* param)
 {
     Point pt = Point(x,y);
+    if (x==-1 && y==-1) {
+        pt = Point(DM::i()->x, DM::i()->y);
+    } else {
+        DM::i()->x = x;
+        DM::i()->y = y;
+    }
     if (event == CV_EVENT_LBUTTONDOWN) {
         DM::i()->gcf()->P.push_back (pt);
         DM::i()->gcf()->setShowUsers(true);
@@ -37,14 +43,14 @@ static void onmouse (int event, int x, int y, int flags, void* param)
     FrameData* cf = DM::i()->gcf();
 
     // red circle under the cursor
-    circle (*pImg, pt, 5, SF_RED, 2);
+    circle (*pImg, pt, 5, SF_RED, 1);
 
     if (cf->flags.test(ShowUsers) == true) {
         // First the lines in the preceding PP point-sets:
         for (size_t j=0; j<cf->PP.size(); j++) {
             Scalar linecol = j%2 ? SF_RED : SF_BLUE;
             for (size_t i=0; i<cf->PP[j].size(); i++) {
-                circle (*pImg, cf->PP[j][i], 5, linecol, 1);
+                circle (*pImg, cf->PP[j][i], 5, linecol, -1);
                 if (i) { line (*pImg, cf->PP[j][i-1], cf->PP[j][i], linecol, 2); }
             }
         }
@@ -60,13 +66,6 @@ static void onmouse (int event, int x, int y, int flags, void* param)
             for (size_t cc = 0; cc<ctrls.size(); ++cc) {
                 Point p1(ctrls[cc].first, ctrls[cc].second);
                 circle (*pImg, p1, 5, linecol, -1);
-#if 0
-                if (cc==0 || cc==ctrls.size()-1) {
-                    circle (*pImg, p1, 2, SF_BLACK, -1);
-                } else {
-                    circle (*pImg, p1, 2, SF_WHITE, -1);
-                }
-#endif
             }
             Point ps(ctrls[0].first, ctrls[0].second);
             Point pe(ctrls[1].first, ctrls[1].second);
@@ -81,14 +80,17 @@ static void onmouse (int event, int x, int y, int flags, void* param)
 
     if (cf->flags.test(ShowUsers) == true) {
         // Then the current point set:
-        for (size_t i=0; i<cf->P.size(); i++) {
-            circle (*pImg, cf->P[i], 5, SF_C1, 1);
-            if (i) { line (*pImg, cf->P[i-1], cf->P[i], SF_C1, 2); }
+        if (cf->PP.empty() || (!cf->PP.empty() && cf->P.size() > 1)) {
+            for (size_t i=0; i<cf->P.size(); i++) {
+                circle (*pImg, cf->P[i], 5, SF_BLACK, -1);
+                if (i) { line (*pImg, cf->P[i-1], cf->P[i], SF_BLACK, 2); }
+            }
         }
-#if 0
-        // blue line to cursor position?
-        if (cf->P.size()) {
-            line (*pImg, cf->P[cf->P.size()-1], pt, SF_C1, 1);
+#if 1
+        // line to cursor position?
+        if ((cf->PP.empty() && cf->P.size() > 0)
+            || (!cf->PP.empty() && cf->P.size() > 1)) {
+            line (*pImg, cf->P[cf->P.size()-1], pt, SF_BLACK, 1);
         }
 #endif
     }
@@ -123,7 +125,7 @@ static void ontrackbar_boxes (int val, void*)
     FrameData* cf = DM::i()->gcf();
     cf->setShowBoxes (true);
     cf->refreshBoxes (-cf->binA, cf->binB);
-    onmouse (CV_EVENT_MOUSEMOVE, 0, 0, 0, NULL);
+    onmouse (CV_EVENT_MOUSEMOVE, -1, -1, 0, NULL);
 }
 
 static void ontrackbar_nbins (int val, void*)
@@ -136,7 +138,7 @@ static void ontrackbar_nbins (int val, void*)
     cf->setShowBoxes (true);
     cf->updateFit();
     cf->refreshBoxes (-cf->binA, cf->binB);
-    onmouse (CV_EVENT_MOUSEMOVE, 0, 0, 0, NULL);
+    onmouse (CV_EVENT_MOUSEMOVE, -1, -1, 0, NULL);
 }
 
 //! Main entry point
@@ -163,30 +165,30 @@ int main (int argc, char** argv)
     setMouseCallback (DM::i()->winName, onmouse, DM::i()->getImg());
 
     // Set up trackbars
-    string tbBinB = "Box outer";
-    string tbBinA = "Box inner";
+    string tbBinA = "Box A";
+    string tbBinB = "Box B";
     string tbNBins = "Num bins";
-    createTrackbar (tbBinB, DM::i()->winName, &DM::i()->gcf()->binB, 200, ontrackbar_boxes);
-    setTrackbarPos (tbBinB, DM::i()->winName, 40);
     createTrackbar (tbBinA, DM::i()->winName, &DM::i()->gcf()->binA, 200, ontrackbar_boxes);
     setTrackbarPos (tbBinA, DM::i()->winName, 0);
+    createTrackbar (tbBinB, DM::i()->winName, &DM::i()->gcf()->binB, 200, ontrackbar_boxes);
+    setTrackbarPos (tbBinB, DM::i()->winName, 40);
     createTrackbar (tbNBins, DM::i()->winName, &DM::i()->gcf()->nBinsTarg, 200, ontrackbar_nbins);
     setTrackbarPos (tbBinA, DM::i()->winName, 0);
 
     // *** MAIN LOOP ***
     while (1) {
-        onmouse (CV_EVENT_MOUSEMOVE, 0, 0, 0, NULL);
+        onmouse (CV_EVENT_MOUSEMOVE, -1, -1, 0, NULL);
         char k = waitKey(0);
         switch(k) {
         // 1 to 4 - select what is shown
         case ('1'):
         {
-            DM::i()->gcf()->toggleShowUsers();
+            DM::i()->gcf()->toggleShowCtrls();
             break;
         }
         case ('2'):
         {
-            DM::i()->gcf()->toggleShowCtrls();
+            DM::i()->gcf()->toggleShowUsers();
             break;
         }
         case ('3'):

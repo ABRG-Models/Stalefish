@@ -71,6 +71,9 @@ public:
     }
     //! The application window name
     const string winName = "StaleFish";
+    //! Saved/last cursor position
+    int x = 0;
+    int y = 0;
 };
 
 //! Globally initialise DM instance pointer to NULL
