@@ -29,6 +29,8 @@ using morph::BezCurvePath;
 using morph::BezCurve;
 #include <morph/BezCoord.h>
 using morph::BezCoord;
+#include <morph/HdfData.h>
+using morph::HdfData;
 
 enum class CurveType {
     Poly,  // Variable order polynomial
@@ -44,7 +46,7 @@ enum Flag {
 
 /*!
  * A class to hold a cortical section image, user-supplied cortex edge points and the
- * resulting fit (either polynomial, or, to come, Bezier curved).
+ * resulting fit (either polynomial or Bezier curved).
  */
 class FrameData
 {
@@ -67,10 +69,7 @@ public:
 
     //! Bezier curve attributes
     //@{
-    //! An auto-fitting Bezier curve
-    //BezCurve<double> bc;
-    //! But the auto fit curve isn't good enough to do the whole cortical curve, so
-    //! we'll need several in a BezCurvePath
+    //! A Bezier curve path to fit the cortex.
     BezCurvePath<double> bcp;
     //! And then an index into bcp...
     int curvePathIndex;
@@ -103,9 +102,9 @@ public:
     vector<Point2d> tangents;
     //! For point in fitted, the normal at that location
     vector<Point2d> normals;
-    //! The axes for the fit
+    //! The axes for the polynomial fit
     vector<Point> axis;
-    //! Coefficients for the axis
+    //! Coefficients for the polynomial fit axis
     vector<double> axiscoefs;
     //! origins for the lines making the box sides (some distance from the curve)
     vector<Point> pointsInner;
@@ -117,6 +116,14 @@ public:
     bitset<8> flags;
     //! The image data, required when sampling the image in one of the boxes.
     Mat frame;
+    //! The frame image filename from which frame was loaded. Stored so it can be
+    //! recorded when writing out.
+    string filename;
+    //! The 'x' position of the brain slice in this frame (coordinates in the plane of
+    //! the slice are y/z
+    float layer_x = 0.0f;
+    //! The index of the frame
+    int idx;
     //@}
 
     //! Constructor initializes default values
@@ -130,7 +137,6 @@ public:
         // Init flags
         this->flags.set (ShowFits);
         this->flags.set (ShowUsers);
-        //this->flags.set (ShowCtrls);
         this->flags.set (ShowBoxes);
     };
 
@@ -223,6 +229,32 @@ public:
         }
     }
 
+    //! Write the data out to an HdfData file @df.
+    void write (HdfData& df) const {
+        // How to write...?
+        // Data to include:
+        // this->filename
+        // this->means
+        // box sizes
+        // slice position
+        cout << "write(): writeme!" << endl;
+        stringstream ss;
+        ss.precision(3);
+        ss.fill('0');
+        ss << "/Frame" << this->idx;
+        string frameName = ss.str();
+
+        string dname = frameName + "/layer_x";
+        df.add_val (dname.c_str(), this->layer_x);
+
+        // HdfData needs an add_val method taking a string
+        //dname = frameName + "/filename";
+        //df.add_val (dname.c_str(), this->filename);
+
+        dname = frameName + "/means";
+        df.add_contained_vals (dname.c_str(), this->means);
+    }
+
     void printMeans (void) const {
         cout << "[";
         for (size_t j=0; j<this->means.size(); j++) {
@@ -309,8 +341,6 @@ public:
             this->fitted[i] = Point(coords[i].x(),coords[i].y());
             this->tangents[i] = Point2d(tans[i].x(),tans[i].y());
             this->normals[i] = Point2d(norms[i].x(),norms[i].y());
-            //cout << "norms[i]=" << norms[i] << endl;
-            //cout << "normals[i]=" << this->normals[i] << endl; // ok
         }
     }
 
