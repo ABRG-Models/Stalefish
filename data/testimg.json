@@ -1,0 +1,16 @@
+{
+    // Some random parameter
+    "someparam" : 1,
+
+    // Path to the file which will contain the fit data, user points, etc
+    "datafile" : "data/testimg.h5",
+
+    // The brain slices in the y-z plane, where y points to the
+    // anterior, z points dorsally (and so x is the lateral dimension).
+    "slices": [
+        { "filename" : "data/testimg1.tif", "x" : 0.0   },
+        { "filename" : "data/testimg2.tif", "x" : 0.05  },
+        { "filename" : "data/testimg3.tif", "x" : 0.1   },
+        { "filename" : "data/testimg4.tif", "x" : 0.15  }
+    ] // end
+}

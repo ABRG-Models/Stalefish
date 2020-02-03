@@ -5,11 +5,18 @@ using std::vector;
 #include <opencv2/opencv.hpp>
 #include <opencv2/imgproc.hpp>
 using cv::Mat;
-using cv::FONT_HERSHEY_SIMPLEX;
+using cv::setMouseCallback;
 using cv::createTrackbar;
 using cv::setTrackbarPos;
+using cv::namedWindow;
+using cv::imread;
+using cv::FONT_HERSHEY_SIMPLEX;
+using cv::WINDOW_AUTOSIZE;
+using cv::IMREAD_COLOR;
 #include <morph/HdfData.h>
 using morph::HdfData;
+#include <morph/Config.h>
+using morph::Config;
 #include "FrameData.h"
 
 // OpenCV functions mostly expect colours in Blue-Green-Red order
@@ -39,6 +46,8 @@ private:
     Mat img;
     //! The thickness of each brain slice in mm
     float thickness = 0.2f;
+    //! The application configuration
+    Config conf;
 
 public:
     //! The instance public function. Short on purpose
@@ -62,9 +71,22 @@ public:
             fd.layer_x = 0.0f;
             fd.idx = 0;
         } else {
-            fd.layer_x = this->vFrameData.back().layer_x + DM::i()->thickness;
+            fd.layer_x = this->vFrameData.back().layer_x + this->thickness;
             fd.idx = this->vFrameData.back().idx + 1;
         }
+        this->vFrameData.push_back (fd);
+    }
+    void addFrame (Mat& frameImg, const string& frameImgFilename, const float& slice_x) {
+        FrameData fd(frameImg);
+        fd.filename = frameImgFilename;
+        // Increment layer index. Best might be to use JSON info for layer positions as
+        // they are unlikely always to be in perfect increments.
+        if (this->vFrameData.empty()) {
+            fd.idx = 0;
+        } else {
+            fd.idx = this->vFrameData.back().idx + 1;
+        }
+        fd.layer_x = slice_x;
         this->vFrameData.push_back (fd);
     }
     //! Return the size of vFrameData
@@ -89,9 +111,10 @@ public:
     //! Make the next frame current (or cycle back to the first)
     void nextFrame (void) {
         ++this->I %= this->vFrameData.size();
-        DM::i()->gcf()->binA = this->binA;
-        DM::i()->gcf()->binB = this->binB;
-        DM::i()->gcf()->nBinsTarg = this->nBinsTarg;
+        FrameData* fd = this->gcf();
+        fd->binA = this->binA;
+        fd->binB = this->binB;
+        fd->nBinsTarg = this->nBinsTarg;
     }
     //! Clone the current frame into Mat img
     void cloneFrame (void) {
@@ -115,28 +138,65 @@ public:
     int binA = 0;
     int binB = 40;
     //! Filename for writing
-    string logname = "./stalefish.log";
+    string logname = "./stalefish.h5";
+
+    //! Application setup
+    void setup (const string& paramsfile) {
+
+        this->conf.init (paramsfile);
+        if (!this->conf.ready) {
+            cerr << "Error setting up JSON config: " << this->conf.emsg << ", exiting." << endl;
+            exit (1);
+        }
+
+        // Loop over slices, creating a FrameData object for each.
+        const Json::Value slices = conf.getArray ("slices");
+        for (unsigned int i = 0; i < slices.size(); ++i) {
+            Json::Value slice = slices[i];
+            string fn = slice.get("filename", "unknown").asString();
+            float slice_x = slice.get("x", 0.0).asFloat();
+            cout << "imread " << fn << endl;
+            Mat frame = imread (fn.c_str(), IMREAD_COLOR);
+            if (frame.empty()) {
+                cout <<  "Could not open or find the image '" << fn << "', exiting." << endl;
+                exit (1);
+            }
+            this->addFrame (frame, fn, slice_x);
+        }
+
+        namedWindow (this->winName, WINDOW_AUTOSIZE);
+        // Make sure there's an image in DM to start with
+        this->cloneFrame();
+        setMouseCallback (this->winName, DM::onmouse, this->getImg());
+        DM::createTrackbars();
+        // Init current frame with binA, binB and nBinsTarg:
+        this->gcf()->binA = this->binA;
+        this->gcf()->binB = this->binB;
+        this->gcf()->nBinsTarg = this->nBinsTarg;
+    }
 
     /*!
      * UI methods. Could probably un-static these.
      */
     static void onmouse (int event, int x, int y, int flags, void* param) {
-        Point pt = Point(x,y);
-        if (x==-1 && y==-1) {
-            pt = Point(DM::i()->x, DM::i()->y);
-        } else {
-            DM::i()->x = x;
-            DM::i()->y = y;
-        }
-        if (event == CV_EVENT_LBUTTONDOWN) {
-            DM::i()->gcf()->P.push_back (pt);
-            DM::i()->gcf()->setShowUsers(true);
-        }
-        DM::i()->cloneFrame();
 
         // Make copies of pointers to neaten up the code, below
-        Mat* pImg = DM::i()->getImg();
-        FrameData* cf = DM::i()->gcf();
+        DM* _this = DM::i();
+        Mat* pImg = _this->getImg();
+        FrameData* cf = _this->gcf();
+
+        Point pt = Point(x,y);
+        if (x==-1 && y==-1) {
+            pt = Point(_this->x, _this->y);
+        } else {
+            _this->x = x;
+            _this->y = y;
+        }
+        if (event == CV_EVENT_LBUTTONDOWN) {
+            cf->P.push_back (pt);
+            cf->setShowUsers(true);
+        }
+        _this->cloneFrame();
 
         // red circle under the cursor
         circle (*pImg, pt, 5, SF_RED, 1);
@@ -205,23 +265,25 @@ public:
         if (cf->flags.test(ShowBoxes) == true) {
             // yellow. pointsInner to pointsOuter
             for (size_t i=0; i<cf->pointsInner.size(); i++) {
+                cout << "line from " << cf->pointsInner[i] << " to " << cf->pointsOuter[i] <<endl;
                 line (*pImg, cf->pointsInner[i], cf->pointsOuter[i], SF_YELLOW, 1);
             }
         }
 
         stringstream ss;
-        ss << "Frame: " << DM::i()->getFrameNum() << "/" << DM::i()->getNumFrames()
-           << " " << DM::i()->gcf()->getFitInfo();
+        ss << "Frame: " << _this->getFrameNum() << "/" << _this->getNumFrames()
+           << " " << cf->getFitInfo();
         putText (*pImg, ss.str(), Point(30,30), FONT_HERSHEY_SIMPLEX, 0.8, SF_BLACK, 1, CV_AA);
 
-        imshow (DM::i()->winName, *pImg);
+        imshow (_this->winName, *pImg);
     }
 
     //! On any trackbar changing, refresh the boxes
     static void ontrackbar_boxes (int val, void*) {
-        FrameData* cf = DM::i()->gcf();
-        cf->binA = DM::i()->binA;
-        cf->binB = DM::i()->binB;
+        DM* _this = DM::i();
+        FrameData* cf = _this->gcf();
+        cf->binA = _this->binA;
+        cf->binB = _this->binB;
         cf->setShowBoxes (true);
         cf->refreshBoxes (-cf->binA, cf->binB);
         DM::onmouse (CV_EVENT_MOUSEMOVE, -1, -1, 0, NULL);
@@ -246,12 +308,13 @@ public:
         string tbBinA = "Box A";
         string tbBinB = "Box B";
         string tbNBins = "Num bins";
-        createTrackbar (tbBinA, DM::i()->winName, &DM::i()->binA, 200, ontrackbar_boxes);
-        setTrackbarPos (tbBinA, DM::i()->winName, DM::i()->binA);
-        createTrackbar (tbBinB, DM::i()->winName, &DM::i()->binB, 200, ontrackbar_boxes);
-        setTrackbarPos (tbBinB, DM::i()->winName, DM::i()->binB);
-        createTrackbar (tbNBins, DM::i()->winName, &DM::i()->nBinsTarg, 200, ontrackbar_nbins);
-        setTrackbarPos (tbNBins, DM::i()->winName, DM::i()->nBinsTarg);
+        DM* _this = DM::i();
+        createTrackbar (tbBinA, _this->winName, &_this->binA, 200, ontrackbar_boxes);
+        setTrackbarPos (tbBinA, _this->winName, _this->binA);
+        createTrackbar (tbBinB, _this->winName, &_this->binB, 200, ontrackbar_boxes);
+        setTrackbarPos (tbBinB, _this->winName, _this->binB);
+        createTrackbar (tbNBins, _this->winName, &_this->nBinsTarg, 200, ontrackbar_nbins);
+        setTrackbarPos (tbNBins, _this->winName, _this->nBinsTarg);
     }
 };
 

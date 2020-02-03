@@ -4,50 +4,26 @@
 #include "FrameData.h"
 #include <opencv2/opencv.hpp>
 #include <opencv2/imgproc.hpp>
-using cv::namedWindow;
-using cv::setMouseCallback;
 using cv::waitKey;
-using cv::WINDOW_AUTOSIZE;
-using cv::imread;
-using cv::IMREAD_COLOR;
 #include <iostream>
 using std::cout;
 using std::endl;
 #include <sstream>
 using std::stringstream;
 #include <unistd.h>
+#include <morph/Config.h>
+using morph::Config;
 
 //! Main entry point
 int main (int argc, char** argv)
 {
     if (argc < 2) {
-        cout << "Please supply at least one image filename" << endl;
+        cout << "Please supply path to the json conf file" << endl;
         return 1;
     }
+    string paramsfile (argv[1]);
 
-    // FIXME: Use morph::Config to read in the files to read, and pertient information
-    // such as the slice thickness, anything about how to read the image data, where to
-    // save the logs, etc.
-
-    for (int i=1; i<argc; i++){
-        char* imageName = argv[i];
-        cout << "imread " << imageName << endl;
-        Mat frame = imread (imageName, IMREAD_COLOR);
-        if (frame.empty()) {
-            cout <<  "Could not open or find the image" << endl;
-            return -1;
-        }
-        DM::i()->addFrame (frame, imageName);
-    }
-    namedWindow (DM::i()->winName, WINDOW_AUTOSIZE);
-    // Make sure there's an image in DM to start with
-    DM::i()->cloneFrame();
-    setMouseCallback (DM::i()->winName, DM::onmouse, DM::i()->getImg());
-    DM::createTrackbars();
-    // Init current frame with binA, binB and nBinsTarg:
-    DM::i()->gcf()->binA = DM::i()->binA;
-    DM::i()->gcf()->binB = DM::i()->binB;
-    DM::i()->gcf()->nBinsTarg = DM::i()->nBinsTarg;
+    DM::i()->setup (paramsfile);
 
     // *** MAIN LOOP ***
     while (1) {
