@@ -109,8 +109,7 @@ int main (int argc, char** argv)
         }
         case ('w'):
         {
-            DM::i()->gcf()->getBoxMeans();
-            DM::i()->gcf()->printMeans();
+            //DM::i()->gcf()->printMeans();
             DM::i()->writeFrames();
             break;
         }

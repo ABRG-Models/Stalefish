@@ -9,6 +9,8 @@ using cv::Point2i;
 using cv::Scalar;
 #include <vector>
 using std::vector;
+#include <array>
+using std::array;
 #include <string>
 using std::string;
 #include <sstream>
@@ -31,6 +33,8 @@ using morph::BezCurve;
 using morph::BezCoord;
 #include <morph/HdfData.h>
 using morph::HdfData;
+#include <morph/MathAlgo.h>
+using morph::MathAlgo;
 
 enum class CurveType {
     Poly,  // Variable order polynomial
@@ -98,6 +102,10 @@ public:
     int binB;
     //! A set of points created from the fit
     vector<Point> fitted;
+    //! The centroid of fitted.
+    Point2d fit_centroid;
+    //! fitted - fit_centroid
+    vector<Point2d> fitted_offset;
     //! For point in fitted, the tangent at that location
     vector<Point2d> tangents;
     //! For point in fitted, the normal at that location
@@ -120,8 +128,12 @@ public:
     //! recorded when writing out.
     string filename;
     //! The 'x' position of the brain slice in this frame (coordinates in the plane of
-    //! the slice are y/z
+    //! the slice are y/z (units: mm).
     float layer_x = 0.0f;
+    //! The thickness of this slice (mm)
+    float thickness = 0.05;
+    //! The scaling factor
+    double pixels_per_mm = 100.0;
     //! The index of the frame
     int idx;
     //@}
@@ -145,6 +157,7 @@ public:
         this->nBinsTarg = num;
         this->nFit = num + 1;
         this->fitted.resize (this->nFit);
+        this->fitted_offset.resize (this->nFit);
         this->pointsInner.resize (this->nFit);
         this->pointsOuter.resize (this->nFit);
         this->tangents.resize (this->nFit);
@@ -237,11 +250,12 @@ public:
         // this->means
         // box sizes
         // slice position
-        cout << "write(): writeme!" << endl;
+
         stringstream ss;
-        ss.precision(3);
+        ss << "/Frame";
+        ss.width(3);
         ss.fill('0');
-        ss << "/Frame" << this->idx;
+        ss << this->idx;
         string frameName = ss.str();
 
         string dname = frameName + "/layer_x";
@@ -253,6 +267,50 @@ public:
 
         dname = frameName + "/means";
         df.add_contained_vals (dname.c_str(), this->means);
+
+        // Need to get from fitted to y and z. Note that fitted is in (integer) pixels...
+        // vector<Point> fitted;
+        //
+        // Make up the boxes. A box (in 3d space) can be a vector of 12 floats. Thus
+        // we should be able to write a vector of boxes as a vector<vector<float>>
+        // These are "surface_boxes" because they're the box thats in the plane of the
+        // cortical sheet (roughly xy) rather than the box in the slice plane (yz).
+        vector<array<float,12>> surface_boxes;
+        vector<array<float,3>> surface_box_centroids;
+        array<float, 12> sbox;
+        for (int i = 1; i < this->nFit; ++i) {
+            // c1 x,y,z
+            sbox[0] = this->layer_x; // x
+            sbox[1] = this->fitted_offset[i-1].x; // y
+            sbox[2] = this->fitted_offset[i-1].y; // z
+            // c2 x,y,z
+            sbox[3] = this->layer_x; // x
+            sbox[4] = this->fitted_offset[i].x; // y
+            sbox[5] = this->fitted_offset[i].y; // z
+            // c3 x,y,z
+            sbox[6] = this->layer_x+this->thickness; // x
+            sbox[7] = this->fitted_offset[i].x; // y
+            sbox[8] = this->fitted_offset[i].y; // z
+            // c4 x,y,z
+            sbox[0] = this->layer_x+this->thickness; // x
+            sbox[10] = this->fitted_offset[i-1].x; // y
+            sbox[11] = this->fitted_offset[i-1].y; // z
+
+            array<float, 3> sbox_centroid = MathAlgo<float>::centroid3D (sbox);
+            surface_boxes.push_back (sbox);
+            surface_box_centroids.push_back (sbox_centroid);
+        }
+
+        // fitted.firstcoord is y
+        // fitted.secondcoord is z
+        dname = frameName + "/fitted";
+        df.add_contained_vals (dname.c_str(), fitted);
+
+        dname = frameName + "/sboxes";
+        df.add_contained_vals (dname.c_str(), surface_boxes);
+
+        dname = frameName + "/sbox_centers";
+        df.add_contained_vals (dname.c_str(), surface_box_centroids);
     }
 
     void printMeans (void) const {
@@ -337,10 +395,17 @@ public:
         vector<BezCoord<double>> coords = this->bcp.getPoints();
         vector<BezCoord<double>> tans = this->bcp.getTangents();
         vector<BezCoord<double>> norms = this->bcp.getNormals();
+        Point2d fitsum;
         for (int i = 0; i < this->nFit; ++i) {
             this->fitted[i] = Point(coords[i].x(),coords[i].y());
+            fitsum += Point2d(coords[i].x(),coords[i].y());
             this->tangents[i] = Point2d(tans[i].x(),tans[i].y());
             this->normals[i] = Point2d(norms[i].x(),norms[i].y());
+        }
+        this->fit_centroid = fitsum/this->nFit;
+        // Apply offset and scale
+        for (int i = 0; i < this->nFit; ++i) {
+            this->fitted_offset[i] = ((Point2d)this->fitted[i] - this->fit_centroid) * this->pixels_per_mm;
         }
     }
 

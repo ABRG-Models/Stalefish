@@ -1,9 +1,12 @@
 {
-    // Some random parameter
-    "someparam" : 1,
-
     // Path to the file which will contain the fit data, user points, etc
     "datafile" : "data/testimg.h5",
+
+    // The thickness of a brain slice, assuming they'll all be the same.
+    "thickness" : 0.05,
+
+    // How many pixels in the image corresponds to 1 mm? True in horz(y) and vert(z) directions equally?
+    "pixels_per_mm" : 138, // Guessed!
 
     // The brain slices in the y-z plane, where y points to the
     // anterior, z points dorsally (and so x is the lateral dimension).

@@ -74,9 +74,10 @@ public:
             fd.layer_x = this->vFrameData.back().layer_x + this->thickness;
             fd.idx = this->vFrameData.back().idx + 1;
         }
+        fd.thickness = this->thickness;
         this->vFrameData.push_back (fd);
     }
-    void addFrame (Mat& frameImg, const string& frameImgFilename, const float& slice_x) {
+    void addFrame (Mat& frameImg, const string& frameImgFilename, const float& slice_x, const float& ppm) {
         FrameData fd(frameImg);
         fd.filename = frameImgFilename;
         // Increment layer index. Best might be to use JSON info for layer positions as
@@ -87,6 +88,8 @@ public:
             fd.idx = this->vFrameData.back().idx + 1;
         }
         fd.layer_x = slice_x;
+        fd.pixels_per_mm = (double)ppm;
+        fd.thickness = this->thickness;
         this->vFrameData.push_back (fd);
     }
     //! Return the size of vFrameData
@@ -122,9 +125,11 @@ public:
     }
     //! Write frames to HdfData
     void writeFrames (void) {
-        HdfData d(this->logname);
+        HdfData d(this->datafile);
         for (auto f : this->vFrameData) {
+            f.getBoxMeans();
             f.write (d);
+            // Also build up an "overall" data store of the bins
         }
     }
     //! The application window name
@@ -138,7 +143,9 @@ public:
     int binA = 0;
     int binB = 40;
     //! Filename for writing
-    string logname = "./stalefish.h5";
+    string datafile = "./stalefish.h5";
+    //! How many pixels in the image is 1mm?
+    float pixels_per_mm = 100.0f;
 
     //! Application setup
     void setup (const string& paramsfile) {
@@ -149,19 +156,25 @@ public:
             exit (1);
         }
 
+        // Set the user's preference for the HDF5 data file
+        this->datafile = conf.getString ("datafile", "stalefish.h5");
+
+        // Set the scale from JSON, too
+        this->pixels_per_mm = conf.getFloat ("pixels_per_mm", 100.0f);
+
         // Loop over slices, creating a FrameData object for each.
         const Json::Value slices = conf.getArray ("slices");
         for (unsigned int i = 0; i < slices.size(); ++i) {
             Json::Value slice = slices[i];
-            string fn = slice.get("filename", "unknown").asString();
-            float slice_x = slice.get("x", 0.0).asFloat();
+            string fn = slice.get ("filename", "unknown").asString();
+            float slice_x = slice.get ("x", 0.0).asFloat();
             cout << "imread " << fn << endl;
             Mat frame = imread (fn.c_str(), IMREAD_COLOR);
             if (frame.empty()) {
                 cout <<  "Could not open or find the image '" << fn << "', exiting." << endl;
                 exit (1);
             }
-            this->addFrame (frame, fn, slice_x);
+            this->addFrame (frame, fn, slice_x, this->pixels_per_mm);
         }
 
         namedWindow (this->winName, WINDOW_AUTOSIZE);
@@ -176,7 +189,7 @@ public:
     }
 
     /*!
-     * UI methods. Could probably un-static these.
+     * UI methods. Could possibly un-static these.
      */
     static void onmouse (int event, int x, int y, int flags, void* param) {
 
