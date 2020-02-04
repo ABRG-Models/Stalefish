@@ -75,8 +75,6 @@ public:
     //@{
     //! A Bezier curve path to fit the cortex.
     BezCurvePath<double> bcp;
-    //! And then an index into bcp...
-    int curvePathIndex;
     //@}
 
     //! Attributes which pertain either to polynomial or Bezier curves
@@ -252,8 +250,49 @@ public:
         ss << this->idx;
         string frameName = ss.str();
 
-        string dname = frameName + "/layer_x";
+        // Write out essential information to re-load state of the application and the
+        // user's work saving points etc.
+        string dname = frameName + "/class/polyOrder";
+        df.add_val (dname.c_str(), this->polyOrder);
+        dname = frameName + "/class/P";
+        df.add_contained_vals (dname.c_str(), this->P);
+
+        dname = frameName + "/class/PP_n";
+        unsigned int pp_size = this->PP.size();
+        df.add_val (dname.c_str(), pp_size);
+        for (size_t i = 0; i<pp_size; ++i) {
+            stringstream ss;
+            ss << frameName + "/class/PP";
+            ss.width(3);
+            ss.fill('0');
+            ss << i;
+            df.add_contained_vals (ss.str().c_str(), this->PP[i]);
+        }
+
+        dname = frameName + "/class/pp_idx";
+        df.add_val (dname.c_str(), this->pp_idx);
+        dname = frameName + "/class/nBinsTarg";
+        df.add_val (dname.c_str(), this->nBinsTarg);
+        dname = frameName + "/class/binA";
+        df.add_val (dname.c_str(), this->binA);
+        dname = frameName + "/class/binB";
+        df.add_val (dname.c_str(), this->binB);
+        dname = frameName + "/class/flags";
+        df.add_val (dname.c_str(), this->flags);
+        dname = frameName + "/class/filename";
+        df.add_string (dname.c_str(), this->filename);
+        // The cv::Mat image data could be saved in the h5 file, though at the cost of
+        // quite a bit of storage:
+        // dname = frameName + "/class/frame";
+        // df.add_contained_vals (dname.c_str(), this->frame);
+        dname = frameName + "/class/layer_x";
         df.add_val (dname.c_str(), this->layer_x);
+        dname = frameName + "/class/thickness";
+        df.add_val (dname.c_str(), this->thickness);
+        dname = frameName + "/class/pixels_per_mm";
+        df.add_val (dname.c_str(), this->pixels_per_mm);
+        dname = frameName + "/class/idx";
+        df.add_val (dname.c_str(), this->idx);
 
         // HdfData needs an add_val method taking a string
         //dname = frameName + "/filename";
