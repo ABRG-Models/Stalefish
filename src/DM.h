@@ -2,6 +2,8 @@
 
 #include <vector>
 using std::vector;
+#include <stdexcept>
+using std::exception;
 #include <opencv2/opencv.hpp>
 #include <opencv2/imgproc.hpp>
 using cv::Mat;
@@ -61,6 +63,7 @@ public:
     void init (void) {
         this->vFrameData.clear();
     }
+#if 0
     //! Add a frame to vFrameData
     void addFrame (Mat& frameImg, const string& frameImgFilename) {
         FrameData fd(frameImg);
@@ -77,6 +80,7 @@ public:
         fd.thickness = this->thickness;
         this->vFrameData.push_back (fd);
     }
+#endif
     void addFrame (Mat& frameImg, const string& frameImgFilename, const float& slice_x, const float& ppm) {
         FrameData fd(frameImg);
         fd.filename = frameImgFilename;
@@ -90,6 +94,16 @@ public:
         fd.layer_x = slice_x;
         fd.pixels_per_mm = (double)ppm;
         fd.thickness = this->thickness;
+
+        // Read, opportunistically
+        try {
+            HdfData d(this->datafile, true); // true for read
+            fd.read (d);
+            fd.updateFit();
+        } catch (const exception& e) {
+            // No problem, just carry on
+        }
+
         this->vFrameData.push_back (fd);
     }
     //! Return the size of vFrameData

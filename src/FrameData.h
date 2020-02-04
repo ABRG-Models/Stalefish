@@ -240,15 +240,58 @@ public:
         }
     }
 
+    //! Read important data from file
+    void read (HdfData& df) {
+
+        // Note this file assumes idx has been set for the frame.
+        string frameName = this->getFrameName();
+
+        string dname = frameName + "/class/polyOrder";
+        df.read_val (dname.c_str(), this->polyOrder);
+
+        dname = frameName + "/class/P";
+        df.read_contained_vals (dname.c_str(), this->P);
+
+        dname = frameName + "/class/PP_n";
+        unsigned int pp_size = 0;
+        df.read_val (dname.c_str(), pp_size);
+
+        this->PP.resize(pp_size);
+        for (size_t i = 0; i<pp_size; ++i) {
+            stringstream ss;
+            ss << frameName + "/class/PP";
+            ss.width(3);
+            ss.fill('0');
+            ss << i;
+            df.read_contained_vals (ss.str().c_str(), this->PP[i]);
+        }
+
+        dname = frameName + "/class/pp_idx";
+        df.add_val (dname.c_str(), this->pp_idx);
+
+        dname = frameName + "/class/nBinsTarg";
+        df.read_val (dname.c_str(), this->nBinsTarg);
+        dname = frameName + "/class/binA";
+        df.read_val (dname.c_str(), this->binA);
+        dname = frameName + "/class/binB";
+        df.read_val (dname.c_str(), this->binB);
+        dname = frameName + "/class/flags";
+        df.read_val (dname.c_str(), this->flags);
+        dname = frameName + "/class/filename";
+        df.read_string (dname.c_str(), this->filename);
+
+        dname = frameName + "/class/layer_x";
+        df.read_val (dname.c_str(), this->layer_x);
+        dname = frameName + "/class/thickness";
+        df.read_val (dname.c_str(), this->thickness);
+        dname = frameName + "/class/pixels_per_mm";
+        df.read_val (dname.c_str(), this->pixels_per_mm);
+    }
+
     //! Write the data out to an HdfData file @df.
     void write (HdfData& df) const {
 
-        stringstream ss;
-        ss << "/Frame";
-        ss.width(3);
-        ss.fill('0');
-        ss << this->idx;
-        string frameName = ss.str();
+        string frameName = this->getFrameName();
 
         // Write out essential information to re-load state of the application and the
         // user's work saving points etc.
@@ -294,9 +337,11 @@ public:
         dname = frameName + "/class/idx";
         df.add_val (dname.c_str(), this->idx);
 
-        // HdfData needs an add_val method taking a string
-        //dname = frameName + "/filename";
-        //df.add_val (dname.c_str(), this->filename);
+        /*
+         * The rest of the methods write out data that WON'T be read by the
+         * FrameData::read method (these would all be re-computed before being
+         * re-written in a later run of the program).
+         */
 
         dname = frameName + "/means";
         df.add_contained_vals (dname.c_str(), this->means);
@@ -562,4 +607,16 @@ public:
     void setShowCtrls (bool t) {
         this->flags[ShowCtrls] = t;
     }
+
+private:
+    //! Common code to generate the frame name
+    string getFrameName (void) const {
+        stringstream ss;
+        ss << "/Frame";
+        ss.width(3);
+        ss.fill('0');
+        ss << this->idx;
+        return ss.str();
+    }
+
 }; // FrameData
