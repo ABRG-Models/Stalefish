@@ -290,22 +290,41 @@ public:
             sbox[10] = this->fitted_offset[i-1].x;  // y
             sbox[11] = this->fitted_offset[i-1].y; // z
 
-            // Question mark over this:
             array<float, 3> sbox_centroid = MathAlgo<float>::centroid3D (sbox);
             surface_boxes.push_back (sbox);
             surface_box_centroids.push_back (sbox_centroid);
         }
 
-        // fitted.firstcoord is y
-        // fitted.secondcoord is z
         dname = frameName + "/fitted";
         df.add_contained_vals (dname.c_str(), fitted);
 
+        // sboxes are 'surface boxes' - they lay in the plan of the cortical surface
+        // and are not to be confused with the yellow boxes drawn in the UI in the y-z
+        // plane.
         dname = frameName + "/sboxes";
         df.add_contained_vals (dname.c_str(), surface_boxes);
 
         dname = frameName + "/sbox_centers";
         df.add_contained_vals (dname.c_str(), surface_box_centroids);
+
+        // From surface_box_centroids, can compute linear distance along curve. Could
+        // be useful for making naive maps that unroll the cortex in one dimension.
+        dname = frameName + "/sbox_linear_distance";
+        float total_linear_distance = 0.0f;
+        vector<float> linear_distances (this->nBins, 0.0f);
+        for (int i=1; i<this->nBins; ++i) {
+            // Compute distance from Previous to current
+            float d = MathAlgo<float>::distance (surface_box_centroids[i-1],
+                                                 surface_box_centroids[i]);
+            total_linear_distance += d;
+            linear_distances[i] = total_linear_distance;
+        }
+        // Now offset the linear distances so that the middle is 0.
+        float halftotal = total_linear_distance / 2.0f;
+        for (int i=0; i<this->nBins; ++i) {
+            linear_distances[i] -= halftotal;
+        }
+        df.add_contained_vals (dname.c_str(), linear_distances);
     }
 
     void printMeans (void) const {
