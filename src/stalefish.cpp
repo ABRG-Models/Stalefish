@@ -25,7 +25,6 @@ int main (int argc, char** argv)
 
     DM::i()->setup (paramsfile);
 
-    // *** MAIN LOOP ***
     while (1) {
         DM::onmouse (CV_EVENT_MOUSEMOVE, -1, -1, 0, NULL);
         char k = waitKey(0);
@@ -55,6 +54,7 @@ int main (int argc, char** argv)
         case('x'):
         {
             DM::i()->gcf()->setShowFits (true);
+            DM::i()->gcf()->setShowBoxes (true);
             DM::i()->gcf()->updateFit();
             DM::i()->gcf()->refreshBoxes (-DM::i()->gcf()->binA, DM::i()->gcf()->binB);
             break;
@@ -83,22 +83,6 @@ int main (int argc, char** argv)
             DM::i()->gcf()->refreshBoxes (-DM::i()->gcf()->binA, DM::i()->gcf()->binB);
             break;
         }
-        // Increment number of bins
-        case ('b'):
-        {
-            DM::i()->gcf()->incBins();
-            DM::i()->gcf()->updateFit();
-            DM::i()->gcf()->refreshBoxes (-DM::i()->gcf()->binA, DM::i()->gcf()->binB);
-            break;
-        }
-        // Increment number of bins faster
-        case ('B'):
-        {
-            DM::i()->gcf()->incBins(10);
-            DM::i()->gcf()->updateFit();
-            DM::i()->gcf()->refreshBoxes (-DM::i()->gcf()->binA, DM::i()->gcf()->binB);
-            break;
-        }
         case ('m'):
         {
             // Change fitting mode
@@ -109,7 +93,6 @@ int main (int argc, char** argv)
         }
         case ('w'):
         {
-            //DM::i()->gcf()->printMeans();
             DM::i()->writeFrames();
             break;
         }

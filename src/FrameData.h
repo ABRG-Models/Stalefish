@@ -244,12 +244,6 @@ public:
 
     //! Write the data out to an HdfData file @df.
     void write (HdfData& df) const {
-        // How to write...?
-        // Data to include:
-        // this->filename
-        // this->means
-        // box sizes
-        // slice position
 
         stringstream ss;
         ss << "/Frame";
@@ -280,22 +274,23 @@ public:
         array<float, 12> sbox;
         for (int i = 1; i < this->nFit; ++i) {
             // c1 x,y,z
-            sbox[0] = this->layer_x; // x
-            sbox[1] = this->fitted_offset[i-1].x; // y
+            sbox[0] = this->layer_x;                // x
+            sbox[1] = this->fitted_offset[i-1].x;  // y
             sbox[2] = this->fitted_offset[i-1].y; // z
             // c2 x,y,z
-            sbox[3] = this->layer_x; // x
-            sbox[4] = this->fitted_offset[i].x; // y
+            sbox[3] = this->layer_x;              // x
+            sbox[4] = this->fitted_offset[i].x;  // y
             sbox[5] = this->fitted_offset[i].y; // z
             // c3 x,y,z
             sbox[6] = this->layer_x+this->thickness; // x
-            sbox[7] = this->fitted_offset[i].x; // y
-            sbox[8] = this->fitted_offset[i].y; // z
+            sbox[7] = this->fitted_offset[i].x;     // y
+            sbox[8] = this->fitted_offset[i].y;    // z
             // c4 x,y,z
-            sbox[0] = this->layer_x+this->thickness; // x
-            sbox[10] = this->fitted_offset[i-1].x; // y
+            sbox[9] = this->layer_x+this->thickness; // x
+            sbox[10] = this->fitted_offset[i-1].x;  // y
             sbox[11] = this->fitted_offset[i-1].y; // z
 
+            // Question mark over this:
             array<float, 3> sbox_centroid = MathAlgo<float>::centroid3D (sbox);
             surface_boxes.push_back (sbox);
             surface_box_centroids.push_back (sbox_centroid);
@@ -403,9 +398,13 @@ public:
             this->normals[i] = Point2d(norms[i].x(),norms[i].y());
         }
         this->fit_centroid = fitsum/this->nFit;
+        cout << "Fit centroid: " << this->fit_centroid << endl;
         // Apply offset and scale
         for (int i = 0; i < this->nFit; ++i) {
-            this->fitted_offset[i] = ((Point2d)this->fitted[i] - this->fit_centroid) * this->pixels_per_mm;
+            Point2d fd(this->fitted[i]);
+            //cout << "Fit point: " << fd << endl;
+            //cout << "Fit point - centroid: " << (fd - this->fit_centroid)
+            this->fitted_offset[i] = (fd - this->fit_centroid) / this->pixels_per_mm;
         }
     }
 

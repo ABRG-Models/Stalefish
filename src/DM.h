@@ -278,7 +278,7 @@ public:
         if (cf->flags.test(ShowBoxes) == true) {
             // yellow. pointsInner to pointsOuter
             for (size_t i=0; i<cf->pointsInner.size(); i++) {
-                cout << "line from " << cf->pointsInner[i] << " to " << cf->pointsOuter[i] <<endl;
+                //cout << "line from " << cf->pointsInner[i] << " to " << cf->pointsOuter[i] <<endl;
                 line (*pImg, cf->pointsInner[i], cf->pointsOuter[i], SF_YELLOW, 1);
             }
         }
