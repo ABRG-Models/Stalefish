@@ -60,9 +60,12 @@ public:
         }
         return DM::pInstance;
     }
+
+    //! Initialize by clearing out vFrameData.
     void init (void) {
         this->vFrameData.clear();
     }
+
 #if 0
     //! Add a frame to vFrameData
     void addFrame (Mat& frameImg, const string& frameImgFilename) {
@@ -81,6 +84,11 @@ public:
         this->vFrameData.push_back (fd);
     }
 #endif
+    /*!
+     * Add frame @frameImg to vFrameData, setting the metadata attributes
+     * @frameImgFilename (The filename for the image), @slice_x (position in the x
+     * dimension) and @ppm (pixels per mm; the scale).
+     */
     void addFrame (Mat& frameImg, const string& frameImgFilename, const float& slice_x, const float& ppm) {
         FrameData fd(frameImg);
         fd.filename = frameImgFilename;
@@ -106,10 +114,12 @@ public:
 
         this->vFrameData.push_back (fd);
     }
+
     //! Return the size of vFrameData
     unsigned int getNumFrames (void) const {
         return this->vFrameData.size();
     }
+
     //! get current frame. Short name on purpose.
     FrameData* gcf (void) {
         if (!this->vFrameData.empty()) {
@@ -117,14 +127,17 @@ public:
         }
         return (FrameData*)0;
     }
+
     //! Get the current frame number, counting from 1 like a human.
     int getFrameNum (void) const {
         return 1+this->I;
     }
+
     // Get a pointer to the persistent Mat img member attribute
     Mat* getImg (void) {
         return &(this->img);
     }
+
     //! Make the next frame current (or cycle back to the first)
     void nextFrame (void) {
         ++this->I %= this->vFrameData.size();
@@ -133,10 +146,12 @@ public:
         fd->binB = this->binB;
         fd->nBinsTarg = this->nBinsTarg;
     }
+
     //! Clone the current frame into Mat img
     void cloneFrame (void) {
         this->img = this->vFrameData[this->I].frame.clone();
     }
+
     //! Write frames to HdfData
     void writeFrames (void) {
         HdfData d(this->datafile);
@@ -146,6 +161,7 @@ public:
             // Also build up an "overall" data store of the bins
         }
     }
+
     //! The application window name
     const string winName = "StaleFish";
     //! Saved/last cursor position
@@ -292,7 +308,6 @@ public:
         if (cf->flags.test(ShowBoxes) == true) {
             // yellow. pointsInner to pointsOuter
             for (size_t i=0; i<cf->pointsInner.size(); i++) {
-                //cout << "line from " << cf->pointsInner[i] << " to " << cf->pointsOuter[i] <<endl;
                 line (*pImg, cf->pointsInner[i], cf->pointsOuter[i], SF_YELLOW, 1);
             }
         }
