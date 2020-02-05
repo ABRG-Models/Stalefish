@@ -45,7 +45,9 @@ enum Flag {
     ShowBoxes, // Show the yellow boxes?
     ShowUsers, // Show the user points?
     ShowCtrls, // Show the ctrl points of the fits?
-    ShowFits // Show the fits?
+    ShowFits,  // Show the fits?
+    Mirrored,  // Is the image mirrored L-R?
+    Flipped    // Is the image flipped U-D?
 };
 
 /*!
@@ -242,11 +244,12 @@ public:
 
     //! Read important data from file
     void read (HdfData& df) {
-
+        cout << "read() called" << endl;
         // Note this file assumes idx has been set for the frame.
         string frameName = this->getFrameName();
 
         string dname = frameName + "/class/polyOrder";
+
         df.read_val (dname.c_str(), this->polyOrder);
 
         dname = frameName + "/class/P";
@@ -267,7 +270,7 @@ public:
         }
 
         dname = frameName + "/class/pp_idx";
-        df.add_val (dname.c_str(), this->pp_idx);
+        df.read_val (dname.c_str(), this->pp_idx);
 
         dname = frameName + "/class/nBinsTarg";
         df.read_val (dname.c_str(), this->nBinsTarg);
@@ -276,7 +279,9 @@ public:
         dname = frameName + "/class/binB";
         df.read_val (dname.c_str(), this->binB);
         dname = frameName + "/class/flags";
+        cout << "Before read flags: " << this->flags << endl;
         df.read_val (dname.c_str(), this->flags);
+        cout << "Read flags: " << this->flags << endl;
         dname = frameName + "/class/filename";
         df.read_string (dname.c_str(), this->filename);
 
@@ -290,7 +295,6 @@ public:
 
     //! Write the data out to an HdfData file @df.
     void write (HdfData& df) const {
-
         string frameName = this->getFrameName();
 
         // Write out essential information to re-load state of the application and the
@@ -321,6 +325,7 @@ public:
         dname = frameName + "/class/binB";
         df.add_val (dname.c_str(), this->binB);
         dname = frameName + "/class/flags";
+        cout << "writing flags: " << this->flags << endl;
         df.add_val (dname.c_str(), this->flags);
         dname = frameName + "/class/filename";
         df.add_string (dname.c_str(), this->filename);
@@ -417,6 +422,22 @@ public:
             cout << this->means[j] << ",";
         }
         cout << "]" << endl << flush;
+    }
+
+    //! Mirror the image
+    void mirror (void) {
+        Mat mirrored (this->frame.rows, this->frame.cols, this->frame.type());
+        cv::flip (this->frame, mirrored, 1);
+        this->frame = mirrored;
+        this->flags.flip(Mirrored);
+    }
+
+    //! Flip the image
+    void flip (void) {
+        Mat flipped (this->frame.rows, this->frame.cols, this->frame.type());
+        cv::flip (this->frame, flipped, 1);
+        this->frame = flipped;
+        this->flags.flip(Flipped);
     }
 
     //! Recompute the polynomial fit

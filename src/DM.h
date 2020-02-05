@@ -107,6 +107,9 @@ public:
         try {
             HdfData d(this->datafile, true); // true for read
             fd.read (d);
+            if (fd.flags.test (Mirrored)) {
+                fd.mirror();
+            }
             fd.updateFit();
         } catch (const exception& e) {
             // No problem, just carry on

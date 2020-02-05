@@ -85,6 +85,13 @@ int main (int argc, char** argv)
         }
         case ('m'):
         {
+            // Mirror
+            DM::i()->gcf()->mirror();
+            DM::onmouse (CV_EVENT_MOUSEMOVE, -1, -1, 0, NULL);
+            break;
+        }
+        case ('f'):
+        {
             // Change fitting mode
             DM::i()->gcf()->toggleCurveType();
             DM::i()->gcf()->updateFit();
