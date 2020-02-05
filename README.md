@@ -1,30 +1,42 @@
 # Stalefish
 
-## Compile using cmake
+## Dependencies
+
+This program links to
+[morphologica](https://github.com/ABRG-Models/morphologica) (and thus
+to the associated libraries armadillo, opencv and hdf5). So head over
+to that page and follow the instructions to build and install
+morphologica.
+
+## Compile Stalefish using cmake
 
 ```bash
 mkdir build && cd build
 cmake ..
 make
 ```
-
-Alternatively, compile on Mac/Linux using a single command (for now):
-
-```bash
-cd src
-g++ -o stalefish stalefish.cpp -i `pkg-config opencv --libs --cflags`
-```
-
 ## Running the program
 
 run using e.g.,:
 ```
-./path/to/stalefish ../data/testimg1.tiff ../data/testimg2.tiff ../data/testimg3.tiff
+./path/to/stalefish ../data/testimg.json
 ```
-left click points to draw segmented line, then
 
-Press "x" to fit the curve
-Press "w" to print the values
+The JSON file contains a list of the images to fit curves to, and some
+other parameters.
+
+left click points to which a curve should be fit. Bezier curves fit
+best to 4 or 5 points; pressing space will create a new curve to fit;
+the program will ensure they join nicely.
+
+Press "x" to fit the curve(s)
+Press "w" to save the values to an HDF5 file
 Press "n" to advance to next frame
+Press "1" to toggle view of Bezier handles
+Press "2" to toggle view of user-provided points
+Press "3" to toggle view of the fit
+Press "4" to toggle view of the bins
+
+Sliders give control over the size and shape of the bins.
+
 Press "p" to increase the order of the polynomial fit
-Press "b" to increase the number of bins for sampling
