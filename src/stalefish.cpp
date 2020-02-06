@@ -98,6 +98,12 @@ int main (int argc, char** argv)
             DM::i()->gcf()->refreshBoxes (-DM::i()->gcf()->binA, DM::i()->gcf()->binB);
             break;
         }
+        case ('h'):
+        {
+            DM::i()->toggleHelp();
+            DM::onmouse (CV_EVENT_MOUSEMOVE, -1, -1, 0, NULL);
+            break;
+        }
         case ('w'):
         {
             DM::i()->writeFrames();

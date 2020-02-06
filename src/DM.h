@@ -50,6 +50,8 @@ private:
     float thickness = 0.2f;
     //! The application configuration
     Config conf;
+    //! Should the help text be shown?
+    bool showHelp = false;
 
 public:
     //! The instance public function. Short on purpose
@@ -163,6 +165,11 @@ public:
             f.write (d);
             // Also build up an "overall" data store of the bins
         }
+    }
+
+    //! Toogle showHelp
+    void toggleHelp (void) {
+        this->showHelp = !this->showHelp;
     }
 
     //! The application window name
@@ -281,44 +288,88 @@ public:
         }
 
         if (cf->flags.test(ShowUsers) == true) {
-            // Then the current point set:
+            // Then draw the current point set:
             if (cf->PP.empty() || (!cf->PP.empty() && cf->P.size() > 1)) {
                 for (size_t i=0; i<cf->P.size(); i++) {
-                    circle (*pImg, cf->P[i], 5, SF_BLACK, -1);
-                    if (i) { line (*pImg, cf->P[i-1], cf->P[i], SF_BLACK, 2); }
+                    circle (*pImg, cf->P[i], 5, SF_GREEN, -1);
+                    if (i) { line (*pImg, cf->P[i-1], cf->P[i], SF_GREEN, 1); }
                 }
             }
-#if 1
-            // line to cursor position?
+            // also draw a thin line to the cursor position
             if ((cf->PP.empty() && cf->P.size() > 0)
                 || (!cf->PP.empty() && cf->P.size() > 1)) {
-                line (*pImg, cf->P[cf->P.size()-1], pt, SF_BLACK, 1);
+                line (*pImg, cf->P[cf->P.size()-1], pt, SF_GREEN, 1);
             }
-#endif
         }
 
-        // green. This is the fit.
+        // This is the fit line
         if (cf->flags.test(ShowFits) == true) {
             for (size_t i=1; i<cf->fitted.size(); i++) {
                 line (*pImg, cf->fitted[i-1], cf->fitted[i], SF_GREEN, 1);
             }
-            // Axis line, relevant for polynomial fit
+            // Axis line, relevant for polynomial fits only
             if (cf->ct == CurveType::Poly) {
                 line (*pImg, cf->axis[0], cf->axis[1], SF_RED, 1);
             }
         }
 
         if (cf->flags.test(ShowBoxes) == true) {
-            // yellow. pointsInner to pointsOuter
+            // The bins; pointsInner to pointsOuter
             for (size_t i=0; i<cf->pointsInner.size(); i++) {
                 line (*pImg, cf->pointsInner[i], cf->pointsOuter[i], SF_YELLOW, 1);
             }
         }
 
         stringstream ss;
+        int xh = 30;
         ss << "Frame: " << _this->getFrameNum() << "/" << _this->getNumFrames()
-           << " " << cf->getFitInfo();
-        putText (*pImg, ss.str(), Point(30,30), FONT_HERSHEY_SIMPLEX, 0.8, SF_BLACK, 1, CV_AA);
+           << " " << cf->getFitInfo() << ". 'h' to toggle help.";
+        putText (*pImg, ss.str(), Point(xh,30), FONT_HERSHEY_SIMPLEX, 0.8, SF_BLACK, 1, CV_AA);
+
+        int yh = 90;
+        int yinc = 40;
+        if (_this->showHelp) {
+            putText (*pImg, string("Use the sliders to control the bin parameters"),
+                     Point(xh,yh), FONT_HERSHEY_SIMPLEX, 0.8, SF_BLACK, 1, CV_AA);
+            yh += yinc;
+            putText (*pImg, string("1:   Toggle Bezier controls"),
+                     Point(xh,yh), FONT_HERSHEY_SIMPLEX, 0.8, SF_BLACK, 1, CV_AA);
+            yh += yinc;
+            putText (*pImg, string("2:   Toggle user points"),
+                     Point(xh,yh), FONT_HERSHEY_SIMPLEX, 0.8, SF_BLACK, 1, CV_AA);
+            yh += yinc;
+            putText (*pImg, string("3:   Toggle the fit line"),
+                     Point(xh,yh), FONT_HERSHEY_SIMPLEX, 0.8, SF_BLACK, 1, CV_AA);
+            yh += yinc;
+            putText (*pImg, string("4:   Toggle the bins"),
+                     Point(xh,yh), FONT_HERSHEY_SIMPLEX, 0.8, SF_BLACK, 1, CV_AA);
+            yh += yinc;
+            putText (*pImg, string("Spc: Next curve"),
+                     Point(xh,yh), FONT_HERSHEY_SIMPLEX, 0.8, SF_BLACK, 1, CV_AA);
+            yh += yinc;
+            putText (*pImg, string("c:   Cancel last point"),
+                     Point(xh,yh), FONT_HERSHEY_SIMPLEX, 0.8, SF_BLACK, 1, CV_AA);
+            yh += yinc;
+            putText (*pImg, string("x:   Update the fit"),
+                     Point(xh,yh), FONT_HERSHEY_SIMPLEX, 0.8, SF_BLACK, 1, CV_AA);
+            yh += yinc;
+            stringstream hh;
+            hh << "w:   Save to file: " << _this->datafile;
+            putText (*pImg, hh.str(),
+                     Point(xh,yh), FONT_HERSHEY_SIMPLEX, 0.8, SF_BLACK, 1, CV_AA);
+            yh += yinc;
+            putText (*pImg, string("f:   Fit mode (Bezier or polynomial)"),
+                     Point(xh,yh), FONT_HERSHEY_SIMPLEX, 0.8, SF_BLACK, 1, CV_AA);
+            yh += yinc;
+            putText (*pImg, string("p:   In polynomial mode, change order"),
+                     Point(xh,yh), FONT_HERSHEY_SIMPLEX, 0.8, SF_BLACK, 1, CV_AA);
+            yh += yinc;
+            putText (*pImg, string("n:   Next frame"),
+                     Point(xh,yh), FONT_HERSHEY_SIMPLEX, 0.8, SF_BLACK, 1, CV_AA);
+            yh += yinc;
+            putText (*pImg, string("m:   Mirror this frame"),
+                     Point(xh,yh), FONT_HERSHEY_SIMPLEX, 0.8, SF_BLACK, 1, CV_AA);
+        }
 
         imshow (_this->winName, *pImg);
     }
