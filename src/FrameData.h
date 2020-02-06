@@ -329,12 +329,13 @@ public:
         dname = frameName + "/class/filename";
         df.read_string (dname.c_str(), this->filename);
 
-        dname = frameName + "/class/layer_x";
-        df.read_val (dname.c_str(), this->layer_x);
-        dname = frameName + "/class/thickness";
-        df.read_val (dname.c_str(), this->thickness);
-        dname = frameName + "/class/pixels_per_mm";
-        df.read_val (dname.c_str(), this->pixels_per_mm);
+        // Don't read back from H5 file what is specified in json; too confusing.
+        //dname = frameName + "/class/layer_x";
+        //df.read_val (dname.c_str(), this->layer_x);
+        //dname = frameName + "/class/thickness";
+        //df.read_val (dname.c_str(), this->thickness);
+        //dname = frameName + "/class/pixels_per_mm";
+        //df.read_val (dname.c_str(), this->pixels_per_mm);
     }
 
     //! Write the data out to an HdfData file @df.
@@ -404,13 +405,14 @@ public:
         vector<array<float,12>> surface_boxes;
         vector<array<float,3>> surface_box_centroids;
         array<float, 12> sbox;
+        cout << "Surface boxes extend from " << layer_x << " to " << (layer_x + thickness) << endl;
         for (int i = 1; i < this->nFit; ++i) {
             // c1 x,y,z
-            sbox[0] = this->layer_x;                // x
+            sbox[0] = this->layer_x;                 // x
             sbox[1] = this->fitted_rotated[i-1].x;  // y
             sbox[2] = this->fitted_rotated[i-1].y; // z
             // c2 x,y,z
-            sbox[3] = this->layer_x;              // x
+            sbox[3] = this->layer_x;               // x
             sbox[4] = this->fitted_rotated[i].x;  // y
             sbox[5] = this->fitted_rotated[i].y; // z
             // c3 x,y,z

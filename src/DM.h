@@ -47,7 +47,7 @@ private:
     //! The current image
     Mat img;
     //! The thickness of each brain slice in mm
-    float thickness = 0.2f;
+    float thickness = 0.05f;
     //! The application configuration
     Config conf;
     //! Should the help text be shown?
@@ -191,6 +191,10 @@ public:
 
         // Set the scale from JSON, too
         this->pixels_per_mm = conf.getFloat ("pixels_per_mm", 100.0f);
+
+        float tn = conf.getFloat ("thickness", 0.05f);
+        cout << "thickness from json is " << tn << endl;
+        this->thickness = 0.05f;
 
         // Loop over slices, creating a FrameData object for each.
         const Json::Value slices = conf.getArray ("slices");
