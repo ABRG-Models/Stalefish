@@ -33,6 +33,9 @@ endif()
 
 # Lib finding
 find_package(OpenCV REQUIRED)
+find_package(OpenGL REQUIRED)
+find_package(GLUT REQUIRED)
+find_package(X11 REQUIRED)
 find_package(LAPACK REQUIRED)
 
 if(APPLE)
@@ -54,7 +57,7 @@ else()
 endif(APPLE)
 
 include_directories(${OpenCV_INCLUDE_DIRS} ${HDF5_INCLUDE_DIR})
-# ${X11_INC_SEARCH_PATH} ?
+include_directories(${OPENGL_INCLUDE_DIR} ${GLUT_INCLUDE_DIR} ${X11_INC_SEARCH_PATH})
 
 # Find libmorphologica using pkgconfig
 find_package(PkgConfig)

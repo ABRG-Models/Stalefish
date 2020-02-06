@@ -7,6 +7,9 @@ using cv::Point;
 using cv::Point2d;
 using cv::Point2i;
 using cv::Scalar;
+#include <stdexcept>
+using std::runtime_error;
+using std::exception;
 #include <vector>
 using std::vector;
 #include <array>
@@ -24,6 +27,8 @@ using std::make_pair;
 using std::pair;
 #include <bitset>
 using std::bitset;
+#include <limits>
+using std::numeric_limits;
 #include "tools.h"
 #include <morph/BezCurvePath.h>
 using morph::BezCurvePath;
@@ -35,6 +40,10 @@ using morph::BezCoord;
 using morph::HdfData;
 #include <morph/MathAlgo.h>
 using morph::MathAlgo;
+#include <morph/NM_Simplex.h>
+using morph::NM_Simplex;
+using morph::NM_Simplex_State;
+#include <morph/MathConst.h>
 
 enum class CurveType {
     Poly,  // Variable order polynomial
@@ -56,18 +65,21 @@ enum Flag {
  */
 class FrameData
 {
+    //! Private attributes
+private:
+    //! The 'previous' frame in the stack of frames (index into)
+    int previous = -1;
+    vector<FrameData>* parentStack;
+
+    //! Number of bins to create for the fit (one less than nFit)
+    int nBins;
+    //! Number of points to create in the fit
+    int nFit;
+
+    //! Public attributes
 public:
     //! What curve type?
     CurveType ct = CurveType::Bezier;
-
-private:
-    //! The 'previous' frame in the stack of frames.
-    FrameData* previous;
-public:
-    //! Setter for previous
-    void setPrevious (FrameData* fr) {
-        this->previous = fr;
-    }
 
     //! Polynomial fit specific attributes
     //@{
@@ -98,12 +110,6 @@ public:
     int pp_idx = 0;
     //! The means computed for the boxes.
     vector<double> means;
-private:
-    //! Number of bins to create for the fit (one less than nFit)
-    int nBins;
-    //! Number of points to create in the fit
-    int nFit;
-public:
     //! Target number of bins; used by bins slider
     int nBinsTarg;
     //! The bin lengths, set with a slider.
@@ -152,10 +158,15 @@ public:
     int idx;
     //@}
 
+public:
+    FrameData () {
+        throw runtime_error ("Default constructor is not allowed");
+    }
     //! Constructor initializes default values
     FrameData (const Mat& fr) {
         // init previous to null.
-        this->previous = (FrameData*)0;
+        this->previous = -1;
+        this->parentStack = (vector<FrameData>*)0;
         this->frame = fr.clone();
         this->axiscoefs.resize (2, 0.0);
         this->axis.resize (2);
@@ -169,7 +180,10 @@ public:
     };
 
     //! Set the number of bins and update the size of the various containers
-    void setBins (unsigned int num=1) {
+    void setBins (unsigned int num) {
+        if (num > 5000) {
+            throw runtime_error ("Too many bins...");
+        }
         this->nBins = num;
         this->nBinsTarg = num;
         this->nFit = num + 1;
@@ -180,6 +194,22 @@ public:
         this->pointsOuter.resize (this->nFit);
         this->tangents.resize (this->nFit);
         this->normals.resize (this->nFit);
+    }
+
+    //! Getter for nBins
+    int getNBins (void) {
+        return this->nBins;
+    }
+    int getNBinsTarg (void) {
+        return this->nBinsTarg;
+    }
+
+    //! Setter for previous
+    void setPrevious (int prev) {
+        this->previous = prev;
+    }
+    void setParentStack (vector<FrameData>* parentSt) {
+        this->parentStack = parentSt;
     }
 
     //! Get information about the fit
@@ -377,20 +407,20 @@ public:
         for (int i = 1; i < this->nFit; ++i) {
             // c1 x,y,z
             sbox[0] = this->layer_x;                // x
-            sbox[1] = this->fitted_offset[i-1].x;  // y
-            sbox[2] = this->fitted_offset[i-1].y; // z
+            sbox[1] = this->fitted_rotated[i-1].x;  // y
+            sbox[2] = this->fitted_rotated[i-1].y; // z
             // c2 x,y,z
             sbox[3] = this->layer_x;              // x
-            sbox[4] = this->fitted_offset[i].x;  // y
-            sbox[5] = this->fitted_offset[i].y; // z
+            sbox[4] = this->fitted_rotated[i].x;  // y
+            sbox[5] = this->fitted_rotated[i].y; // z
             // c3 x,y,z
             sbox[6] = this->layer_x+this->thickness; // x
-            sbox[7] = this->fitted_offset[i].x;     // y
-            sbox[8] = this->fitted_offset[i].y;    // z
+            sbox[7] = this->fitted_rotated[i].x;     // y
+            sbox[8] = this->fitted_rotated[i].y;    // z
             // c4 x,y,z
             sbox[9] = this->layer_x+this->thickness; // x
-            sbox[10] = this->fitted_offset[i-1].x;  // y
-            sbox[11] = this->fitted_offset[i-1].y; // z
+            sbox[10] = this->fitted_rotated[i-1].x;  // y
+            sbox[11] = this->fitted_rotated[i-1].y; // z
 
             array<float, 3> sbox_centroid = MathAlgo<float>::centroid3D (sbox);
             surface_boxes.push_back (sbox);
@@ -398,7 +428,13 @@ public:
         }
 
         dname = frameName + "/fitted";
-        df.add_contained_vals (dname.c_str(), fitted);
+        df.add_contained_vals (dname.c_str(), this->fitted);
+
+        dname = frameName + "/fitted_offset";
+        df.add_contained_vals (dname.c_str(), this->fitted_offset);
+
+        dname = frameName + "/fitted_rotated";
+        df.add_contained_vals (dname.c_str(), this->fitted_rotated);
 
         // sboxes are 'surface boxes' - they lay in the plan of the cortical surface
         // and are not to be confused with the yellow boxes drawn in the UI in the y-z
@@ -427,6 +463,8 @@ public:
             linear_distances[i] -= halftotal;
         }
         df.add_contained_vals (dname.c_str(), linear_distances);
+
+        cout << "write() completed." << endl;
     }
 
 #if 0
@@ -463,6 +501,110 @@ public:
         } else {
             this->updateFitBezier();
         }
+        // Scale
+        this->offsetScaleFit();
+        // Rotate
+        this->rotateFitOptimally();
+    }
+
+    //! Re-compute the boxes from the curve (taking ints)
+    void refreshBoxes (const int lenA, const int lenB) {
+        this->refreshBoxes ((double)lenA, (double)lenB);
+    }
+
+    //! Re-compute the boxes from the curve (double version)
+    void refreshBoxes (const double lenA, const double lenB) {
+        if (this->ct == CurveType::Poly) {
+            this->pointsInner = PolyFit::rotate (PolyFit::tracePolyOrth (this->pf, this->minX, this->maxX,
+                                                                         this->nFit, lenA),
+                                                 this->theta);
+            this->pointsOuter = PolyFit::rotate (PolyFit::tracePolyOrth (this->pf, this->minX, this->maxX,
+                                                                         this->nFit, lenB),
+                                                 this->theta);
+        } else {
+            for (int i=0; i<this->nFit; i++) {
+                Point2d normLenA = this->normals[i]*lenA;
+                Point2d normLenB = this->normals[i]*lenB;
+                this->pointsInner[i] = this->fitted[i] + Point2i((int)normLenA.x, (int)normLenA.y);
+                this->pointsOuter[i] = this->fitted[i] + Point2i((int)normLenB.x, (int)normLenB.y);
+            }
+        }
+        // Make the boxes from pointsInner and pointsOuter
+        this->boxes.resize (this->nBins);
+        for (int i=0; i<this->nBins; i++) {
+            vector<Point> pts(4);
+            pts[0] = this->pointsInner[i];
+            pts[1] = this->pointsInner[i+1];
+            pts[2] = this->pointsOuter[i+1];
+            pts[3] = this->pointsOuter[i];
+            this->boxes[i] = pts;
+        }
+    }
+
+    //! Toggle between polynomial and Bezier curve fitting
+    void toggleCurveType (void) {
+        if (this->ct == CurveType::Poly) {
+            this->ct = CurveType::Bezier;
+        } else {
+            this->ct = CurveType::Poly;
+        }
+    }
+
+    //! Toggle controls
+    //@{
+    void toggleShowBoxes (void) {
+        this->flags[ShowBoxes] = this->flags.test(ShowBoxes) ? false : true;
+    }
+    void setShowBoxes (bool t) {
+        this->flags[ShowBoxes] = t;
+    }
+
+    void toggleShowFits (void) {
+        this->flags[ShowFits] = this->flags.test(ShowFits) ? false : true;
+    }
+    void setShowFits (bool t) {
+        this->flags[ShowFits] = t;
+    }
+
+    void toggleShowUsers (void) {
+        this->flags[ShowUsers] = this->flags.test(ShowUsers) ? false : true;
+    }
+    void setShowUsers (bool t) {
+        this->flags[ShowUsers] = t;
+    }
+
+    void toggleShowCtrls (void) {
+        this->flags[ShowCtrls] = this->flags.test(ShowCtrls) ? false : true;
+    }
+    void setShowCtrls (bool t) {
+        this->flags[ShowCtrls] = t;
+    }
+    //@}
+
+private:
+    /*!
+     * Private methods
+     */
+    //! Update the fit, but don't rotate. Used by rotateFitOptimally()
+    void updateFit_norotate (void) {
+        if (this->ct == CurveType::Poly) {
+            this->updateFitPoly();
+        } else {
+            this->updateFitBezier();
+        }
+    }
+
+    //! Update the fit, scale and rotate by @_theta. Used by rotateFitOptimally()
+    void updateFit (double _theta) {
+        if (this->ct == CurveType::Poly) {
+            this->updateFitPoly();
+        } else {
+            this->updateFitBezier();
+        }
+        // Scale
+        this->offsetScaleFit();
+        // Rotate
+        this->rotate (_theta);
     }
 
     //! Recompute the Bezier fit
@@ -525,12 +667,19 @@ public:
         vector<BezCoord<double>> coords = this->bcp.getPoints();
         vector<BezCoord<double>> tans = this->bcp.getTangents();
         vector<BezCoord<double>> norms = this->bcp.getNormals();
-        Point2d fitsum;
+        //Point2d fitsum;
         for (int i = 0; i < this->nFit; ++i) {
             this->fitted[i] = Point(coords[i].x(),coords[i].y());
-            fitsum += Point2d(coords[i].x(),coords[i].y());
+            //fitsum += Point2d(coords[i].x(),coords[i].y());
             this->tangents[i] = Point2d(tans[i].x(),tans[i].y());
             this->normals[i] = Point2d(norms[i].x(),norms[i].y());
+        }
+    }
+
+    void offsetScaleFit (void) {
+        Point2d fitsum;
+        for (int i = 0; i < this->nFit; ++i) {
+            fitsum += Point2d(this->fitted[i].x, this->fitted[i].y);
         }
         this->fit_centroid = fitsum/this->nFit;
         cout << "Fit centroid: " << this->fit_centroid << endl;
@@ -539,20 +688,133 @@ public:
             Point2d fd(this->fitted[i]);
             this->fitted_offset[i] = (fd - this->fit_centroid) / this->pixels_per_mm;
         }
-        // If there's no previous frame, then fitted_rotated should be same as fitted_offset
-        if (this->previous == (FrameData*)0) {
+    }
+
+    //! Compute a sum of squared distances between the points in this fit and the
+    //! points in the previous fit
+    double computeSosWithPrev (double theta_) {
+
+        if (this->previous < 0) {
+            return numeric_limits<double>::max();
+        }
+
+        if ((*this->parentStack)[this->previous].getNBins() != this->nBins) {
+            // Number of bins has to be same
+            return numeric_limits<double>::max();
+        }
+
+        this->rotate (theta_);
+
+        double sos = 0.0;
+        for (int i = 0; i < this->nFit; ++i) {
+            // Distance^2 from this->fitted_rotated[i] to this->previous->fitted_rotated[i]
+            double xdiff = this->fitted_rotated[i].x - (*this->parentStack)[this->previous].fitted_rotated[i].x;
+            double ydiff = this->fitted_rotated[i].y - (*this->parentStack)[this->previous].fitted_rotated[i].y;
+            double d_ = (xdiff*xdiff + ydiff*ydiff);
+            //cout << "sos += " << d_ << ", ";
+            sos += d_;
+        }
+        //cout << "\nFor rotation angle " << theta_ << " returning sos=" << sos << endl;
+        return sos;
+    }
+
+    //! Rotate the points in this->fitted_offset by theta about the origin and store
+    //! the result in this->fitted_rotated
+    void rotate (double theta) {
+        if (theta == 0.0) {
             for (int i = 0; i < this->nFit; ++i) {
                 this->fitted_rotated[i] = this->fitted_offset[i];
             }
-        } else {
-            // There's a previous frame; optimize fitted_rotated
-            this->rotateFitOptimally();
+            return;
+        }
+
+        for (int i = 0; i < this->nFit; ++i) {
+            double xi = this->fitted_offset[i].x;
+            double yi = this->fitted_offset[i].y;
+            double sin_theta = sin (theta);
+            double cos_theta = cos (theta);
+            this->fitted_rotated[i].x = xi * cos_theta - yi * sin_theta;
+            this->fitted_rotated[i].y = xi * sin_theta + yi * cos_theta;
         }
     }
 
-    //! Rotate the fit until we get the right thing.
+    //! Rotate the fit until we get the best one.
     void rotateFitOptimally (void) {
-        // Writeme
+
+        // If there's no previous frame, then fitted_rotated should be same as fitted_offset
+        if (this->previous < 0) {
+            cout << "No previous frame, so just copying fitted_offset to fitted_rotated..." << endl;
+            for (int i = 0; i < this->nFit; ++i) {
+                this->fitted_rotated[i] = this->fitted_offset[i];
+            }
+            return;
+        }
+
+        cout << "rotateFitOptimally: DO have previous frame" << endl;
+
+        // Now check if the previous frame has different number of bins
+        int nBinsSave = this->nBins;
+        int nBinsTmp = (*this->parentStack)[this->previous].getNBins();
+        cout << "  nBinsSave(this->nBins) = "<< nBinsSave << endl;
+        cout << "  nBinsTmp(this->previous->nBins) = "<< nBinsTmp << endl;
+        if (nBinsTmp != nBinsSave) {
+            // This temporarily re-computes THIS frame's fit with nBinsTmp
+            cout << "set bins to nBinsTmp = " << nBinsTmp << endl;
+            this->setBins (nBinsTmp);
+            this->updateFit_norotate();
+        }
+
+        // Now we have a fit which has same number of bins as the previous frame,
+        // this means we can compute SOS objective function
+        double thet1 = 0.0;
+        double thet2 = 0.5;
+        NM_Simplex<double> simp (thet1, thet2);
+        // Set a termination threshold for the SD of the vertices of the simplex
+        simp.termination_threshold = 2.0 * numeric_limits<double>::epsilon();
+        // Set a 10000 operation limit, in case the above threshold can't be reached
+        simp.too_many_operations = 1000;
+
+        while (simp.state != NM_Simplex_State::ReadyToStop) {
+
+            if (simp.state == NM_Simplex_State::NeedToComputeThenOrder) {
+                // 1. apply objective to each vertex
+                for (unsigned int i = 0; i <= simp.n; ++i) {
+                    simp.values[i] = this->computeSosWithPrev (simp.vertices[i][0]);
+                }
+                simp.order();
+
+            } else if (simp.state == NM_Simplex_State::NeedToOrder) {
+                simp.order();
+
+            } else if (simp.state == NM_Simplex_State::NeedToComputeReflection) {
+                double val = this->computeSosWithPrev (simp.xr[0]);
+                simp.apply_reflection (val);
+
+            } else if (simp.state == NM_Simplex_State::NeedToComputeExpansion) {
+                double val = this->computeSosWithPrev (simp.xe[0]);
+                simp.apply_expansion (val);
+
+            } else if (simp.state == NM_Simplex_State::NeedToComputeContraction) {
+                double val = this->computeSosWithPrev (simp.xc[0]);
+                simp.apply_contraction (val);
+            }
+        }
+        vector<double> vP = simp.best_vertex();
+        double min_sos = simp.best_value();
+
+        cout << "Best sos value: " << min_sos << " and best theta: " << vP[0] << endl;
+
+        if (nBinsTmp != nBinsSave) {
+            // Need to reset bins and update the fit again, but this time rotating by vP[0]
+            cout << "reset bins to nBinsSave = " << nBinsSave << endl;
+            this->setBins (nBinsSave);
+            cout << "Update fit with rotation " << vP[0] << endl;
+            this->updateFit (vP[0]);
+        } else {
+            // There was no need to change bin; rotate by the best theta, vP[0]
+            cout << "Update unchanged fit with rotation " << vP[0] << endl;
+            this->rotate (vP[0]);
+        }
     }
 
     //! Recompute the polynomial fit
@@ -574,84 +836,7 @@ public:
                                         this->theta);
     }
 
-    //! Re-compute the boxes from the curve (taking ints)
-    void refreshBoxes (const int lenA, const int lenB) {
-        this->refreshBoxes ((double)lenA, (double)lenB);
-    }
 
-    //! Re-compute the boxes from the curve (double version)
-    void refreshBoxes (const double lenA, const double lenB) {
-
-        // cout << "Called, lenA=" << lenA << ", lenB=" << lenB << endl;
-        if (this->ct == CurveType::Poly) {
-            this->pointsInner = PolyFit::rotate (PolyFit::tracePolyOrth (this->pf, this->minX, this->maxX,
-                                                                     this->nFit, lenA),
-                                             this->theta);
-            this->pointsOuter = PolyFit::rotate (PolyFit::tracePolyOrth (this->pf, this->minX, this->maxX,
-                                                                      this->nFit, lenB),
-                                              this->theta);
-        } else {
-            for (int i=0; i<this->nFit; i++) {
-                Point2d normLenA = this->normals[i]*lenA;
-                Point2d normLenB = this->normals[i]*lenB;
-                this->pointsInner[i] = this->fitted[i] + Point2i((int)normLenA.x, (int)normLenA.y);
-                this->pointsOuter[i] = this->fitted[i] + Point2i((int)normLenB.x, (int)normLenB.y);
-            }
-        }
-
-        // Make the boxes from pointsInner and pointsOuter
-        this->boxes.resize (this->nBins);
-        for (int i=0; i<this->nBins; i++) {
-            vector<Point> pts(4);
-            pts[0] = this->pointsInner[i];
-            pts[1] = this->pointsInner[i+1];
-            pts[2] = this->pointsOuter[i+1];
-            pts[3] = this->pointsOuter[i];
-            this->boxes[i] = pts;
-        }
-    }
-
-    //! Toggle between polynomial and Bezier curve fitting
-    void toggleCurveType (void) {
-        if (this->ct == CurveType::Poly) {
-            this->ct = CurveType::Bezier;
-        } else {
-            this->ct = CurveType::Poly;
-        }
-    }
-
-    //! Toggle controls
-    //@{
-    void toggleShowBoxes (void) {
-        this->flags[ShowBoxes] = this->flags.test(ShowBoxes) ? false : true;
-    }
-    void setShowBoxes (bool t) {
-        this->flags[ShowBoxes] = t;
-    }
-
-    void toggleShowFits (void) {
-        this->flags[ShowFits] = this->flags.test(ShowFits) ? false : true;
-    }
-    void setShowFits (bool t) {
-        this->flags[ShowFits] = t;
-    }
-
-    void toggleShowUsers (void) {
-        this->flags[ShowUsers] = this->flags.test(ShowUsers) ? false : true;
-    }
-    void setShowUsers (bool t) {
-        this->flags[ShowUsers] = t;
-    }
-
-    void toggleShowCtrls (void) {
-        this->flags[ShowCtrls] = this->flags.test(ShowCtrls) ? false : true;
-    }
-    void setShowCtrls (bool t) {
-        this->flags[ShowCtrls] = t;
-    }
-    //@}
-
-private:
     //! Common code to generate the frame name
     string getFrameName (void) const {
         stringstream ss;

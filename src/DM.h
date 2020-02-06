@@ -76,14 +76,17 @@ public:
     void addFrame (Mat& frameImg, const string& frameImgFilename, const float& slice_x, const float& ppm) {
         FrameData fd(frameImg);
         fd.filename = frameImgFilename;
+        fd.setParentStack (&this->vFrameData);
         // Increment layer index. Best might be to use JSON info for layer positions as
         // they are unlikely always to be in perfect increments.
         if (this->vFrameData.empty()) {
             fd.idx = 0;
+            cout << "First frame; not setting previous" << endl;
         } else {
             fd.idx = this->vFrameData.back().idx + 1;
             // Set pointer to previous so slices can be aligned during FrameData::write or updateFit
-            fd.setPrevious (&this->vFrameData.back());
+            fd.setPrevious (this->vFrameData.back().idx);
+            cout << "Subsequent frame; setting previous to " << (&this->vFrameData[this->vFrameData.back().idx]) << endl;
         }
         fd.layer_x = slice_x;
         fd.pixels_per_mm = (double)ppm;
@@ -96,6 +99,7 @@ public:
             if (fd.flags.test (Mirrored)) {
                 fd.mirror();
             }
+            cout << "DM::addFrame: Calling FrameData::updateFit()" << endl;
             fd.updateFit();
         } catch (const exception& e) {
             // No problem, just carry on
@@ -149,6 +153,8 @@ public:
             f.write (d);
             // Also build up an "overall" data store of the bins
         }
+        int nf = this->vFrameData.size();
+        d.add_val("/nframes", nf);
     }
 
     //! Toogle showHelp
