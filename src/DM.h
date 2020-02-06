@@ -68,24 +68,6 @@ public:
         this->vFrameData.clear();
     }
 
-#if 0
-    //! Add a frame to vFrameData
-    void addFrame (Mat& frameImg, const string& frameImgFilename) {
-        FrameData fd(frameImg);
-        fd.filename = frameImgFilename;
-        // Increment layer info. Best might be to use JSON info for layer positions as
-        // they are unlikely always to be in perfect increments.
-        if (this->vFrameData.empty()) {
-            fd.layer_x = 0.0f;
-            fd.idx = 0;
-        } else {
-            fd.layer_x = this->vFrameData.back().layer_x + this->thickness;
-            fd.idx = this->vFrameData.back().idx + 1;
-        }
-        fd.thickness = this->thickness;
-        this->vFrameData.push_back (fd);
-    }
-#endif
     /*!
      * Add frame @frameImg to vFrameData, setting the metadata attributes
      * @frameImgFilename (The filename for the image), @slice_x (position in the x
@@ -100,6 +82,8 @@ public:
             fd.idx = 0;
         } else {
             fd.idx = this->vFrameData.back().idx + 1;
+            // Set pointer to previous so slices can be aligned during FrameData::write or updateFit
+            fd.setPrevious (&this->vFrameData.back());
         }
         fd.layer_x = slice_x;
         fd.pixels_per_mm = (double)ppm;

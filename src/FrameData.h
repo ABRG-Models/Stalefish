@@ -60,6 +60,15 @@ public:
     //! What curve type?
     CurveType ct = CurveType::Bezier;
 
+private:
+    //! The 'previous' frame in the stack of frames.
+    FrameData* previous;
+public:
+    //! Setter for previous
+    void setPrevious (FrameData* fr) {
+        this->previous = fr;
+    }
+
     //! Polynomial fit specific attributes
     //@{
     //! Order of the polynomial fit
@@ -104,8 +113,13 @@ public:
     vector<Point> fitted;
     //! The centroid of fitted.
     Point2d fit_centroid;
-    //! fitted - fit_centroid
+    //! This holds offset and scaled fitted points: (fitted - fit_centroid) * pixels_per_mm
     vector<Point2d> fitted_offset;
+    //! This holds the fitted_offset points after they have been rotated to be in line
+    //! with fitted_rotated points in the 'previous' frame. 'in line' means the
+    //! smallest sum-of-square distances between the two fitted_rotated sets. Depends
+    //! on nBins being the same in each.
+    vector<Point2d> fitted_rotated;
     //! For point in fitted, the tangent at that location
     vector<Point2d> tangents;
     //! For point in fitted, the normal at that location
@@ -140,6 +154,8 @@ public:
 
     //! Constructor initializes default values
     FrameData (const Mat& fr) {
+        // init previous to null.
+        this->previous = (FrameData*)0;
         this->frame = fr.clone();
         this->axiscoefs.resize (2, 0.0);
         this->axis.resize (2);
@@ -152,22 +168,21 @@ public:
         this->flags.set (ShowBoxes);
     };
 
+    //! Set the number of bins and update the size of the various containers
     void setBins (unsigned int num=1) {
         this->nBins = num;
         this->nBinsTarg = num;
         this->nFit = num + 1;
         this->fitted.resize (this->nFit);
         this->fitted_offset.resize (this->nFit);
+        this->fitted_rotated.resize (this->nFit);
         this->pointsInner.resize (this->nFit);
         this->pointsOuter.resize (this->nFit);
         this->tangents.resize (this->nFit);
         this->normals.resize (this->nFit);
     }
 
-    void incBins (unsigned int num=1) {
-        this->setBins (this->nBins + num);
-    }
-
+    //! Get information about the fit
     string getFitInfo (void) const {
         stringstream ss;
         if (this->ct == CurveType::Poly) {
@@ -190,6 +205,7 @@ public:
         return ss.str();
     }
 
+    //! Remove the last user point
     void removeLastPoint (void) {
         if (this->PP.empty() && this->P.size() == 1) {
             // Normal behaviour, just remove point from P
@@ -214,6 +230,7 @@ public:
         }
     }
 
+    //! In Bezier mode, store the current set of user points (P) into PP and clear P.
     void nextCurve (void) {
         if (this->ct == CurveType::Poly) {
             // no op.
@@ -227,9 +244,9 @@ public:
         this->P.clear();
         this->P.push_back (this->PP.back().back());
         this->pp_idx++;
-        cout << "nextCurve; pp_idx is now " << pp_idx << endl;
     }
 
+    //! Compute the mean values for the bins
     void getBoxMeans (void) {
         this->means.resize (this->boxes.size());
         for (size_t i=0; i<this->boxes.size(); i++) {
@@ -244,7 +261,6 @@ public:
 
     //! Read important data from file
     void read (HdfData& df) {
-        cout << "read() called" << endl;
         // Note this file assumes idx has been set for the frame.
         string frameName = this->getFrameName();
 
@@ -279,9 +295,7 @@ public:
         dname = frameName + "/class/binB";
         df.read_val (dname.c_str(), this->binB);
         dname = frameName + "/class/flags";
-        cout << "Before read flags: " << this->flags << endl;
         df.read_val (dname.c_str(), this->flags);
-        cout << "Read flags: " << this->flags << endl;
         dname = frameName + "/class/filename";
         df.read_string (dname.c_str(), this->filename);
 
@@ -325,7 +339,6 @@ public:
         dname = frameName + "/class/binB";
         df.add_val (dname.c_str(), this->binB);
         dname = frameName + "/class/flags";
-        cout << "writing flags: " << this->flags << endl;
         df.add_val (dname.c_str(), this->flags);
         dname = frameName + "/class/filename";
         df.add_string (dname.c_str(), this->filename);
@@ -416,6 +429,8 @@ public:
         df.add_contained_vals (dname.c_str(), linear_distances);
     }
 
+#if 0
+    //! A print-out function to show the means on stdout
     void printMeans (void) const {
         cout << "[";
         for (size_t j=0; j<this->means.size(); j++) {
@@ -423,6 +438,7 @@ public:
         }
         cout << "]" << endl << flush;
     }
+#endif
 
     //! Mirror the image
     void mirror (void) {
@@ -440,7 +456,7 @@ public:
         this->flags.flip(Flipped);
     }
 
-    //! Recompute the polynomial fit
+    //! Recompute the fit
     void updateFit (void) {
         if (this->ct == CurveType::Poly) {
             this->updateFitPoly();
@@ -449,6 +465,7 @@ public:
         }
     }
 
+    //! Recompute the Bezier fit
     void updateFitBezier (void) {
 
         if (this->PP.empty() && this->P.size() < 2) {
@@ -463,7 +480,6 @@ public:
             vector<pair<double,double>> user_points;
             user_points.clear();
             for (auto pt : _P) {
-                //cout << "Adding a PP point " << pt.x <<"," << pt.y << endl;
                 user_points.push_back (make_pair(pt.x, pt.y));
             }
 
@@ -471,12 +487,10 @@ public:
             if (this->bcp.isNull()) {
                 // No previous curves; fit just on user_points
                 bc.fit (user_points);
-                //cout << "fit with no previous curve..." << endl;
                 this->bcp.addCurve (bc);
             } else {
                 // Have previous curve, use last control of previous curve to make
                 // smooth transition.
-                //cout << "fit with previous curve..." << endl;
                 BezCurve<double> last = this->bcp.curves.back();
                 bc.fit (user_points, last);
                 this->bcp.removeCurve();
@@ -490,19 +504,16 @@ public:
             vector<pair<double,double>> user_points;
             user_points.clear();
             for (auto pt : this->P) {
-                //cout << "Adding a P point " << pt.x <<"," << pt.y << endl;
                 user_points.push_back (make_pair(pt.x, pt.y));
             }
             BezCurve<double> bc;
             if (this->bcp.isNull()) {
                 // No previous curves; fit just on user_points
                 bc.fit (user_points);
-                //cout << "fit P with no previous curve..." << endl;
                 this->bcp.addCurve (bc);
             } else {
                 BezCurve<double> last = this->bcp.curves.back();
                 bc.fit (user_points, last);
-                //cout << "fit P with previous curve..." << endl;
                 this->bcp.removeCurve();
                 this->bcp.addCurve (last);
                 this->bcp.addCurve (bc);
@@ -526,12 +537,25 @@ public:
         // Apply offset and scale
         for (int i = 0; i < this->nFit; ++i) {
             Point2d fd(this->fitted[i]);
-            //cout << "Fit point: " << fd << endl;
-            //cout << "Fit point - centroid: " << (fd - this->fit_centroid)
             this->fitted_offset[i] = (fd - this->fit_centroid) / this->pixels_per_mm;
+        }
+        // If there's no previous frame, then fitted_rotated should be same as fitted_offset
+        if (this->previous == (FrameData*)0) {
+            for (int i = 0; i < this->nFit; ++i) {
+                this->fitted_rotated[i] = this->fitted_offset[i];
+            }
+        } else {
+            // There's a previous frame; optimize fitted_rotated
+            this->rotateFitOptimally();
         }
     }
 
+    //! Rotate the fit until we get the right thing.
+    void rotateFitOptimally (void) {
+        // Writeme
+    }
+
+    //! Recompute the polynomial fit
     void updateFitPoly (void) {
         this->axiscoefs = PolyFit::polyfit (this->P, 1);
         this->axis = PolyFit::tracePoly (this->axiscoefs, 0, this->frame.cols, 2);
@@ -550,10 +574,12 @@ public:
                                         this->theta);
     }
 
-    //! Re-compute the boxes from the curve
+    //! Re-compute the boxes from the curve (taking ints)
     void refreshBoxes (const int lenA, const int lenB) {
         this->refreshBoxes ((double)lenA, (double)lenB);
     }
+
+    //! Re-compute the boxes from the curve (double version)
     void refreshBoxes (const double lenA, const double lenB) {
 
         // cout << "Called, lenA=" << lenA << ", lenB=" << lenB << endl;
@@ -566,16 +592,10 @@ public:
                                               this->theta);
         } else {
             for (int i=0; i<this->nFit; i++) {
-                //cout << "fitted[i]: " << fitted[i] << endl;
-                //cout << "normals[i]: " << this->normals[i] << endl;
-                //cout << "normals[i]*lenA: " << (this->normals[i]*lenA) << endl;
                 Point2d normLenA = this->normals[i]*lenA;
                 Point2d normLenB = this->normals[i]*lenB;
-                //cout << "normals[i]*lenB: " << normLenB << endl;
                 this->pointsInner[i] = this->fitted[i] + Point2i((int)normLenA.x, (int)normLenA.y);
-                //cout << "pointsInner[i]: " << this->pointsInner[i] << endl;
                 this->pointsOuter[i] = this->fitted[i] + Point2i((int)normLenB.x, (int)normLenB.y);
-                //cout << "pointsOuter[i]: " << this->pointsOuter[i] << endl;
             }
         }
 
@@ -587,12 +607,11 @@ public:
             pts[1] = this->pointsInner[i+1];
             pts[2] = this->pointsOuter[i+1];
             pts[3] = this->pointsOuter[i];
-            //cout << "Define a box of width " << pointsInner[i] - pointsOuter[i]
-            //     << ", length: " << pointsInner[i] - pointsInner[i+1] << endl;
             this->boxes[i] = pts;
         }
     }
 
+    //! Toggle between polynomial and Bezier curve fitting
     void toggleCurveType (void) {
         if (this->ct == CurveType::Poly) {
             this->ct = CurveType::Bezier;
@@ -601,6 +620,8 @@ public:
         }
     }
 
+    //! Toggle controls
+    //@{
     void toggleShowBoxes (void) {
         this->flags[ShowBoxes] = this->flags.test(ShowBoxes) ? false : true;
     }
@@ -628,6 +649,7 @@ public:
     void setShowCtrls (bool t) {
         this->flags[ShowCtrls] = t;
     }
+    //@}
 
 private:
     //! Common code to generate the frame name
