@@ -31,15 +31,16 @@ int main (int argc, char** argv)
         array<float, 3> offset = { 0.0, 0.0, 0.0 };
         array<float, 4> scale = { 0.1, 0.0, 1.0, 0.0};
 
+        cout << "Opening H5 file " << datafile << endl;
         HdfData d(datafile, true); // true for read
         int nf = 0;
-        d.read_val ("/nframes", nf);
+        //d.read_val ("/nframes", nf);
 
-        array<float, 12> quads; // Get from HDF5
-        array<float, 3> means;
+        vector<array<float, 12>> quads; // Get from HDF5
+        vector<float> means;
 
         string frameName("");
-        for (int i = 0; i<1/*nf*/; ++i) {
+        for (int i = 0; i<17/*nf*/; ++i) {
 
             stringstream ss;
             ss << "/Frame";
@@ -58,7 +59,7 @@ int main (int argc, char** argv)
             d.read_contained_vals (str.c_str(), frameMeans);
 
             // Gah,convert frameMeans to float
-            vector<double> frameMeansF;
+            vector<float> frameMeansF;
             for (unsigned int j = 0; j < frameMeans.size(); ++j) {
                 frameMeansF.push_back (static_cast<float>(frameMeans[i]));
             }
@@ -67,7 +68,7 @@ int main (int argc, char** argv)
         }
 
 
-        unsigned int visId = v.addQuadsVisual (&quads, means, offset, scale);
+        unsigned int visId = v.addQuadsVisual (&quads, offset, means, scale);
         cout << "Added Visual with visId " << visId << endl;
         v.render();
 
