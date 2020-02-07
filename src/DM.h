@@ -377,6 +377,12 @@ public:
             putText (*pImg, string("f:   Update the fit"),
                      Point(xh,yh), FONT_HERSHEY_SIMPLEX, 0.8, SF_BLACK, 1, CV_AA);
             yh += yinc;
+            putText (*pImg, string("F:   Update ALL fits"),
+                     Point(xh,yh), FONT_HERSHEY_SIMPLEX, 0.8, SF_BLACK, 1, CV_AA);
+            yh += yinc;
+            putText (*pImg, string("B:   Copy current bin params to all frames"),
+                     Point(xh,yh), FONT_HERSHEY_SIMPLEX, 0.8, SF_BLACK, 1, CV_AA);
+            yh += yinc;
             stringstream hh;
             hh << "w:   Save to file: " << _this->datafile;
             putText (*pImg, hh.str(),
