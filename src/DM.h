@@ -97,7 +97,7 @@ public:
             HdfData d(this->datafile, true); // true for read
             fd.read (d);
             if (fd.flags.test (Mirrored)) {
-                fd.mirror();
+                fd.mirror_image_only();
             }
             cout << "DM::addFrame: Calling FrameData::updateFit()" << endl;
             fd.updateFit();
@@ -111,6 +111,33 @@ public:
     //! Return the size of vFrameData
     unsigned int getNumFrames (void) const {
         return this->vFrameData.size();
+    }
+
+    //! Copy the current frame's bin parameters (binA, binB, nBinsTarg) to all the other frames.
+    void updateAllBins (void) {
+        int nfr = DM::i()->getNumFrames();
+        int idx = DM::i()->gcf()->idx;
+        for (int f = 0; f < nfr; ++f) {
+            if (idx == f) {
+                continue;
+            }
+            this->vFrameData[f].binA = this->vFrameData[idx].binA;
+            this->vFrameData[f].binB = this->vFrameData[idx].binB;
+            this->vFrameData[f].nBinsTarg = this->vFrameData[idx].nBinsTarg;
+            this->vFrameData[f].updateFit();
+            this->vFrameData[f].refreshBoxes (-this->vFrameData[f].binA, this->vFrameData[f].binB);
+        }
+    }
+
+    //! Update all fits - i.e. for every frame in the stack
+    void updateAllFits (void) {
+        int nfr = DM::i()->getNumFrames();
+        for (int f = 0; f < nfr; ++f) {
+            this->vFrameData[f].setShowFits (true);
+            this->vFrameData[f].setShowBoxes (true);
+            this->vFrameData[f].updateFit();
+            this->vFrameData[f].refreshBoxes (-this->vFrameData[f].binA, this->vFrameData[f].binB);
+        }
     }
 
     //! get current frame. Short name on purpose.
@@ -134,10 +161,13 @@ public:
     //! Make the next frame current (or cycle back to the first)
     void nextFrame (void) {
         ++this->I %= this->vFrameData.size();
-        FrameData* fd = this->gcf();
-        fd->binA = this->binA;
-        fd->binB = this->binB;
-        fd->nBinsTarg = this->nBinsTarg;
+        // Take binA, binB from the frame and change the sliders.
+        this->binA = this->gcf()->binA;
+        this->binB = this->gcf()->binB;
+        this->nBinsTarg = this->gcf()->nBinsTarg;
+        DM::updateTrackbars();
+        this->gcf()->updateFit();
+        this->gcf()->refreshBoxes (-this->binA, this->binB);
     }
 
     //! Clone the current frame into Mat img
@@ -194,7 +224,7 @@ public:
 
         float tn = conf.getFloat ("thickness", 0.05f);
         cout << "thickness from json is " << tn << endl;
-        this->thickness = 0.05f;
+        this->thickness = tn;
 
         // Loop over slices, creating a FrameData object for each.
         const Json::Value slices = conf.getArray ("slices");
@@ -215,11 +245,11 @@ public:
         // Make sure there's an image in DM to start with
         this->cloneFrame();
         setMouseCallback (this->winName, DM::onmouse, this->getImg());
+        // Init current frame with binA, binB and nBinsTarg taken from the current frame
+        this->binA = this->gcf()->binA;
+        this->binB = this->gcf()->binB;
+        this->nBinsTarg = this->gcf()->nBinsTarg;
         DM::createTrackbars();
-        // Init current frame with binA, binB and nBinsTarg:
-        this->gcf()->binA = this->binA;
-        this->gcf()->binB = this->binB;
-        this->gcf()->nBinsTarg = this->nBinsTarg;
     }
 
     /*!
@@ -344,7 +374,7 @@ public:
             putText (*pImg, string("c:   Cancel last point"),
                      Point(xh,yh), FONT_HERSHEY_SIMPLEX, 0.8, SF_BLACK, 1, CV_AA);
             yh += yinc;
-            putText (*pImg, string("x:   Update the fit"),
+            putText (*pImg, string("f:   Update the fit"),
                      Point(xh,yh), FONT_HERSHEY_SIMPLEX, 0.8, SF_BLACK, 1, CV_AA);
             yh += yinc;
             stringstream hh;
@@ -352,7 +382,7 @@ public:
             putText (*pImg, hh.str(),
                      Point(xh,yh), FONT_HERSHEY_SIMPLEX, 0.8, SF_BLACK, 1, CV_AA);
             yh += yinc;
-            putText (*pImg, string("f:   Fit mode (Bezier or polynomial)"),
+            putText (*pImg, string("o:   Fit mode (Bezier or polynomial)"),
                      Point(xh,yh), FONT_HERSHEY_SIMPLEX, 0.8, SF_BLACK, 1, CV_AA);
             yh += yinc;
             putText (*pImg, string("p:   In polynomial mode, change order"),
@@ -362,6 +392,9 @@ public:
                      Point(xh,yh), FONT_HERSHEY_SIMPLEX, 0.8, SF_BLACK, 1, CV_AA);
             yh += yinc;
             putText (*pImg, string("m:   Mirror this frame"),
+                     Point(xh,yh), FONT_HERSHEY_SIMPLEX, 0.8, SF_BLACK, 1, CV_AA);
+            yh += yinc;
+            putText (*pImg, string("x:   Exit the program"),
                      Point(xh,yh), FONT_HERSHEY_SIMPLEX, 0.8, SF_BLACK, 1, CV_AA);
         }
 
@@ -404,6 +437,16 @@ public:
         createTrackbar (tbBinB, _this->winName, &_this->binB, 200, ontrackbar_boxes);
         setTrackbarPos (tbBinB, _this->winName, _this->binB);
         createTrackbar (tbNBins, _this->winName, &_this->nBinsTarg, 200, ontrackbar_nbins);
+        setTrackbarPos (tbNBins, _this->winName, _this->nBinsTarg);
+    }
+
+    static void updateTrackbars (void) {
+        string tbBinA = "Box A";
+        string tbBinB = "Box B";
+        string tbNBins = "Num bins";
+        DM* _this = DM::i();
+        setTrackbarPos (tbBinA, _this->winName, _this->binA);
+        setTrackbarPos (tbBinB, _this->winName, _this->binB);
         setTrackbarPos (tbNBins, _this->winName, _this->nBinsTarg);
     }
 };

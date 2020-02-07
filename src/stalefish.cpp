@@ -50,8 +50,20 @@ int main (int argc, char** argv)
             DM::i()->gcf()->toggleShowBoxes();
             break;
         }
+        // Apply bin values across all frames
+        case('B'):
+        {
+            DM::i()->updateAllBins();
+            break;
+        }
+        // Perform all fits
+        case('F'):
+        {
+            DM::i()->updateAllFits();
+            break;
+        }
         // Perform a fit
-        case('x'):
+        case('f'):
         {
             DM::i()->gcf()->setShowFits (true);
             DM::i()->gcf()->setShowBoxes (true);
@@ -90,7 +102,7 @@ int main (int argc, char** argv)
             DM::onmouse (CV_EVENT_MOUSEMOVE, -1, -1, 0, NULL);
             break;
         }
-        case ('f'):
+        case ('o'):
         {
             // Change fitting mode
             DM::i()->gcf()->toggleCurveType();
@@ -114,7 +126,7 @@ int main (int argc, char** argv)
             DM::i()->gcf()->nextCurve();
             break;
         }
-        case ('q'):
+        case ('x'):
         {
             return 0;
             break;

@@ -487,6 +487,11 @@ public:
         this->frame = mirrored;
         this->flags.flip(Mirrored);
     }
+    void mirror_image_only (void) {
+        Mat mirrored (this->frame.rows, this->frame.cols, this->frame.type());
+        cv::flip (this->frame, mirrored, 1);
+        this->frame = mirrored;
+    }
 
     //! Flip the image
     void flip (void) {
@@ -494,6 +499,11 @@ public:
         cv::flip (this->frame, flipped, 1);
         this->frame = flipped;
         this->flags.flip(Flipped);
+    }
+    void flip_image_only (void) {
+        Mat flipped (this->frame.rows, this->frame.cols, this->frame.type());
+        cv::flip (this->frame, flipped, 1);
+        this->frame = flipped;
     }
 
     //! Recompute the fit
