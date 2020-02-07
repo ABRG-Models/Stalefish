@@ -29,7 +29,7 @@ int main (int argc, char** argv)
 
     try {
         array<float, 3> offset = { 0.0, 0.0, 0.0 };
-        array<float, 4> scale = { 0.1, 0.0, 1.0, 0.0};
+        array<float, 2> scale = { 1.0f, 0.0f };
 
         cout << "Opening H5 file " << datafile << endl;
         HdfData d(datafile, true); // true for read
@@ -55,18 +55,29 @@ int main (int argc, char** argv)
             // Read quads and data for each frame and add to an overall pair of vectors...
             string str = frameName+"/sboxes";
             d.read_contained_vals (str.c_str(), frameQuads);
-            str = frameName+"/means";
-            d.read_contained_vals (str.c_str(), frameMeans);
 
-            // Gah,convert frameMeans to float
+            bool autoscale_per_slice = true;
+            if (autoscale_per_slice) {
+                // Use the auto-scaled version of the means
+                str = frameName+"/means_autoscaled";
+                d.read_contained_vals (str.c_str(), frameMeans);
+            } else {
+                // Use the raw means and autoscale them as an entire group
+                str = frameName+"/means";
+                d.read_contained_vals (str.c_str(), frameMeans);
+                scale = { 0.0f, 0.0f }; // setting scale to 0,0 means that the
+                                        // QuadsVisual will autoscale the data together
+            }
+
+            // Gah, convert frameMeans to float (there's a better way to do this)
             vector<float> frameMeansF;
             for (unsigned int j = 0; j < frameMeans.size(); ++j) {
-                frameMeansF.push_back (static_cast<float>(frameMeans[i]));
+                frameMeansF.push_back (static_cast<float>(frameMeans[j]));
             }
+
             quads.insert (quads.end(), frameQuads.begin(), frameQuads.end());
             means.insert (means.end(), frameMeansF.begin(), frameMeansF.end());
         }
-
 
         unsigned int visId = v.addQuadsVisual (&quads, offset, means, scale);
         cout << "Added Visual with visId " << visId << endl;
@@ -81,7 +92,6 @@ int main (int argc, char** argv)
         cerr << "Caught exception: " << e.what() << endl;
         rtn = -1;
     }
-
 
     return rtn;
 }

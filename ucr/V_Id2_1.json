@@ -3,7 +3,7 @@
     "datafile" : "ucr/V_Id2_1.h5",
 
     // The thickness of a brain slice, assuming they'll all be the same.
-    "thickness" : 0.01, // 100 um = 0.1 mm
+    "thickness" : 0.02, // Really 100 um = 0.01 mm
 
     // How many pixels in the image corresponds to 1 mm? True in horz(y) and vert(z) directions equally?
     "pixels_per_mm" : 250, // Guessed!

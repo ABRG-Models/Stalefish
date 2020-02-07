@@ -395,6 +395,11 @@ public:
         dname = frameName + "/means";
         df.add_contained_vals (dname.c_str(), this->means);
 
+        // Autoscale means and save a copy
+        dname = frameName + "/means_autoscaled";
+        vector<double> means_autoscaled = MathAlgo<double>::autoscale (this->means);
+        df.add_contained_vals (dname.c_str(), means_autoscaled);
+
         // Need to get from fitted to y and z. Note that fitted is in (integer) pixels...
         // vector<Point> fitted;
         //
