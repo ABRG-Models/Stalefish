@@ -19,7 +19,7 @@ make
 
 run using e.g.,:
 ```
-./path/to/stalefish ../data/testimg.json
+./build/src/stalefish ./data/testimg.json
 ```
 
 The JSON file contains a list of the images to fit curves to, and some
