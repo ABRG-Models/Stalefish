@@ -34,13 +34,18 @@ int main (int argc, char** argv)
         cout << "Opening H5 file " << datafile << endl;
         HdfData d(datafile, true); // true for read
         int nf = 0;
-        //d.read_val ("/nframes", nf);
+        d.read_val ("/nframes", nf);
+
+        float thickness = 0.02f;
+        float xx = thickness;
 
         vector<array<float, 12>> quads; // Get from HDF5
+        vector<array<float, 12>> fquads; // Flat quads, for the flat visualization
         vector<float> means;
+        vector<float> fmeans;
 
         string frameName("");
-        for (int i = 0; i<28/*nf*/; ++i) {
+        for (int i = 0; i<nf; ++i) {
 
             stringstream ss;
             ss << "/Frame";
@@ -77,9 +82,48 @@ int main (int argc, char** argv)
 
             quads.insert (quads.end(), frameQuads.begin(), frameQuads.end());
             means.insert (means.end(), frameMeansF.begin(), frameMeansF.end());
+
+
+            // Load in linear stuff as well, to make up flat boxes? Or easier to do at source?
+            vector<float> linbins;
+            str = frameName+"/sbox_linear_distance";
+            d.read_contained_vals (str.c_str(), linbins);
+
+            vector<array<float,12>> flatsurf_boxes;
+            array<float, 12> sbox;
+            for (unsigned int j = 1; j < linbins.size(); ++j) {
+                // c1 x,y,z
+                sbox[0] = xx-thickness;
+                sbox[1] = linbins[j-1];  // y
+                sbox[2] = 0.0;
+                // c2 x,y,z
+                sbox[3] = xx-thickness;               // x
+                sbox[4] = linbins[j];  // y
+                sbox[5] = 0.0;
+                // c3 x,y,z
+                sbox[6] = xx;
+                sbox[7] = linbins[j];     // y
+                sbox[8] = 0.0;
+                // c4 x,y,z
+                sbox[9] = xx;
+                sbox[10] = linbins[j-1];  // y
+                sbox[11] = 0.0;
+
+                flatsurf_boxes.push_back (sbox);
+            }
+
+            fquads.insert (fquads.end(), flatsurf_boxes.begin(), flatsurf_boxes.end());
+            fmeans.insert (fmeans.end(), frameMeansF.begin(), --frameMeansF.end());
+            xx += thickness;
+
         }
 
         unsigned int visId = v.addQuadsVisual (&quads, offset, means, scale);
+        cout << "Added Visual with visId " << visId << endl;
+
+        offset[0]+=2.0;
+        cout << "fquads size: " << fquads.size() << "fmeans isze: " << fmeans.size() << endl;
+        visId = v.addQuadsVisual (&fquads, offset, fmeans, scale);
         cout << "Added Visual with visId " << visId << endl;
         v.render();
 

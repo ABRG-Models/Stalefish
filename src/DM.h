@@ -53,6 +53,17 @@ private:
     //! Should the help text be shown?
     bool showHelp = false;
 
+    // Called by next/previousFrame. Take binA, binB from the frame and change the
+    // sliders. Update the fit and refresh boxes.
+    void refreshFrame (void) {
+        this->binA = this->gcf()->binA;
+        this->binB = this->gcf()->binB;
+        this->nBinsTarg = this->gcf()->nBinsTarg;
+        DM::updateTrackbars();
+        this->gcf()->updateFit();
+        this->gcf()->refreshBoxes (-this->binA, this->binB);
+    }
+
 public:
     //! The instance public function. Short on purpose
     static DM* i (void) {
@@ -168,17 +179,6 @@ public:
     void previousFrame (void) {
         this->I = --this->I < 0 ? this->vFrameData.size()-1 : this->I;
         this->refreshFrame();
-    }
-
-    // Called by next/previousFrame. Take binA, binB from the frame and change the
-    // sliders. Update the fit and refresh boxes.
-    void refreshFrame (void) {
-        this->binA = this->gcf()->binA;
-        this->binB = this->gcf()->binB;
-        this->nBinsTarg = this->gcf()->nBinsTarg;
-        DM::updateTrackbars();
-        this->gcf()->updateFit();
-        this->gcf()->refreshBoxes (-this->binA, this->binB);
     }
 
     //! Clone the current frame into Mat img
