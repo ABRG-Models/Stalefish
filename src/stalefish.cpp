@@ -83,6 +83,12 @@ int main (int argc, char** argv)
             DM::i()->nextFrame();
             break;
         }
+        // Go back to the previous frame
+        case ('b'):
+        {
+            DM::i()->previousFrame();
+            break;
+        }
         // Polyfit mode only - increment order
         case ('p'):
         {

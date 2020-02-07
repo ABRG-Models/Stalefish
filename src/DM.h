@@ -161,7 +161,18 @@ public:
     //! Make the next frame current (or cycle back to the first)
     void nextFrame (void) {
         ++this->I %= this->vFrameData.size();
-        // Take binA, binB from the frame and change the sliders.
+        this->refreshFrame();
+    }
+
+    //! Back up a frame
+    void previousFrame (void) {
+        this->I = --this->I < 0 ? this->vFrameData.size()-1 : this->I;
+        this->refreshFrame();
+    }
+
+    // Called by next/previousFrame. Take binA, binB from the frame and change the
+    // sliders. Update the fit and refresh boxes.
+    void refreshFrame (void) {
         this->binA = this->gcf()->binA;
         this->binB = this->gcf()->binB;
         this->nBinsTarg = this->gcf()->nBinsTarg;
@@ -395,6 +406,9 @@ public:
                      Point(xh,yh), FONT_HERSHEY_SIMPLEX, 0.8, SF_BLACK, 1, CV_AA);
             yh += yinc;
             putText (*pImg, string("n:   Next frame"),
+                     Point(xh,yh), FONT_HERSHEY_SIMPLEX, 0.8, SF_BLACK, 1, CV_AA);
+            yh += yinc;
+            putText (*pImg, string("b:   Back to previous frame"),
                      Point(xh,yh), FONT_HERSHEY_SIMPLEX, 0.8, SF_BLACK, 1, CV_AA);
             yh += yinc;
             putText (*pImg, string("m:   Mirror this frame"),
