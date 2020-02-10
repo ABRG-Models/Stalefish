@@ -113,8 +113,8 @@ public:
     //! Target number of bins; used by bins slider
     int nBinsTarg;
     //! The bin lengths, set with a slider.
-    int binA;
-    int binB;
+    int binA = 0;
+    int binB = 100;
     //! A set of points created from the fit
     vector<Point> fitted;
     //! The centroid of fitted.
@@ -546,6 +546,8 @@ public:
         this->offsetScaleFit();
         // Rotate
         this->rotateFitOptimally();
+
+        cout << "At end of updateFit(void). binA/binB: " << binA << "," << binB << endl;
     }
 
     //! Re-compute the boxes from the curve (taking ints)

@@ -6,7 +6,7 @@
     "thickness" : 0.05,
 
     // How many pixels in the image corresponds to 1 mm? True in horz(y) and vert(z) directions equally?
-    "pixels_per_mm" : 138, // Guessed!
+    "pixels_per_mm" : 233,
 
     // The brain slices in the y-z plane, where y points to the
     // anterior, z points dorsally (and so x is the lateral dimension).

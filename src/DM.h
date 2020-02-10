@@ -31,6 +31,9 @@ using morph::Config;
 #define SF_C1 Scalar(238,121,159) // mediumpurple2
 #define SF_C2 Scalar(238,58,178) // darkorchid2
 
+//! OpenCV sliders can't be negative, so we have an offset.
+#define BIN_A_OFFSET 200
+
 //! Singleton pattern data manager class to hold framedata
 class DM
 {
@@ -56,15 +59,16 @@ private:
     // Called by next/previousFrame. Take binA, binB from the frame and change the
     // sliders. Update the fit and refresh boxes.
     void refreshFrame (void) {
-        this->binA = this->gcf()->binA;
+        this->binA = this->gcf()->binA+BIN_A_OFFSET;
         this->binB = this->gcf()->binB;
         this->nBinsTarg = this->gcf()->nBinsTarg;
         DM::updateTrackbars();
         this->gcf()->updateFit();
-        this->gcf()->refreshBoxes (-this->binA, this->binB);
+        this->gcf()->refreshBoxes (-(this->binA-BIN_A_OFFSET), this->binB);
     }
 
 public:
+
     //! The instance public function. Short on purpose
     static DM* i (void) {
         if (DM::pInstance == 0) {
@@ -85,6 +89,7 @@ public:
      * dimension) and @ppm (pixels per mm; the scale).
      */
     void addFrame (Mat& frameImg, const string& frameImgFilename, const float& slice_x, const float& ppm) {
+        cout << "********** DM::addFrame ***********" << endl;
         FrameData fd(frameImg);
         fd.filename = frameImgFilename;
         fd.setParentStack (&this->vFrameData);
@@ -103,6 +108,9 @@ public:
         fd.pixels_per_mm = (double)ppm;
         fd.thickness = this->thickness;
 
+        cout << "Before read, binA=" << fd.binA << endl;
+        cout << "             binB=" << fd.binB << endl;
+
         // Read, opportunistically
         try {
             HdfData d(this->datafile, true); // true for read
@@ -115,6 +123,8 @@ public:
         } catch (const exception& e) {
             // No problem, just carry on
         }
+        cout << "After read,  binA=" << fd.binA << endl;
+        cout << "             binB=" << fd.binB << endl;
 
         this->vFrameData.push_back (fd);
     }
@@ -211,7 +221,7 @@ public:
     //! Target number of bins; used by bins slider. Apply this to the framedata
     int nBinsTarg = 100;
     //! The bin lengths, set with a slider.
-    int binA = 0;
+    int binA = 0+BIN_A_OFFSET; // 200 means the slider is in the middle
     int binB = 40;
     //! Filename for writing
     string datafile = "./stalefish.h5";
@@ -256,11 +266,14 @@ public:
         // Make sure there's an image in DM to start with
         this->cloneFrame();
         setMouseCallback (this->winName, DM::onmouse, this->getImg());
-        // Init current frame with binA, binB and nBinsTarg taken from the current frame
-        this->binA = this->gcf()->binA;
+        // Init current frame with binA, binB and nBinsTarg taken from the current
+        // frame... But... is that information stored? Yes, it is.
+        this->binA = this->gcf()->binA+BIN_A_OFFSET;
         this->binB = this->gcf()->binB;
         this->nBinsTarg = this->gcf()->nBinsTarg;
         DM::createTrackbars();
+        //this->gcf()->updateFit();
+        this->gcf()->refreshBoxes (-(this->binA-BIN_A_OFFSET), this->binB);
     }
 
     /*!
@@ -425,7 +438,7 @@ public:
     static void ontrackbar_boxes (int val, void*) {
         DM* _this = DM::i();
         FrameData* cf = _this->gcf();
-        cf->binA = _this->binA;
+        cf->binA = _this->binA-BIN_A_OFFSET;
         cf->binB = _this->binB;
         cf->setShowBoxes (true);
         cf->refreshBoxes (-cf->binA, cf->binB);
@@ -452,8 +465,10 @@ public:
         string tbBinB = "Box B";
         string tbNBins = "Num bins";
         DM* _this = DM::i();
-        createTrackbar (tbBinA, _this->winName, &_this->binA, 200, ontrackbar_boxes);
+        cout << "createTrackbars: _this->binA=" << _this->binA << endl;
+        createTrackbar (tbBinA, _this->winName, &_this->binA, 400, ontrackbar_boxes);
         setTrackbarPos (tbBinA, _this->winName, _this->binA);
+        cout << "createTrackbars: _this->binB=" << _this->binB << endl;
         createTrackbar (tbBinB, _this->winName, &_this->binB, 200, ontrackbar_boxes);
         setTrackbarPos (tbBinB, _this->winName, _this->binB);
         createTrackbar (tbNBins, _this->winName, &_this->nBinsTarg, 200, ontrackbar_nbins);

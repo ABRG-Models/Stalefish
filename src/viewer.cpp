@@ -19,6 +19,7 @@ int main (int argc, char** argv)
 
     Visual v(1024, 768, "Visualization");
     v.zNear = 0.001;
+    v.zFar = 40.0;
 
     if (argc < 2) {
         cout << "Usage: " << argv[0] << " /path/to/data.h5" << endl;
@@ -36,7 +37,7 @@ int main (int argc, char** argv)
         int nf = 0;
         d.read_val ("/nframes", nf);
 
-        float thickness = 0.02f;
+        float thickness = 0.1f;
         float xx = thickness;
 
         vector<array<float, 12>> quads; // Get from HDF5
@@ -121,7 +122,7 @@ int main (int argc, char** argv)
         unsigned int visId = v.addQuadsVisual (&quads, offset, means, scale);
         cout << "Added Visual with visId " << visId << endl;
 
-        offset[0]+=2.0;
+        offset[0]+=6.0;
         cout << "fquads size: " << fquads.size() << "fmeans isze: " << fmeans.size() << endl;
         visId = v.addQuadsVisual (&fquads, offset, fmeans, scale);
         cout << "Added Visual with visId " << visId << endl;
