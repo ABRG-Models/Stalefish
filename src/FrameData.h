@@ -408,6 +408,9 @@ public:
         // These are "surface_boxes" because they're the box thats in the plane of the
         // cortical sheet (roughly xy) rather than the box in the slice plane (yz).
         vector<array<float,12>> surface_boxes;
+#if 0
+        vector<array<float,12>> smooth_boxes; // smoothed surface
+#endif
         vector<array<float,3>> surface_box_centroids;
         array<float, 12> sbox;
         cout << "Surface boxes extend from " << layer_x << " to " << (layer_x + thickness) << endl;
@@ -433,7 +436,28 @@ public:
             surface_boxes.push_back (sbox);
             surface_box_centroids.push_back (sbox_centroid);
         }
+#if 0
+        for (int i = 1; i < this->nFit; ++i) {
+            // c1 x,y,z
+            sbox[0] = this->layer_x;                 // x
+            sbox[1] = this->fitted_rotated[i-1].x;  // y
+            sbox[2] = this->fitted_rotated[i-1].y; // z
+            // c2 x,y,z
+            sbox[3] = this->layer_x;               // x
+            sbox[4] = this->fitted_rotated[i].x;  // y
+            sbox[5] = this->fitted_rotated[i].y; // z
+            // c3 x,y,z
+            sbox[6] = this->layer_x+this->thickness; // x
+            sbox[7] = this->fitted_rotated[i].x;     // y
+            sbox[8] = this->fitted_rotated[i].y;    // z
+            // c4 x,y,z
+            sbox[9] = this->layer_x+this->thickness; // x
+            sbox[10] = this->fitted_rotated[i-1].x;  // y
+            sbox[11] = this->fitted_rotated[i-1].y; // z
 
+            smooth_boxes.push_back (sbox);
+        }
+#endif
         dname = frameName + "/fitted";
         df.add_contained_vals (dname.c_str(), this->fitted);
 
