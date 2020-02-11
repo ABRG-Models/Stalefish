@@ -1,0 +1,60 @@
+{
+    // The thickness of a brain slice, assuming they'll all be the same.
+    "thickness" : 0.1, // Really 100 um = 0.1 mm
+
+    // How many pixels in the image corresponds to 1 mm? True in horz(y) and vert(z) directions equally?
+    "pixels_per_mm" : 233,
+
+    // The brain slices in the y-z plane, where y points to the
+    // anterior, z points dorsally (and so x is the lateral dimension).
+    "slices": [
+        { "filename" : "ucr/Vole_p1/Id2/HC1-9C_ordered/1-9C_HC_P1_ID2_10.5.16_1.tif", "x" : 0.0 },
+        { "filename" : "ucr/Vole_p1/Id2/HC1-9C_ordered/1-9C_HC_P1_ID2_10.5.16_2.tif", "x" : 0.1 },
+        { "filename" : "ucr/Vole_p1/Id2/HC1-9C_ordered/1-9C_HC_P1_ID2_10.5.16_3.tif", "x" : 0.2 },
+        { "filename" : "ucr/Vole_p1/Id2/HC1-9C_ordered/1-9C_HC_P1_ID2_10.5.16_4.tif", "x" : 0.3 },
+        { "filename" : "ucr/Vole_p1/Id2/HC1-9C_ordered/1-9C_HC_P1_ID2_10.5.16_5.tif", "x" : 0.4 },
+        { "filename" : "ucr/Vole_p1/Id2/HC1-9C_ordered/1-9C_HC_P1_ID2_10.5.16_6.tif", "x" : 0.5 },
+        { "filename" : "ucr/Vole_p1/Id2/HC1-9C_ordered/1-9C_HC_P1_ID2_10.5.16_7.tif", "x" : 0.6 },
+        { "filename" : "ucr/Vole_p1/Id2/HC1-9C_ordered/1-9C_HC_P1_ID2_10.5.16_8.tif", "x" : 0.7 },
+        { "filename" : "ucr/Vole_p1/Id2/HC1-9C_ordered/1-9C_HC_P1_ID2_10.5.16_9.tif", "x" : 0.8 },
+        { "filename" : "ucr/Vole_p1/Id2/HC1-9C_ordered/1-9C_HC_P1_ID2_10.5.16_10.tif", "x" : 0.9 },
+        { "filename" : "ucr/Vole_p1/Id2/HC1-9C_ordered/1-9C_HC_P1_ID2_10.5.16_11.tif", "x" : 1.0 },
+        { "filename" : "ucr/Vole_p1/Id2/HC1-9C_ordered/1-9C_HC_P1_ID2_10.5.16_12.tif", "x" : 1.1 },
+        { "filename" : "ucr/Vole_p1/Id2/HC1-9C_ordered/1-9C_HC_P1_ID2_10.5.16_13.tif", "x" : 1.2 },
+        { "filename" : "ucr/Vole_p1/Id2/HC1-9C_ordered/1-9C_HC_P1_ID2_10.5.16_14.tif", "x" : 1.3 },
+        { "filename" : "ucr/Vole_p1/Id2/HC1-9C_ordered/1-9C_HC_P1_ID2_10.5.16_15.tif", "x" : 1.4 },
+        { "filename" : "ucr/Vole_p1/Id2/HC1-9C_ordered/1-9C_HC_P1_ID2_10.5.16_16.tif", "x" : 1.5 },
+        { "filename" : "ucr/Vole_p1/Id2/HC1-9C_ordered/1-9C_HC_P1_ID2_10.5.16_17.tif", "x" : 1.6 },
+        { "filename" : "ucr/Vole_p1/Id2/HC1-9C_ordered/1-9C_HC_P1_ID2_10.5.16_18.tif", "x" : 1.7 },
+        { "filename" : "ucr/Vole_p1/Id2/HC1-9C_ordered/1-9C_HC_P1_ID2_10.5.16_19.tif", "x" : 1.8 },
+        { "filename" : "ucr/Vole_p1/Id2/HC1-9C_ordered/1-9C_HC_P1_ID2_10.5.16_20.tif", "x" : 1.9 },
+        { "filename" : "ucr/Vole_p1/Id2/HC1-9C_ordered/1-9C_HC_P1_ID2_10.5.16_21.tif", "x" : 2.0 },
+        { "filename" : "ucr/Vole_p1/Id2/HC1-9C_ordered/1-9C_HC_P1_ID2_10.5.16_22.tif", "x" : 2.1 },
+        { "filename" : "ucr/Vole_p1/Id2/HC1-9C_ordered/1-9C_HC_P1_ID2_10.5.16_23.tif", "x" : 2.2 },
+        { "filename" : "ucr/Vole_p1/Id2/HC1-9C_ordered/1-9C_HC_P1_ID2_10.5.16_24.tif", "x" : 2.3 },
+        { "filename" : "ucr/Vole_p1/Id2/HC1-9C_ordered/1-9C_HC_P1_ID2_10.5.16_25.tif", "x" : 2.4 },
+        { "filename" : "ucr/Vole_p1/Id2/HC1-9C_ordered/1-9C_HC_P1_ID2_10.5.16_26.tif", "x" : 2.5 },
+        { "filename" : "ucr/Vole_p1/Id2/HC1-9C_ordered/1-9C_HC_P1_ID2_10.5.16_27.tif", "x" : 2.6 },
+        { "filename" : "ucr/Vole_p1/Id2/HC1-9C_ordered/1-9C_HC_P1_ID2_10.5.16_28.tif", "x" : 2.7 },
+//        { "filename" : "ucr/Vole_p1/Id2/HC1-9C_ordered/1-9C_HC_P1_ID2_10.5.16_29.tif", "x" : 2.8 },
+        { "filename" : "ucr/Vole_p1/Id2/HC1-9C_ordered/1-9C_HC_P1_ID2_10.5.16_30.tif", "x" : 2.9 },
+        { "filename" : "ucr/Vole_p1/Id2/HC1-9C_ordered/1-9C_HC_P1_ID2_10.5.16_31.tif", "x" : 3.0 },
+        { "filename" : "ucr/Vole_p1/Id2/HC1-9C_ordered/1-9C_HC_P1_ID2_10.5.16_32.tif", "x" : 3.1 },
+        { "filename" : "ucr/Vole_p1/Id2/HC1-9C_ordered/1-9C_HC_P1_ID2_10.5.16_33.tif", "x" : 3.2 },
+        { "filename" : "ucr/Vole_p1/Id2/HC1-9C_ordered/1-9C_HC_P1_ID2_10.5.16_34.tif", "x" : 3.3 },
+        { "filename" : "ucr/Vole_p1/Id2/HC1-9C_ordered/1-9C_HC_P1_ID2_10.5.16_35.tif", "x" : 3.4 },
+        { "filename" : "ucr/Vole_p1/Id2/HC1-9C_ordered/1-9C_HC_P1_ID2_10.5.16_36.tif", "x" : 3.5 },
+        { "filename" : "ucr/Vole_p1/Id2/HC1-9C_ordered/1-9C_HC_P1_ID2_10.5.16_37.tif", "x" : 3.6 },
+        { "filename" : "ucr/Vole_p1/Id2/HC1-9C_ordered/1-9C_HC_P1_ID2_10.5.16_38.tif", "x" : 3.7 },
+        { "filename" : "ucr/Vole_p1/Id2/HC1-9C_ordered/1-9C_HC_P1_ID2_10.5.16_39.tif", "x" : 3.8 },
+        { "filename" : "ucr/Vole_p1/Id2/HC1-9C_ordered/1-9C_HC_P1_ID2_10.5.16_40.tif", "x" : 3.9 },
+        { "filename" : "ucr/Vole_p1/Id2/HC1-9C_ordered/1-9C_HC_P1_ID2_10.5.16_41.tif", "x" : 4 },
+        { "filename" : "ucr/Vole_p1/Id2/HC1-9C_ordered/1-9C_HC_P1_ID2_10.5.16_42.tif", "x" : 4.1 },
+        { "filename" : "ucr/Vole_p1/Id2/HC1-9C_ordered/1-9C_HC_P1_ID2_10.5.16_43.tif", "x" : 4.2 },
+        { "filename" : "ucr/Vole_p1/Id2/HC1-9C_ordered/1-9C_HC_P1_ID2_10.5.16_44.tif", "x" : 4.3 },
+        { "filename" : "ucr/Vole_p1/Id2/HC1-9C_ordered/1-9C_HC_P1_ID2_10.5.16_45.tif", "x" : 4.4 },
+        { "filename" : "ucr/Vole_p1/Id2/HC1-9C_ordered/1-9C_HC_P1_ID2_10.5.16_46.tif", "x" : 4.5 },
+        { "filename" : "ucr/Vole_p1/Id2/HC1-9C_ordered/1-9C_HC_P1_ID2_10.5.16_47.tif", "x" : 4.6 },
+        { "filename" : "ucr/Vole_p1/Id2/HC1-9C_ordered/1-9C_HC_P1_ID2_10.5.16_48.tif", "x" : 4.7 }
+    ] // end
+}
