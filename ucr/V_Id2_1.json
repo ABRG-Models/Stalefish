@@ -1,7 +1,4 @@
 {
-    // Path to the file which will contain the fit data, user points, etc
-    "datafile" : "ucr/V_Id2_1.h5",
-
     // The thickness of a brain slice, assuming they'll all be the same.
     "thickness" : 0.1, // Really 100 um = 0.1 mm
 

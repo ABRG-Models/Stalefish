@@ -1,7 +1,4 @@
 {
-    // Path to the file which will contain the fit data, user points, etc
-    "datafile" : "data/testimg.h5",
-
     // The thickness of a brain slice, assuming they'll all be the same.
     "thickness" : 0.05,
 

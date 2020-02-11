@@ -224,21 +224,26 @@ public:
     int binA = 0+BIN_A_OFFSET; // 200 means the slider is in the middle
     int binB = 40;
     //! Filename for writing
-    string datafile = "./stalefish.h5";
+    string datafile = "unset.h5";
     //! How many pixels in the image is 1mm?
     float pixels_per_mm = 100.0f;
 
     //! Application setup
     void setup (const string& paramsfile) {
 
+        // Set the HDF5 data file path based on the .json file path
+        string::size_type jsonpos = paramsfile.find(".json");
+        if (jsonpos == string::npos) {
+            this->datafile = paramsfile + ".h5";
+        } else {
+            this->datafile = paramsfile.substr (0,jsonpos) + ".h5";
+        }
+
         this->conf.init (paramsfile);
         if (!this->conf.ready) {
             cerr << "Error setting up JSON config: " << this->conf.emsg << ", exiting." << endl;
             exit (1);
         }
-
-        // Set the user's preference for the HDF5 data file
-        this->datafile = conf.getString ("datafile", "stalefish.h5");
 
         // Set the scale from JSON, too
         this->pixels_per_mm = conf.getFloat ("pixels_per_mm", 100.0f);
