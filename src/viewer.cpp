@@ -37,6 +37,7 @@ int main (int argc, char** argv)
         int nf = 0;
         d.read_val ("/nframes", nf);
 
+        // FIXME: thickness is hard-coded
         float thickness = 0.1f;
         float xx = thickness;
 
@@ -62,7 +63,7 @@ int main (int argc, char** argv)
             string str = frameName+"/sboxes";
             d.read_contained_vals (str.c_str(), frameQuads);
 
-            bool autoscale_per_slice = true;
+            bool autoscale_per_slice = false;
             if (autoscale_per_slice) {
                 // Use the auto-scaled version of the means
                 str = frameName+"/means_autoscaled";
@@ -116,7 +117,6 @@ int main (int argc, char** argv)
             fquads.insert (fquads.end(), flatsurf_boxes.begin(), flatsurf_boxes.end());
             fmeans.insert (fmeans.end(), frameMeansF.begin(), --frameMeansF.end());
             xx += thickness;
-
         }
 
         unsigned int visId = v.addQuadsVisual (&quads, offset, means, scale);

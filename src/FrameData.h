@@ -16,6 +16,7 @@ using std::vector;
 using std::array;
 #include <string>
 using std::string;
+using std::to_string;
 #include <sstream>
 using std::stringstream;
 #include <iostream>
@@ -110,6 +111,8 @@ public:
     int pp_idx = 0;
     //! The means computed for the boxes.
     vector<double> means;
+    //! The raw values for each box as a vector of doubles for each box.
+    vector<vector<double>> boxes_raw;
     //! Target number of bins; used by bins slider
     int nBinsTarg;
     //! The bin lengths, set with a slider.
@@ -278,14 +281,15 @@ public:
 
     //! Compute the mean values for the bins
     void getBoxMeans (void) {
+        this->boxes_raw.resize (this->boxes.size());
         this->means.resize (this->boxes.size());
         for (size_t i=0; i<this->boxes.size(); i++) {
-            vector<double> boxVals = StaleUtil::getBoxedPixelVals (this->frame, this->boxes[i]);
+            this->boxes_raw[i] = StaleUtil::getBoxedPixelVals (this->frame, this->boxes[i]);
             this->means[i] = 0.0;
-            for (size_t j=0; j<boxVals.size(); j++) {
-                this->means[i] += boxVals[j];
+            for (size_t j=0; j<this->boxes_raw[i].size(); j++) {
+                this->means[i] += this->boxes_raw[i][j];
             }
-            this->means[i] /= (double)boxVals.size();
+            this->means[i] /= (double)this->boxes_raw[i].size();
         }
     }
 
@@ -391,6 +395,10 @@ public:
          * FrameData::read method (these would all be re-computed before being
          * re-written in a later run of the program).
          */
+        for (size_t bi = 0; bi < this->boxes_raw.size(); ++bi) {
+            dname = frameName + "/box" + to_string(bi);
+            df.add_contained_vals (dname.c_str(), this->boxes_raw[bi]);
+        }
 
         dname = frameName + "/means";
         df.add_contained_vals (dname.c_str(), this->means);
@@ -498,37 +506,24 @@ public:
         cout << "write() completed." << endl;
     }
 
-#if 0
-    //! A print-out function to show the means on stdout
-    void printMeans (void) const {
-        cout << "[";
-        for (size_t j=0; j<this->means.size(); j++) {
-            cout << this->means[j] << ",";
-        }
-        cout << "]" << endl << flush;
-    }
-#endif
-
-    //! Mirror the image
+    //! Mirror the image and mark in the flags that it was mirrored
     void mirror (void) {
-        Mat mirrored (this->frame.rows, this->frame.cols, this->frame.type());
-        cv::flip (this->frame, mirrored, 1);
-        this->frame = mirrored;
-        this->flags.flip(Mirrored);
+        this->mirror_image_only();
+        this->flags.flip (Mirrored);
     }
+    //! Carry out the actual mirroring operation on its own, leaving flags unchanged
     void mirror_image_only (void) {
         Mat mirrored (this->frame.rows, this->frame.cols, this->frame.type());
         cv::flip (this->frame, mirrored, 1);
         this->frame = mirrored;
     }
 
-    //! Flip the image
+    //! Flip the image & mark as such in flags
     void flip (void) {
-        Mat flipped (this->frame.rows, this->frame.cols, this->frame.type());
-        cv::flip (this->frame, flipped, 1);
-        this->frame = flipped;
-        this->flags.flip(Flipped);
+        this->flip_image_only();
+        this->flags.flip (Flipped);
     }
+    //! Flip the image without marking as flipped in flags.
     void flip_image_only (void) {
         Mat flipped (this->frame.rows, this->frame.cols, this->frame.type());
         cv::flip (this->frame, flipped, 1);

@@ -143,7 +143,8 @@ public:
 class StaleUtil
 {
 public:
-    //! Compute average luminance of image @frame within the box defined by @pp
+    //! Find a value for each pixel of image @frame within the box defined by @pp and
+    //! return this in a vector of doubles.
     static vector<double>
     getBoxedPixelVals (const Mat frame, const vector<Point> pp) {
         Point pts[4] = {pp[0],pp[1],pp[2],pp[3]};
@@ -161,4 +162,6 @@ public:
         }
         return boxedPixelVals;
     }
+
+    //! What's the equivalent of the above for the Allen Institude gene expression data??
 };
