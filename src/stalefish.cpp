@@ -26,7 +26,7 @@ int main (int argc, char** argv)
     DM::i()->setup (paramsfile);
 
     while (1) {
-        DM::onmouse (CV_EVENT_MOUSEMOVE, -1, -1, 0, NULL);
+        DM::onmouse (cv::EVENT_MOUSEMOVE, -1, -1, 0, NULL);
         char k = waitKey(0);
         switch(k) {
         // 1 to 4 - select what is shown
@@ -105,7 +105,7 @@ int main (int argc, char** argv)
         {
             // Mirror
             DM::i()->gcf()->mirror();
-            DM::onmouse (CV_EVENT_MOUSEMOVE, -1, -1, 0, NULL);
+            DM::onmouse (cv::EVENT_MOUSEMOVE, -1, -1, 0, NULL);
             break;
         }
         case ('o'):
@@ -119,7 +119,7 @@ int main (int argc, char** argv)
         case ('h'):
         {
             DM::i()->toggleHelp();
-            DM::onmouse (CV_EVENT_MOUSEMOVE, -1, -1, 0, NULL);
+            DM::onmouse (cv::EVENT_MOUSEMOVE, -1, -1, 0, NULL);
             break;
         }
         case ('w'):

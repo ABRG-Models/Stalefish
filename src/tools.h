@@ -151,7 +151,7 @@ public:
         fillConvexPoly (mask, pts, 4, Scalar(255,255,255));
         Mat result, resultGray;
         frame.copyTo (result,mask);
-        cvtColor (result, resultGray, CV_BGR2GRAY);
+        cvtColor (result, resultGray, cv::COLOR_BGR2GRAY);
         vector<Point2i> positives;
         findNonZero (resultGray, positives);
         vector<double> boxedPixelVals (positives.size());

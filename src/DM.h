@@ -298,7 +298,7 @@ public:
             _this->x = x;
             _this->y = y;
         }
-        if (event == CV_EVENT_LBUTTONDOWN) {
+        if (event == cv::EVENT_FLAG_LBUTTON) {
             cf->P.push_back (pt);
             cf->setShowUsers(true);
         }
@@ -377,63 +377,63 @@ public:
         int xh = 30;
         ss << "Frame: " << _this->getFrameNum() << "/" << _this->getNumFrames()
            << " " << cf->getFitInfo() << ". 'h' to toggle help.";
-        putText (*pImg, ss.str(), Point(xh,30), FONT_HERSHEY_SIMPLEX, 0.8, SF_BLACK, 1, CV_AA);
+        putText (*pImg, ss.str(), Point(xh,30), FONT_HERSHEY_SIMPLEX, 0.8, SF_BLACK, 1, cv::LINE_AA);
 
         int yh = 90;
         int yinc = 40;
         if (_this->showHelp) {
             putText (*pImg, string("Use the sliders to control the bin parameters"),
-                     Point(xh,yh), FONT_HERSHEY_SIMPLEX, 0.8, SF_BLACK, 1, CV_AA);
+                     Point(xh,yh), FONT_HERSHEY_SIMPLEX, 0.8, SF_BLACK, 1, cv::LINE_AA);
             yh += yinc;
             putText (*pImg, string("1:   Toggle Bezier controls"),
-                     Point(xh,yh), FONT_HERSHEY_SIMPLEX, 0.8, SF_BLACK, 1, CV_AA);
+                     Point(xh,yh), FONT_HERSHEY_SIMPLEX, 0.8, SF_BLACK, 1, cv::LINE_AA);
             yh += yinc;
             putText (*pImg, string("2:   Toggle user points"),
-                     Point(xh,yh), FONT_HERSHEY_SIMPLEX, 0.8, SF_BLACK, 1, CV_AA);
+                     Point(xh,yh), FONT_HERSHEY_SIMPLEX, 0.8, SF_BLACK, 1, cv::LINE_AA);
             yh += yinc;
             putText (*pImg, string("3:   Toggle the fit line"),
-                     Point(xh,yh), FONT_HERSHEY_SIMPLEX, 0.8, SF_BLACK, 1, CV_AA);
+                     Point(xh,yh), FONT_HERSHEY_SIMPLEX, 0.8, SF_BLACK, 1, cv::LINE_AA);
             yh += yinc;
             putText (*pImg, string("4:   Toggle the bins"),
-                     Point(xh,yh), FONT_HERSHEY_SIMPLEX, 0.8, SF_BLACK, 1, CV_AA);
+                     Point(xh,yh), FONT_HERSHEY_SIMPLEX, 0.8, SF_BLACK, 1, cv::LINE_AA);
             yh += yinc;
             putText (*pImg, string("Spc: Next curve"),
-                     Point(xh,yh), FONT_HERSHEY_SIMPLEX, 0.8, SF_BLACK, 1, CV_AA);
+                     Point(xh,yh), FONT_HERSHEY_SIMPLEX, 0.8, SF_BLACK, 1, cv::LINE_AA);
             yh += yinc;
             putText (*pImg, string("c:   Cancel last point"),
-                     Point(xh,yh), FONT_HERSHEY_SIMPLEX, 0.8, SF_BLACK, 1, CV_AA);
+                     Point(xh,yh), FONT_HERSHEY_SIMPLEX, 0.8, SF_BLACK, 1, cv::LINE_AA);
             yh += yinc;
             putText (*pImg, string("f:   Update the fit"),
-                     Point(xh,yh), FONT_HERSHEY_SIMPLEX, 0.8, SF_BLACK, 1, CV_AA);
+                     Point(xh,yh), FONT_HERSHEY_SIMPLEX, 0.8, SF_BLACK, 1, cv::LINE_AA);
             yh += yinc;
             putText (*pImg, string("F:   Update ALL fits"),
-                     Point(xh,yh), FONT_HERSHEY_SIMPLEX, 0.8, SF_BLACK, 1, CV_AA);
+                     Point(xh,yh), FONT_HERSHEY_SIMPLEX, 0.8, SF_BLACK, 1, cv::LINE_AA);
             yh += yinc;
             putText (*pImg, string("B:   Copy current bin params to all frames"),
-                     Point(xh,yh), FONT_HERSHEY_SIMPLEX, 0.8, SF_BLACK, 1, CV_AA);
+                     Point(xh,yh), FONT_HERSHEY_SIMPLEX, 0.8, SF_BLACK, 1, cv::LINE_AA);
             yh += yinc;
             stringstream hh;
             hh << "w:   Save to file: " << _this->datafile;
             putText (*pImg, hh.str(),
-                     Point(xh,yh), FONT_HERSHEY_SIMPLEX, 0.8, SF_BLACK, 1, CV_AA);
+                     Point(xh,yh), FONT_HERSHEY_SIMPLEX, 0.8, SF_BLACK, 1, cv::LINE_AA);
             yh += yinc;
             putText (*pImg, string("o:   Fit mode (Bezier or polynomial)"),
-                     Point(xh,yh), FONT_HERSHEY_SIMPLEX, 0.8, SF_BLACK, 1, CV_AA);
+                     Point(xh,yh), FONT_HERSHEY_SIMPLEX, 0.8, SF_BLACK, 1, cv::LINE_AA);
             yh += yinc;
             putText (*pImg, string("p:   In polynomial mode, change order"),
-                     Point(xh,yh), FONT_HERSHEY_SIMPLEX, 0.8, SF_BLACK, 1, CV_AA);
+                     Point(xh,yh), FONT_HERSHEY_SIMPLEX, 0.8, SF_BLACK, 1, cv::LINE_AA);
             yh += yinc;
             putText (*pImg, string("n:   Next frame"),
-                     Point(xh,yh), FONT_HERSHEY_SIMPLEX, 0.8, SF_BLACK, 1, CV_AA);
+                     Point(xh,yh), FONT_HERSHEY_SIMPLEX, 0.8, SF_BLACK, 1, cv::LINE_AA);
             yh += yinc;
             putText (*pImg, string("b:   Back to previous frame"),
-                     Point(xh,yh), FONT_HERSHEY_SIMPLEX, 0.8, SF_BLACK, 1, CV_AA);
+                     Point(xh,yh), FONT_HERSHEY_SIMPLEX, 0.8, SF_BLACK, 1, cv::LINE_AA);
             yh += yinc;
             putText (*pImg, string("m:   Mirror this frame"),
-                     Point(xh,yh), FONT_HERSHEY_SIMPLEX, 0.8, SF_BLACK, 1, CV_AA);
+                     Point(xh,yh), FONT_HERSHEY_SIMPLEX, 0.8, SF_BLACK, 1, cv::LINE_AA);
             yh += yinc;
             putText (*pImg, string("x:   Exit the program"),
-                     Point(xh,yh), FONT_HERSHEY_SIMPLEX, 0.8, SF_BLACK, 1, CV_AA);
+                     Point(xh,yh), FONT_HERSHEY_SIMPLEX, 0.8, SF_BLACK, 1, cv::LINE_AA);
         }
 
         imshow (_this->winName, *pImg);
@@ -447,7 +447,7 @@ public:
         cf->binB = _this->binB;
         cf->setShowBoxes (true);
         cf->refreshBoxes (-cf->binA, cf->binB);
-        DM::onmouse (CV_EVENT_MOUSEMOVE, -1, -1, 0, NULL);
+        DM::onmouse (cv::EVENT_MOUSEMOVE, -1, -1, 0, NULL);
     }
 
     //! On trackbar change, refresh the size of the boxes
@@ -461,7 +461,7 @@ public:
         cf->setShowBoxes (true);
         cf->updateFit();
         cf->refreshBoxes (-cf->binA, cf->binB);
-        DM::onmouse (CV_EVENT_MOUSEMOVE, -1, -1, 0, NULL);
+        DM::onmouse (cv::EVENT_MOUSEMOVE, -1, -1, 0, NULL);
     }
 
     static void createTrackbars (void) {
