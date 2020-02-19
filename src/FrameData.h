@@ -399,6 +399,8 @@ public:
             dname = frameName + "/box" + to_string(bi);
             df.add_contained_vals (dname.c_str(), this->boxes_raw[bi]);
         }
+        dname = frameName + "/nboxes";
+        df.add_val (dname.c_str(), static_cast<unsigned int>(this->boxes_raw.size()));
 
         dname = frameName + "/means";
         df.add_contained_vals (dname.c_str(), this->means);

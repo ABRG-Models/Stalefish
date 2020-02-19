@@ -30,12 +30,15 @@ what you'll find in the HDF5 files.
 At the root level of the data file, you'll find lots of 'Frames'. A
 frame is the information about a single brain slice preparation. It
 includes the filename of the image that was used, the points that the
-user set to define the curve, the parameters for the boxes that make
-up the bins for sampling the gene expression from the image and so
+user set to define the curve, the parameters for the gene expression
+sampling bins and so
 on. So, at the root level there are several data structures called
-'Frame000', 'Frame001' adn so on, as well as an integer 'nframes'
+'Frame000', 'Frame001' ann so on, as well as an integer 'nframes'
 which makes it easy to write a loop through all the frames in an
 analysis script.
+
+ * Frame000, Frame001 etc: One Frame object for each brain slice.
+ * nframes: The number of Frame objects in this data file.
 
 ### Frame level
 
@@ -64,6 +67,7 @@ Each frame contains:
  * sboxes - The surface box coordinates. Each element of this list
    contains 12 numbers, which specify 4 coordinates in 3D space; the
    corners of the surface boxes.
+ * nboxes: The number of box objects.
 
 ### Class level
 
