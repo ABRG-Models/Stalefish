@@ -5,6 +5,7 @@ Here's an interactive example of exploring the data in ipython
 ```bash
 cd Stalefish/ucr
 ipython
+```
 
 ```python
 In [1]: import h5py
