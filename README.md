@@ -11,7 +11,8 @@ morphologica.
 ## Compile Stalefish using cmake
 
 ```bash
-mkdir build && cd build
+mkdir build
+cd build
 cmake ..
 make
 ```
