@@ -32,3 +32,7 @@ the program will ensure they join nicely. Sliders give control over
 the size and shape of the bins.
 
 Press "h" to see help text.
+
+## Analysising the data from the program
+
+See the reading/ subdirectory and its README.md file.
