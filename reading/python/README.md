@@ -5,7 +5,8 @@ Here's an interactive example of exploring the data in ipython
 ```bash
 cd Stalefish/ucr
 ipython
-```ipython
+
+```python
 In [1]: import h5py
 
 In [2]: f = h5py.File('V_Id2_1.h5')
