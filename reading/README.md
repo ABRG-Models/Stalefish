@@ -14,6 +14,8 @@ incomplete list:
 * MATLAB - using the hdf5read function
 * GNU Octave - It's as easy as "load myhdf5.h5"
 * HDFView: [Download HDFView](https://portal.hdfgroup.org/display/support/Download+HDFView)
+* The h5dump command, which can lead to a lot of text output, but it's
+  all human readable.
 
 I tend to use GNU Octave for a quick look at a file, and python for
 analysis. Look at the README.md files in the octave and python
