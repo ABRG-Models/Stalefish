@@ -103,7 +103,7 @@ def retrieve (exptstr):
     if do_download:
         for im in images:
             # Can I make this get the expression version, rather than ISH?
-            rurl = 'http://api.brain-map.org/api/v2/image_download/'+str(images[im])+'?downsample=8'
+            rurl = 'http://api.brain-map.org/api/v2/image_download/'+str(images[im])+'?downsample=4'
             r = requests.get (rurl, stream=True)
             filename = 'e{0}_{1:02d}_{2}.jpg'.format(exptstr,im,images[im])
             print ('Downloading image ID: {0} to {1}'.format(images[im], filename))
@@ -112,7 +112,7 @@ def retrieve (exptstr):
                     fd.write(chunk)
         for im in images:
             # Can I make this get the expression version, rather than ISH? Yes, just add &view=expression
-            rurl = 'http://api.brain-map.org/api/v2/image_download/'+str(images[im])+'?downsample=8&view=expression'
+            rurl = 'http://api.brain-map.org/api/v2/image_download/'+str(images[im])+'?downsample=4&view=expression'
             r = requests.get (rurl, stream=True)
             filename = 'e{0}_{1:02d}_{2}_expr.jpg'.format(exptstr,im,images[im])
             print ('Downloading image ID: {0} to {1}'.format(images[im], filename))

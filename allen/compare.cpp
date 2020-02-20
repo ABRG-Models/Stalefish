@@ -21,18 +21,16 @@ int main()
     string fn_ex = fn + "_expr.jpg";
     string fn_ish = fn + ".jpg";
 
-    Mat fr_ex = imread (fn_ex.c_str(), IMREAD_COLOR);
-    Mat fr_ish = imread (fn_ish.c_str(), IMREAD_COLOR);
+    Mat fr_ish = imread (fn_ish.c_str(), IMREAD_ANYCOLOR);
+    Mat fr_ex = imread (fn_ex.c_str(), IMREAD_ANYCOLOR);
 
-    if (fr_ex.rows != fr_ish.rows
-        || fr_ex.cols != fr_ish.cols) {
+    if (fr_ex.rows != fr_ish.rows || fr_ex.cols != fr_ish.cols) {
         cout << "Size mismatch" << endl;
         return -1;
     }
 
 #if 0
-    cout << "Image size is " << (fr_ex.rows * fr_ex.cols) << " px" << endl;
-
+    cout << "Image size is " << fr_ex.rows << "x" << fr_ex.cols << " = " << (fr_ex.rows * fr_ex.cols) << " px" << endl; // 402447
     cout << "expression frame has " << fr_ex.channels() << " channels with depth " << fr_ex.depth() << endl;
     cout << "ISH frame has " << fr_ish.channels() << " channels with depth " << fr_ish.depth() << endl;
     if (fr_ish.depth() == CV_8U) {
@@ -43,28 +41,47 @@ int main()
 #endif
 
 #if 0
+    unsigned int pcount = 0;
+    for (int r = 0; r < fr_ish.rows; ++r) {
+        for (int c = 0; c < fr_ish.cols; ++c) {
+            Point2i p(c,r);
+            Vec<uchar,3> ish = fr_ish.at<Vec<uchar,3>>(p);
+            cout << "ISH: " << static_cast<unsigned int>(ish[0])
+                 << "," << static_cast<unsigned int>(ish[1])
+                 << "," << static_cast<unsigned int>(ish[2]) << endl;
+            pcount++;
+        }
+    }
+    cout << "pcount = " << pcount << endl;
+#endif
+
+#if 1
     cout << "a = [\n";
     for (int r = 0; r < fr_ex.rows; ++r) {
         for (int c = 0; c < fr_ex.cols; ++c) {
-            // Example pixel (r,c)
-            Point2i p(r,c);
-            Vec3b pix_ex = fr_ex.at<Vec3b>(p);
+            // Example pixel (c,r)
+            Point2i p(c,r);
+            Vec<uchar,3> pix_ex = fr_ex.at<Vec<uchar,3>>(p);
             // FIXME: Convert pix_ex from colour map to scalar.
-            if (pix_ex[0] || pix_ex[1] || pix_ex[2]) {
+            if (pix_ex[0]>0 || pix_ex[1]>0 || pix_ex[2]>0) {
                 //cout << "Pixel Expr (" << r << "," << c << ") = " << pix_ex << endl;
                 //cout << "Pixel ISH  (" << r << "," << c << ") = " << (fr_ish.at<Vec3b>(p)) << endl;
-                Vec3b ish = fr_ish.at<Vec3b>(p);
-                cout << (int)ish[0] << "," << (int)ish[1] << "," << (int)ish[2] << endl;
+                Vec<uchar,3> ish = fr_ish.at<Vec<uchar,3>>(p);
+                cout << static_cast<unsigned int>(ish[0])
+                     << "," << static_cast<unsigned int>(ish[1])
+                     << "," << static_cast<unsigned int>(ish[2]) << endl;
             }
         }
     }
     cout << "];\n";
+#endif
 
+#if 1
     cout << "n = [\n";
     for (int r = 0; r < fr_ex.rows; ++r) {
         for (int c = 0; c < fr_ex.cols; ++c) {
-            // Example pixel (r,c)
-            Point2i p(r,c);
+            // Example pixel (c,r)
+            Point2i p(c,r);
             Vec3b pix_ex = fr_ex.at<Vec3b>(p);
             if (pix_ex[0] || pix_ex[1] || pix_ex[2]) {
                 // Do nothing this is an expressing pixel
