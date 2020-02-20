@@ -44,22 +44,29 @@ find_package(OpenGL REQUIRED)
 find_package(GLUT REQUIRED)
 find_package(X11 REQUIRED)
 find_package(LAPACK REQUIRED)
+find_package(PkgConfig)
+
+# glfw3 provides a cmake find_package script. Because it doesn't set
+# lib paths, we go on and use pkg-config to do this.
+find_package(glfw3 QUIET)
+if(${glfw3_FOUND})
+  message(INFO ": cmake's find_package() found glfw3, using pkg-config to get details...")
+  if(${PKG_CONFIG_FOUND})
+    # Use pkg-config to check GLFW3 is present:
+    pkg_search_module(GLFW REQUIRED glfw3)
+    if(${GLFW_FOUND})
+      message(INFO ": pkg-config found glfw(3). Excellent.")
+    else(${GLFW_FOUND})
+      message(ERROR ": glfw(3) was NOT found by pkg-config. Uh oh.")
+    endif(${GLFW_FOUND})
+  else(${PKG_CONFIG_FOUND})
+    message(WARNING "There's no pkg-config on this system to find exact details for glfw3. You may need to try `sudo apt-get install pkg-config` or similar")
+  endif(${PKG_CONFIG_FOUND})
+endif(${glfw3_FOUND})
 
 if(APPLE)
-  find_package (HDF5 REQUIRED)
-  set (HDF5LIBLINK ${HDF5_C_LIBRARY_hdf5})
-  set (JSONLIBLINK /usr/local/lib/libjsoncpp.dylib)
-  # If omp is to be used:
-  # include_directories(/opt/local/include/libomp)
-  # link_libraries(-L/opt/local/lib/libomp omp)
   find_package (Armadillo 9.20 HINTS /opt/local/lib REQUIRED)
 else()
-  set (LIB_TYPE SHARED) # STATIC or SHARED
-  string(TOLOWER ${LIB_TYPE} SEARCH_TYPE)
-  find_package (HDF5 NAMES hdf5 COMPONENTS C ${SEARCH_TYPE} REQUIRED)
-  set (HDF5LIBLINK ${HDF5_C_${LIB_TYPE}_LIBRARY})
-  set (JSONLIBLINK jsoncpp)
-  # A simpler find package for armadillo on non-mac:
   find_package(Armadillo REQUIRED)
 endif(APPLE)
 
@@ -67,12 +74,11 @@ include_directories(${OpenCV_INCLUDE_DIRS} ${HDF5_INCLUDE_DIR})
 include_directories(${OPENGL_INCLUDE_DIR} ${GLUT_INCLUDE_DIR} ${X11_INC_SEARCH_PATH})
 
 # Find libmorphologica using pkgconfig
-find_package(PkgConfig)
 if(PKG_CONFIG_FOUND)
   message(STATUS "Have pkg_config, searching for libmorphologica...")
 
   if(APPLE)
-    # Manually set PKG_CONFIG_PATH on Mac, as mac ports with by default search only in /opt/local
+    # Manually set PKG_CONFIG_PATH on Mac, as mac ports will by default search only in /opt/local
     set(ENV{PKG_CONFIG_PATH}  "ENV{PKG_CONFIG_PATH}:${CMAKE_INSTALL_PREFIX}/lib/pkgconfig")
   endif(APPLE)
 
@@ -93,7 +99,6 @@ endif()
 # Library code is compiled up as a shared library in lib/ (could also
 # be compiled static if needed)
 add_subdirectory(src)
-
 add_subdirectory(allen)
 
 # Unit testing using the ctest framework
