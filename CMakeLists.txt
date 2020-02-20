@@ -94,6 +94,8 @@ endif()
 # be compiled static if needed)
 add_subdirectory(src)
 
+add_subdirectory(allen)
+
 # Unit testing using the ctest framework
 # enable_testing()
 # add_subdirectory(tests)

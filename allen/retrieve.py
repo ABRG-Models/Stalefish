@@ -91,7 +91,7 @@ def retrieve (exptstr):
         for i in range(0,num_rows):
             image_id = rjson['msg'][i]['id']
             section_num = rjson['msg'][i]['section_number']
-            print ('Image {0} id is {1}'.format(i, image_id))
+            print ('Image {0} is section {2} and its id is {1}'.format(i, image_id, section_num))
             images[section_num] = image_id
 
     else:
@@ -99,14 +99,26 @@ def retrieve (exptstr):
         return
 
     # Loop through the image IDs downloading each one.
-    for im in images:
-        rurl = 'http://api.brain-map.org/api/v2/image_download/'+str(images[im])+'?downsample=2'
-#        r = requests.get (rurl, stream=True)
-#        filename = 'e{0}_{1:02d}_{2}.jpg'.format(exptstr,im,images[im])
-#        print ('Downloading image ID: {0} to {1}'.format(images[im], filename))
-#        with open(filename, 'wb') as fd:
-#            for chunk in r.iter_content(chunk_size=128):
-#                fd.write(chunk)
+    do_download = 1
+    if do_download:
+        for im in images:
+            # Can I make this get the expression version, rather than ISH?
+            rurl = 'http://api.brain-map.org/api/v2/image_download/'+str(images[im])+'?downsample=8'
+            r = requests.get (rurl, stream=True)
+            filename = 'e{0}_{1:02d}_{2}.jpg'.format(exptstr,im,images[im])
+            print ('Downloading image ID: {0} to {1}'.format(images[im], filename))
+            with open(filename, 'wb') as fd:
+                for chunk in r.iter_content(chunk_size=128):
+                    fd.write(chunk)
+        for im in images:
+            # Can I make this get the expression version, rather than ISH? Yes, just add &view=expression
+            rurl = 'http://api.brain-map.org/api/v2/image_download/'+str(images[im])+'?downsample=8&view=expression'
+            r = requests.get (rurl, stream=True)
+            filename = 'e{0}_{1:02d}_{2}_expr.jpg'.format(exptstr,im,images[im])
+            print ('Downloading image ID: {0} to {1}'.format(images[im], filename))
+            with open(filename, 'wb') as fd:
+                for chunk in r.iter_content(chunk_size=128):
+                    fd.write(chunk)
 
     # Image to image registration - lining up the slices
     # http://api.brain-map.org/api/v2/image_to_image_2d/68173101.xml?x=6208&y=2368&section_image_ids=68173103,68173105,68173107
@@ -136,6 +148,6 @@ def retrieve (exptstr):
 # E13.5 100041799
 #retrieve ('100041799')
 # E15.5 100041837
-retrieve ('100041837')
+#retrieve ('100041837')
 # E18.5 100041580
-# retrieve ('100041580')
+retrieve ('100041580')
