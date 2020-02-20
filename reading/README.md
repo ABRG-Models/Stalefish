@@ -16,10 +16,12 @@ incomplete list:
 * HDFView: [Download HDFView](https://portal.hdfgroup.org/display/support/Download+HDFView)
 * The h5dump command, which can lead to a lot of text output, but it's
   all human readable.
+* C or C++ - HDF5 has a C API, and morphologica has a wrapper class
+  around the C API (See morph::HdfData).
 
-I tend to use GNU Octave for a quick look at a file, and python for
-analysis. Look at the README.md files in the octave and python
-subdirectories for examples.
+I tend to use GNU Octave for a quick look at a file, and python or
+morph::HdfData for analysis. Look at the README.md files in the octave
+and python subdirectories for examples.
 
 ## Data layout
 
