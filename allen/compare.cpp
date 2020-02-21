@@ -33,9 +33,15 @@ struct VecCompare
     }
 };
 
-int main()
+int main (int argc, char** argv)
 {
-    string fn = "e100041580_99_100873513";
+    if (argc < 2) {
+        cerr << "Usage: " << argv[0] << " image_name_base" << endl;
+        cerr << "   eg: " << argv[0] << " e100041580_99_100873513" << endl;
+        return 1;
+    }
+
+    string fn(argv[1]);
     string fn_ex = fn + "_expr.jpg";
     string fn_ish = fn + ".jpg";
 
@@ -78,6 +84,9 @@ int main()
     unsigned long long int ne_count = 0; // non-expressing count
     unsigned long long int se_count = 0; // slightly-expressing count
     unsigned long long int e_count = 0; // expressing count
+
+    unsigned int slight_expression_limit = 0;
+
     set<Vec<uchar,3>, VecCompare> expressing_ish;
     set<Vec<uchar,3>, VecCompare> nonexpressing_ish;
     set<Vec<uchar,3>, VecCompare> slightexpressing_ish;
@@ -91,7 +100,7 @@ int main()
                 + static_cast<unsigned int>(pix_ex[2]);
             // FIXME: Convert pix_ex from colour map to scalar.
             Vec<uchar,3> ish = fr_ish.at<Vec<uchar,3>>(p);
-            if (psum > 30) {
+            if (psum > slight_expression_limit) {
                 e_count++;
                 expressing_ish.insert (ish);
             } else if (psum == 0) {
