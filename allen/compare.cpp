@@ -63,7 +63,7 @@ int main()
             Point2i p(c,r);
             Vec<uchar,3> pix_ex = fr_ex.at<Vec<uchar,3>>(p);
             // FIXME: Convert pix_ex from colour map to scalar.
-            if (pix_ex[0]>0 || pix_ex[1]>0 || pix_ex[2]>0) {
+            if ((pix_ex[0]+pix_ex[1]+pix_ex[2]) > 30) {
                 //cout << "Pixel Expr (" << r << "," << c << ") = " << pix_ex << endl;
                 //cout << "Pixel ISH  (" << r << "," << c << ") = " << (fr_ish.at<Vec3b>(p)) << endl;
                 Vec<uchar,3> ish = fr_ish.at<Vec<uchar,3>>(p);
