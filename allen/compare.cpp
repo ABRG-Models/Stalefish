@@ -9,11 +9,29 @@ using namespace cv;
 #include <string>
 using std::string;
 #include <iostream>
+using std::cerr;
 using std::cout;
 using std::endl;
 #include <set>
 using std::set;
+#include <cmath>
+using std::abs;
 
+// To allow comparison of Vec<uchar,3>s and thus creation of set<Vec<uchar,3>>
+// This is a functor; a class that can be called like a function.
+struct VecCompare
+{
+    bool operator() (const Vec<uchar,3>& lhs, const Vec<uchar,3>& rhs) const {
+        if (lhs[0] < rhs[0]) {
+            return true;
+        } else if (lhs[1] < rhs[1]) {
+            return true;
+        } else if (lhs[2] < rhs[2]) {
+            return true;
+        }
+        return false;
+    }
+};
 
 int main()
 {
@@ -56,50 +74,70 @@ int main()
 #endif
 
 #if 1
-    cout << "a = [\n";
+    unsigned long long int pcount = 0;
+    unsigned long long int ne_count = 0; // non-expressing count
+    unsigned long long int se_count = 0; // slightly-expressing count
+    unsigned long long int e_count = 0; // expressing count
+    set<Vec<uchar,3>, VecCompare> expressing_ish;
+    set<Vec<uchar,3>, VecCompare> nonexpressing_ish;
+    set<Vec<uchar,3>, VecCompare> slightexpressing_ish;
     for (int r = 0; r < fr_ex.rows; ++r) {
         for (int c = 0; c < fr_ex.cols; ++c) {
             // Example pixel (c,r)
             Point2i p(c,r);
             Vec<uchar,3> pix_ex = fr_ex.at<Vec<uchar,3>>(p);
+            unsigned int psum = static_cast<unsigned int>(pix_ex[0])
+                + static_cast<unsigned int>(pix_ex[1])
+                + static_cast<unsigned int>(pix_ex[2]);
             // FIXME: Convert pix_ex from colour map to scalar.
-            if ((pix_ex[0]+pix_ex[1]+pix_ex[2]) > 30) {
-                //cout << "Pixel Expr (" << r << "," << c << ") = " << pix_ex << endl;
-                //cout << "Pixel ISH  (" << r << "," << c << ") = " << (fr_ish.at<Vec3b>(p)) << endl;
-                Vec<uchar,3> ish = fr_ish.at<Vec<uchar,3>>(p);
-                cout << static_cast<unsigned int>(ish[0])
-                     << "," << static_cast<unsigned int>(ish[1])
-                     << "," << static_cast<unsigned int>(ish[2]) << endl;
-            }
-        }
-    }
-    cout << "];\n";
-#endif
-
-#if 1
-    cout << "n = [\n";
-    for (int r = 0; r < fr_ex.rows; ++r) {
-        for (int c = 0; c < fr_ex.cols; ++c) {
-            // Example pixel (c,r)
-            Point2i p(c,r);
-            Vec3b pix_ex = fr_ex.at<Vec3b>(p);
-            if (pix_ex[0] || pix_ex[1] || pix_ex[2]) {
-                // Do nothing this is an expressing pixel
+            Vec<uchar,3> ish = fr_ish.at<Vec<uchar,3>>(p);
+            if (psum > 30) {
+                e_count++;
+                expressing_ish.insert (ish);
+            } else if (psum == 0) {
+                ne_count++;
+                nonexpressing_ish.insert (ish);
             } else {
-                // Non-expressing
-                Vec3b ish = fr_ish.at<Vec3b>(p);
-                int sum = ((int)ish[0] + (int)ish[1] + (int)ish[2]);
-                if (sum && (sum < 690)) {
-                    // Then it might not be white background...
-                    cout << (int)ish[0] << "," << (int)ish[1] << "," << (int)ish[2] << endl;
-                }
+                se_count++;
+                slightexpressing_ish.insert (ish);
             }
+            ++pcount;
         }
+    }
+    cout << "pcount = " << pcount << ";\n";
+    cout << "e_count = " << e_count << ";\n";
+    cout << "ne_count = " << ne_count << ";\n";
+    cout << "se_count = " << se_count << ";\n";
+
+    // Expression/strongly expressing
+    cout << "a = [\n";
+    for (auto ish : expressing_ish) {
+        cout << static_cast<unsigned int>(ish[0])
+             << "," << static_cast<unsigned int>(ish[1])
+             << "," << static_cast<unsigned int>(ish[2]) << endl;
+    }
+    cout << "];\n";
+
+    // Non
+    cout << "n = [\n";
+    for (auto ishn : nonexpressing_ish) {
+        cout << static_cast<unsigned int>(ishn[0])
+             << "," << static_cast<unsigned int>(ishn[1])
+             << "," << static_cast<unsigned int>(ishn[2]) << endl;
+    }
+    cout << "];\n";
+
+    // Slight
+    cout << "s = [\n";
+    for (auto ishn : slightexpressing_ish) {
+        cout << static_cast<unsigned int>(ishn[0])
+             << "," << static_cast<unsigned int>(ishn[1])
+             << "," << static_cast<unsigned int>(ishn[2]) << endl;
     }
     cout << "];\n";
 #endif
 
-#if 1
+#if 0
     namedWindow ("ISH", WINDOW_AUTOSIZE );// Create a window for display.
     imshow ("ISH", fr_ish);
     // Wait for a key, then exit
