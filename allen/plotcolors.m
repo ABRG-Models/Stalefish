@@ -66,6 +66,16 @@ b = blue\redgreen;
 redgreen_calc = b .* blue;
 plot3 (blue, redgreen_calc(:,1), redgreen_calc(:,2), 'k-')
 
+% Add Lydia Ng's luminosity line:
+t = [0:0.01:1];
+rt = 0.21 .* t .*255;
+gt = 0.72 .* t .*255;
+bt = 0.07 .* t .*255;
+plot3(bt, gt, rt, '.m-');
+
 % Add the fit line to fig 1 too
 figure(1)
 plot3 (blue, redgreen_calc(:,1), redgreen_calc(:,2), 'k-')
+
+% Add Lydia Ng's luminosity line:
+plot3(bt, gt, rt, '.m-');

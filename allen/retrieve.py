@@ -102,7 +102,8 @@ def retrieve (exptstr):
     do_download = 0
     do_download_expr = 1
     if do_download:
-        urltail = '' # or '?downsample=4'
+        #urltail = '' # or '?downsample=4'
+        urltail = '?downsample=4'
         for im in images:
             # Can I make this get the expression version, rather than ISH?
             rurl = 'http://api.brain-map.org/api/v2/image_download/'+str(images[im])+urltail
@@ -113,7 +114,8 @@ def retrieve (exptstr):
                 for chunk in r.iter_content(chunk_size=128):
                     fd.write(chunk)
     if do_download_expr:
-        urltail = '?view=expression' # or '?downsample=4&view=expression'
+        #urltail = '?view=expression' # or
+        urltail = '?downsample=4&view=expression'
         for im in images:
             # Can I make this get the expression version, rather than ISH? Yes, just add &view=expression
             rurl = 'http://api.brain-map.org/api/v2/image_download/'+str(images[im])+urltail
@@ -154,4 +156,6 @@ def retrieve (exptstr):
 # E15.5 100041837
 #retrieve ('100041837')
 # E18.5 100041580
-retrieve ('100041580')
+##retrieve ('100041580')
+
+retrieve ('100081391')
