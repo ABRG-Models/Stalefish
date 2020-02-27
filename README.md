@@ -11,6 +11,8 @@ morphologica.
 ## Compile Stalefish using cmake
 
 ```bash
+git clone https://github.com/ABRG-Models/Stalefish.git
+cd Stalefish
 mkdir build
 cd build
 cmake ..
