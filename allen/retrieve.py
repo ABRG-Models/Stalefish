@@ -99,7 +99,7 @@ def retrieve (exptstr):
         return
 
     # Loop through the image IDs downloading each one.
-    do_download = 0
+    do_download = 1
     do_download_expr = 1
     if do_download:
         #urltail = '' # or '?downsample=4'

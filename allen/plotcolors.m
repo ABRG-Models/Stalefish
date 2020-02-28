@@ -85,10 +85,19 @@ plot3(bt, gt, rt, 'markerfacecolor', ng_col, 'color', ng_col);
 %
 % Translating and rotating points so they lie on the x axis
 %
+figure (3)
+clf
+hold on;
+
+% Blue input, evenly spaced
+b_in = [0:1:255]';
+% Resulting calculated values based on fit
+rg_calc = (thefit(1,:) .* b_in) + thefit(2,:);
 
 % Translation - just subtract the offset in the fit.
-redgreen_trans = redgreen_calc - thefit(2,:);
-plot3(blue(:,1), redgreen_trans(:,1), redgreen_trans(:,2), 'color', 'r');
+rg_trans = rg_calc - thefit(2,:);
+plot3(b_in, rg_trans(:,1), rg_trans(:,2), 'color', 'g');
+
 
 % Rotation given by thefit(1,:)
 x = 1;
@@ -110,8 +119,6 @@ Ay = [cos(theta), 0, sin(theta); ...
       0,1,0; ...
       -sin(theta) 0 cos(theta)];
 
-A = Az*Ay;
-
 Ay_back = [cos(-theta), 0, sin(-theta);...
            0,1,0;...
            -sin(-theta), 0, cos(-theta)];
@@ -119,31 +126,22 @@ Ay_back = [cos(-theta), 0, sin(-theta);...
 Az_back = [cos(-phi),-sin(-phi),0;...
            sin(-phi),cos(-phi),0;...
            0,0,1];
-A_back = Ay_back * Az_back;
 
-points = [blue(:,1), redgreen];
+rgrg_trans = redgreen - thefit(2,:);
+realpoints = [blue(:,1), rgrg_trans];
 
-tpoints = (Ay_back*points')';
+points = [b_in, rg_trans];
 
-figure(3)
-hold on;
-for ii = 1:len2
-    ex_x = [tpoints(ii,1)];%b
-    ex_y = [tpoints(ii,2)];%g
-    ex_z = [tpoints(ii,3)];%r
-    plot3(ex_x,ex_y,ex_z,'o','markeredgecolor',ex_col,'markersize', 10, 'markerfacecolor', [1,0,0]);
-end
+tpoints2 = (Az_back*points')';
+plot3 (tpoints2(:,1),tpoints2(:,2),tpoints2(:,3),'ob');
 
-tpoints = (Az_back*points')';
+tpoints = (Ay*tpoints2')';
+plot3 (tpoints(:,1),tpoints(:,2),tpoints(:,3),'or');
 
-figure(3)
-hold on;
-for ii = 1:len2
-    ex_x = [tpoints(ii,1)];%b
-    ex_y = [tpoints(ii,2)];%g
-    ex_z = [tpoints(ii,3)];%r
-    plot3(ex_x,ex_y,ex_z,'o','markeredgecolor',ex_col,'markersize', 10, 'markerfacecolor', [0,0,1]);
-end
+% How to do in a single rotation? Like this:
+A = Ay * Az_back;
+tpoints3 = (A*realpoints')';
+plot3 (tpoints3(:,1),tpoints3(:,2),tpoints3(:,3),'ok');
 
 plot3([0 255], [0 0], [0 0], 'b-');
 plot3([0 0], [0 255], [0 0], 'g-');
