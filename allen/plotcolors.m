@@ -96,7 +96,8 @@ rg_calc = (thefit(1,:) .* b_in) + thefit(2,:);
 
 % Translation - just subtract the offset in the fit.
 rg_trans = rg_calc - thefit(2,:);
-plot3(b_in, rg_trans(:,1), rg_trans(:,2), 'color', 'g');
+% Plot the translated fit
+%plot3(b_in, rg_trans(:,1), rg_trans(:,2), 'color', 'm');
 
 
 % Rotation given by thefit(1,:)
@@ -132,11 +133,13 @@ realpoints = [blue(:,1), rgrg_trans];
 
 points = [b_in, rg_trans];
 
+% The first rotation, alone
 tpoints2 = (Az_back*points')';
-plot3 (tpoints2(:,1),tpoints2(:,2),tpoints2(:,3),'ob');
+%plot3 (tpoints2(:,1),tpoints2(:,2),tpoints2(:,3),'ob');
 
+% The calculated fit points:
 tpoints = (Ay*tpoints2')';
-plot3 (tpoints(:,1),tpoints(:,2),tpoints(:,3),'or');
+%plot3 (tpoints(:,1),tpoints(:,2),tpoints(:,3),'or');
 
 % How to do in a single rotation? Like this:
 A = Ay * Az_back;
@@ -150,3 +153,10 @@ plot3([0 0], [0 0], [0 255], 'r-');
 xlabel ('Blue channel')
 ylabel ('Green channel')
 zlabel ('Red channel')
+title ('Transformed points')
+
+%
+% Next job: find first two principle components in the redgreen plane and use
+% these to constrain an ellipse that will select those pixels whose
+% colour is close enough to be considered to be expressing.
+%
