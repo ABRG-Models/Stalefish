@@ -103,24 +103,24 @@ def retrieve (exptstr):
     do_download_expr = 1
     if do_download:
         #urltail = '' # or '?downsample=4'
-        urltail = '?downsample=4'
+        urltail = '?downsample=2'
         for im in images:
             # Can I make this get the expression version, rather than ISH?
             rurl = 'http://api.brain-map.org/api/v2/image_download/'+str(images[im])+urltail
             r = requests.get (rurl, stream=True)
-            filename = 'e{0}_{1:02d}_{2}.jpg'.format(exptstr,im,images[im])
+            filename = './images/e{0}_{1:02d}_{2}.jpg'.format(exptstr,im,images[im])
             print ('Downloading image ID: {0} to {1}'.format(images[im], filename))
             with open(filename, 'wb') as fd:
                 for chunk in r.iter_content(chunk_size=128):
                     fd.write(chunk)
     if do_download_expr:
         #urltail = '?view=expression' # or
-        urltail = '?downsample=4&view=expression'
+        urltail = '?downsample=2&view=expression'
         for im in images:
             # Can I make this get the expression version, rather than ISH? Yes, just add &view=expression
             rurl = 'http://api.brain-map.org/api/v2/image_download/'+str(images[im])+urltail
             r = requests.get (rurl, stream=True)
-            filename = 'e{0}_{1:02d}_{2}_expr.jpg'.format(exptstr,im,images[im])
+            filename = './images/e{0}_{1:02d}_{2}_expr.jpg'.format(exptstr,im,images[im])
             print ('Downloading image ID: {0} to {1}'.format(images[im], filename))
             with open(filename, 'wb') as fd:
                 for chunk in r.iter_content(chunk_size=128):

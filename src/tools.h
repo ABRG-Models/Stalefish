@@ -13,6 +13,9 @@ using cv::Scalar;
 #include <vector>
 using std::vector;
 #include <math.h>
+#include <iostream>
+using std::cout;
+using std::endl;
 
 //! A set of functions for polynomial fitting
 class PolyFit
@@ -164,4 +167,47 @@ public:
     }
 
     //! What's the equivalent of the above for the Allen Institude gene expression data??
+    static vector<double>
+    getAllenPixelVals (const Mat frame, const vector<Point> pp/*,
+                       const array<float, 3> colour_trans,
+                       const array<float, 9> colour_rot,
+                       const array<float, 2> ellipse*/) {
+
+        // The corners of the bin
+        Point pts[4] = {pp[0],pp[1],pp[2],pp[3]};
+
+        // Make a mask for the bin
+        Mat mask = Mat::zeros(frame.rows, frame.cols, CV_8UC3);
+        fillConvexPoly (mask, pts, 4, Scalar(255,255,255));
+
+        Mat result, resultGray;
+
+        // Copy the bin part of the image into result
+        frame.copyTo (result, mask);
+
+        // Now transform the colours in result
+        cout << "frame r,c: " << frame.rows << "," << frame.cols << endl;
+        cout << "result r,c: " << result.rows << "," << result.cols << endl;
+
+        // Convert it to greyscale
+        cvtColor (result, resultGray, cv::COLOR_BGR2GRAY);
+
+        // For fun
+        //result.copyTo (frame);
+
+        vector<Point2i> positives;
+        findNonZero (resultGray, positives);
+
+        vector<double> boxedPixelVals (positives.size());
+        for (size_t j=0; j<positives.size(); j++) {
+            cout << "positive pixel at " << positives[j] << endl;
+
+            // Can get colour pixel from result here.
+
+            Scalar pixel = resultGray.at<uchar>(positives[j]);
+
+            boxedPixelVals[j] = (double)pixel.val[0]/255.;
+        }
+        return boxedPixelVals;
+    }
 };

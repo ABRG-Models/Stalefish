@@ -51,6 +51,12 @@ enum class CurveType {
     Bezier // Cubic Bezier
 };
 
+// What sort of colour model is in use?
+enum class ColourModel {
+    Greyscale,
+    AllenDevMouse
+};
+
 enum Flag {
     ShowBoxes, // Show the yellow boxes?
     ShowUsers, // Show the user points?
@@ -81,6 +87,9 @@ private:
 public:
     //! What curve type?
     CurveType ct = CurveType::Bezier;
+
+    //! What kind of colour model is in use?
+    ColourModel cmodel = ColourModel::Greyscale;
 
     //! Polynomial fit specific attributes
     //@{
@@ -284,7 +293,18 @@ public:
         this->boxes_raw.resize (this->boxes.size());
         this->means.resize (this->boxes.size());
         for (size_t i=0; i<this->boxes.size(); i++) {
-            this->boxes_raw[i] = StaleUtil::getBoxedPixelVals (this->frame, this->boxes[i]);
+            // if luminance value only/greyscale:
+            this->cmodel = ColourModel::AllenDevMouse; // HACK
+            if (this->cmodel == ColourModel::AllenDevMouse) {
+                // But we'll have to pass parameters for transforming the colours and
+                // determining if they're on the "expressing" axis. This will include
+                // a translate matrix, a rotation matrix and ellipse parameters,
+                // obtained from the octave script plotcolour.m
+                this->boxes_raw[i] = StaleUtil::getAllenPixelVals (this->frame, this->boxes[i]);
+            } else { // Default is ColourModel::Greyscale
+                this->boxes_raw[i] = StaleUtil::getBoxedPixelVals (this->frame, this->boxes[i]);
+            }
+
             this->means[i] = 0.0;
             for (size_t j=0; j<this->boxes_raw[i].size(); j++) {
                 this->means[i] += this->boxes_raw[i][j];
