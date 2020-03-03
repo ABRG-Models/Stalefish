@@ -229,8 +229,15 @@ def retrieve (exptstr):
     # Remove what we don't want in the JSON (to save it becoming cluttered)
     del sliceinfo['by_slice']
 
+    # Copy and paste in the json created with colors.m and the program compare:
+    colour_transform = json.loads('{"colour_trans" : [ 0.000000, 14.374037, 36.991335 ], "colour_rot" : [ 0.597316, 0.580850, 0.553017, 0.786215, -0.287928, -0.546775, -0.158365, 0.761387, -0.628657 ], "ellip_axes" : [ 29.768308, 6.712414 ], "luminosity_factor" : -1.000000, "luminosity_cutoff" : 250.000000}')
+
+    # Merge colour_transform into slice_info
+    sliceinfo = {**sliceinfo, **colour_transform}
+
+    # Write sliceinfo to file
     with open (ejson, 'w') as f:
-        f.write (json.dumps(sliceinfo))
+        f.write (json.dumps(sliceinfo, sort_keys=True, indent=4))
 
     return
 

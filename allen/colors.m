@@ -121,15 +121,15 @@ luminosity_factor = -1;
 % < or > 1.
 
 %% JSON Results
-jsonstr1 = sprintf ('{\n');
-jsonstr2 = sprintf ('    "colour_trans" : [ %f, %f, %f ],\n', trans_offset3d(1), trans_offset3d(2), trans_offset3d(3));
-jsonstr3 = sprintf ('    "colour_rot" : [ %f, %f, %f,\n                 %f, %f, %f,\n                 %f, %f, %f ],\n', A(1,1), A(1,2), A(1,3), A(2,1), A(2,2), A(2,3), A(3,1), A(3,2), A(3,3) );
-jsonstr4 = sprintf ('    "ellip_axes" : [ %f, %f ],\n', ellip_major, ellip_minor);
-jsonstr5 = sprintf ('    "luminosity_factor" : %f,\n', luminosity_factor);
-jsonstr6 = sprintf ('    "luminosity_cutoff" : %f,\n', luminosity_cutoff);
+jsonstr1 = sprintf ('{');
+jsonstr2 = sprintf ('"colour_trans" : [ %f, %f, %f ], ', trans_offset3d(1), trans_offset3d(2), trans_offset3d(3));
+jsonstr3 = sprintf ('"colour_rot" : [ %f, %f, %f, %f, %f, %f, %f, %f, %f ], ', A(1,1), A(1,2), A(1,3), A(2,1), A(2,2), A(2,3), A(3,1), A(3,2), A(3,3) );
+jsonstr4 = sprintf ('"ellip_axes" : [ %f, %f ], ', ellip_major, ellip_minor);
+jsonstr5 = sprintf ('"luminosity_factor" : %f, ', luminosity_factor);
+jsonstr6 = sprintf ('"luminosity_cutoff" : %f', luminosity_cutoff);
 jsonstr7 = sprintf ('}\n');
 
-%jsonstr = [jsonstr1 jsonstr2 jsonstr3 jsonstr4 jsonstr5 jsonstr6 jsonstr7]
+jsonstr = [jsonstr1 jsonstr2 jsonstr3 jsonstr4 jsonstr5 jsonstr6 jsonstr7];
 
 % Write to file? or best to stdout?
 printf (jsonstr)
