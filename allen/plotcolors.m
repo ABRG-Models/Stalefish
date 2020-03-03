@@ -81,10 +81,10 @@ plot3(bt, gt, rt, '.-', 'markerfacecolor', ng_col, 'color', ng_col);
 
 % Add the fit line to fig 1 too
 figure(1)
-plot3 (blue(:,1), redgreen_calc(:,1), redgreen_calc(:,2), 'k-');
+plot3 (blue(:,1), redgreen_calc(:,1), redgreen_calc(:,2), 'k.-');
 
 % Add Lydia Ng's luminosity line:
-plot3(bt, gt, rt, 'markerfacecolor', ng_col, 'color', ng_col);
+plot3(bt, gt, rt, 'v-', 'markerfacecolor', ng_col, 'color', ng_col);
 
 %
 % Translating and rotating points so they lie on the x axis

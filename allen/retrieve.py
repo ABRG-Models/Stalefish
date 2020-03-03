@@ -89,6 +89,7 @@ def retrieve (exptstr):
     if (success):
         num_rows = rjson['num_rows']
         for i in range(0,num_rows):
+            print (rjson['msg'][i])
             image_id = rjson['msg'][i]['id']
             section_num = rjson['msg'][i]['section_number']
             print ('Image {0} is section {2} and its id is {1}'.format(i, image_id, section_num))
@@ -99,8 +100,8 @@ def retrieve (exptstr):
         return
 
     # Loop through the image IDs downloading each one.
-    do_download = 1
-    do_download_expr = 1
+    do_download = 0
+    do_download_expr = 0
     if do_download:
         #urltail = '' # or '?downsample=4'
         urltail = '?downsample=2'

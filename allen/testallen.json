@@ -20,7 +20,22 @@
 
     // The brain slices in the y-z plane, where y points to the
     // anterior, z points dorsally (and so x is the lateral dimension).
-    "slices": [
-        { "filename" : "allen/images/e100081391_63_101383033.jpg", "x" : 0.0  }
-    ] // end
+    "slices": [ // Probably need to get x from slice number (e.g. 111 or 119) * 0.025um (or whatever the thickness is)
+        { "filename" : "allen/images/e100081391_15_101383027.jpg", "x" : 0.4  },
+        { "filename" : "allen/images/e100081391_23_101383028.jpg", "x" : 0.7  },
+        { "filename" : "allen/images/e100081391_31_101383029.jpg", "x" : 0.8  },
+        { "filename" : "allen/images/e100081391_39_101383030.jpg", "x" : 0.9  },
+        { "filename" : "allen/images/e100081391_55_101383032.jpg", "x" : 1.0  },
+        { "filename" : "allen/images/e100081391_63_101383033.jpg", "x" : 1.1  },
+        { "filename" : "allen/images/e100081391_71_101383034.jpg", "x" : 1.2  },
+        { "filename" : "allen/images/e100081391_79_101383035.jpg", "x" : 1.3  },
+        { "filename" : "allen/images/e100081391_87_101383036.jpg", "x" : 1.4  },
+        { "filename" : "allen/images/e100081391_95_101383037.jpg", "x" : 1.5  },
+        { "filename" : "allen/images/e100081391_111_101383039.jpg", "x" : 0.0  },
+        { "filename" : "allen/images/e100081391_119_101383040.jpg", "x" : 0.1  },
+        { "filename" : "allen/images/e100081391_135_101383042.jpg", "x" : 0.2  },
+        { "filename" : "allen/images/e100081391_143_101383043.jpg", "x" : 0.3  },
+        { "filename" : "allen/images/e100081391_151_101383044.jpg", "x" : 0.5  },
+        { "filename" : "allen/images/e100081391_159_101383045.jpg", "x" : 0.6  }
+   ] // end
 }
