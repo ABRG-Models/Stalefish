@@ -4,6 +4,7 @@
 #
 
 import requests
+import json
 import collections # For ordered dictionary
 import os # For directory creation
 
@@ -73,6 +74,14 @@ def retrieve (exptstr):
     section_thickness = -1
     plane = -1
 
+    # Do we downsample the image? downsample 1 divides images in two; downsample 2
+    # makes image a quarter size (along a length), etc.
+    downsample = 3
+    # Do we download the ISH images?
+    do_download = 1
+    # Do we down load the expression images?
+    do_download_expr = 0
+
     # Create an experiment directory
     edir = './expt/' + exptstr
     print ('Create directory {0}'.format(edir))
@@ -84,6 +93,7 @@ def retrieve (exptstr):
 
     # We need a dictionary structure to collect together information about each
     # slice. Key this with the image id or with the section number?
+    # FIXME: This should be a JSON thing
     sliceinfo = {}
 
     # Query SectionDataSet to obtain the section_thickness and plane information
@@ -95,7 +105,7 @@ def retrieve (exptstr):
     if (success):
         for m in rjson['msg'][0]:
             print ('{0} = {1}'.format(m, rjson['msg'][0][m]))
-            section_thickness = rjson['msg'][0]['section_thickness']
+            section_thickness = float(rjson['msg'][0]['section_thickness'])/1000.0 # in um in the data, we want it in mm
             # 2 is saggital (I think).
             plane = rjson['msg'][0]['plane_of_section_id']
             expression = rjson['msg'][0]['expression']
@@ -105,6 +115,15 @@ def retrieve (exptstr):
     else:
         print ('Response failed, exiting.')
         return
+
+    sliceinfo['thickness'] = section_thickness
+
+    # TO fill with key-value pairs where key is slice number and value is an object
+    sliceinfo['by_slice'] = {}
+
+    sliceinfo['pixels_per_mm'] = 0
+
+    sliceinfo['downsample'] = downsample
 
     # Obtain metadata via query interface
     rurl = 'http://api.brain-map.org/api/v2/data/query.json' \
@@ -131,24 +150,32 @@ def retrieve (exptstr):
             # getImageToImageOffsets()
             images[section_num] = image_id
             # I also put the image ID into sliceinfo, which holds more info.
-            sliceinfo[section_num] = {}
-            sliceinfo[section_num]['image_id'] = image_id
+            sliceinfo['by_slice'][section_num] = {}
+            sliceinfo['by_slice'][section_num]['image_id'] = image_id
+            sliceinfo['by_slice'][section_num]['resolution'] = rjson['msg'][i]['resolution']
+            # Note that this is pixels per mm in the 'best' possible resolution:
+            sliceinfo['by_slice'][section_num]['pixels_per_mm'] =  1000.0 / (float(2**downsample) * float(rjson['msg'][i]['resolution']))
+            if sliceinfo['by_slice'][section_num]['pixels_per_mm'] != sliceinfo['pixels_per_mm']:
+                sliceinfo['pixels_per_mm'] = sliceinfo['by_slice'][section_num]['pixels_per_mm']
+
+            # We also have width, height (of the sub-image) and image_width  and image_height (of the 'whole' image
             if section_thickness != -1:
-                sliceinfo[section_num]['axial_position'] = section_num * section_thickness
+                sliceinfo['by_slice'][section_num]['axial_position'] = section_num * section_thickness
+            #slices.insert (sl_idx, {'filename': edir + '/e{0}_{1:02d}_{2}_expr.jpg'.format(exptstr,section_num,image_id),
+            #                'x': section_num*section_thickness});
+            #sl_idx = sl_idx + 1
 
     else:
         print ('Response failed, exiting.')
         return
 
     # Loop through the image IDs downloading each one.
-    do_download = 1
-    do_download_expr = 0
     if do_download:
-        #urltail = '' # or '?downsample=4'
-        urltail = '?downsample=4'
+        urltail = '?downsample={0}'.format(downsample)
         for im in images:
             # Can I make this get the expression version, rather than ISH?
             rurl = 'http://api.brain-map.org/api/v2/image_download/'+str(images[im])+urltail
+            print ('URL: {0}'.format (rurl))
             r = requests.get (rurl, stream=True)
             filename = edir + '/e{0}_{1:02d}_{2}.jpg'.format(exptstr,im,images[im])
             print ('Downloading image ID: {0} to {1}'.format(images[im], filename))
@@ -157,7 +184,7 @@ def retrieve (exptstr):
                     fd.write(chunk)
     if do_download_expr:
         #urltail = '?view=expression' # or
-        urltail = '?downsample=4&view=expression'
+        urltail = '?downsample={0}&view=expression'.format(downsample)
         for im in images:
             # Can I make this get the expression version, rather than ISH? Yes, just add &view=expression
             rurl = 'http://api.brain-map.org/api/v2/image_download/'+str(images[im])+urltail
@@ -178,14 +205,32 @@ def retrieve (exptstr):
     ofs2 = getImageToImageOffsets (images, 2000, 2000)
 
     for o in ofs1:
-        sliceinfo[o]['offset1'] = ofs1[o]
+        sliceinfo['by_slice'][o]['offset1'] = ofs1[o]
         print ('ofs1: {0} {1}'.format(o, ofs1[o]))
     for o in ofs2:
-        sliceinfo[o]['offset2'] = ofs2[o]
+        sliceinfo['by_slice'][o]['offset2'] = ofs2[o]
         print ('ofs2: {0} {1}'.format(o, ofs2[o]))
 
-    # Values in ofs1 and ofs2 should give a scaling/rotation matrix to apply to the
-    # coordinates in each frame.
+    # Now take the info info sliceinfo, and create a thing called slices, which is the
+    # right format for Stalefish.
+    slices = []
+    sl_idx = 0
+    ordered_by_slice = collections.OrderedDict(sorted(sliceinfo['by_slice'].items()))
+    for sl in ordered_by_slice:
+        slices.insert (sl_idx, {'filename': edir + '/e{0}_{1:02d}_{2}.jpg'.format(exptstr,sl,sliceinfo['by_slice'][sl]['image_id']),
+                                'x': sl*section_thickness,
+                                'resolution': sliceinfo['by_slice'][sl]['resolution']});
+        sl_idx = sl_idx + 1
+
+    sliceinfo['slices'] = slices
+
+    sliceinfo['colourmodel'] = 'allen'
+
+    # Remove what we don't want in the JSON (to save it becoming cluttered)
+    del sliceinfo['by_slice']
+
+    with open (ejson, 'w') as f:
+        f.write (json.dumps(sliceinfo))
 
     return
 
