@@ -294,7 +294,9 @@ for f = fully_transformed'
 end
 
 % Apply linear transformation to values:
-tvalues = 300 + (values(inout==1) .* -1);
+luminosity_cutoff = 250;
+luminosity_factor = -1;
+tvalues = luminosity_cutoff + (values(inout==1) .* luminosity_factor);
 tvalues(tvalues<0) = 0;
 plot3(fully_transformed(inout==1,1), zeros(length(values(inout==1)),1), tvalues, 'go');
 
@@ -309,4 +311,7 @@ A
 printf ('major & minor axes of ellipse in the (transformed )red-green plane:\n')
 ellip_major
 ellip_minor
+printf ('Luminosity factor and cutoff\n')
+luminosity_factor
+luminosity_cutoff
 printf ('===========================================\n')
