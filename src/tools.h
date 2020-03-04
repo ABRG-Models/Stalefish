@@ -8,6 +8,7 @@
 #include <opencv2/opencv.hpp>
 #include <opencv2/imgproc.hpp>
 using cv::Mat;
+using cv::Vec3f;
 using cv::Point;
 using cv::Scalar;
 #include <vector>
@@ -147,67 +148,46 @@ class StaleUtil
 {
 public:
     //! Find a value for each pixel of image @frame within the box defined by @pp and
-    //! return this in a vector of doubles.
-    static vector<double>
+    //! return this in a vector of floats, without conversion
+    static vector<float>
     getBoxedPixelVals (const Mat frame, const vector<Point> pp) {
         Point pts[4] = {pp[0],pp[1],pp[2],pp[3]};
         Mat mask = Mat::zeros(frame.rows, frame.cols, CV_8UC3);
         fillConvexPoly (mask, pts, 4, Scalar(255,255,255));
         Mat result, resultGray;
-        frame.copyTo (result,mask);
+        frame.copyTo (result, mask);
         cvtColor (result, resultGray, cv::COLOR_BGR2GRAY);
         vector<Point2i> positives;
         findNonZero (resultGray, positives);
-        vector<double> boxedPixelVals (positives.size());
+        vector<float> boxedPixelVals (positives.size());
         for (size_t j=0; j<positives.size(); j++) {
             Scalar pixel = resultGray.at<uchar>(positives[j]);
-            boxedPixelVals[j] = (double)pixel.val[0]/255.;
+            boxedPixelVals[j] = (float)pixel.val[0]/* /255.0f */; // fixme: Better to do the scaling elsewhere
         }
         return boxedPixelVals;
     }
 
-    //! What's the equivalent of the above for the Allen Institude gene expression data??
-    static vector<double>
-    getAllenPixelVals (const Mat frame, const vector<Point> pp/*,
-                       const array<float, 3> colour_trans,
-                       const array<float, 9> colour_rot,
-                       const array<float, 2> ellipse*/) {
-
-        // The corners of the bin
+    //! In a box, obtain colour values as BGR float triplets
+    static vector<array<float, 3>>
+    getBoxedPixelColour (const Mat frame, const vector<Point> pp) {
         Point pts[4] = {pp[0],pp[1],pp[2],pp[3]};
-
-        // Make a mask for the bin
         Mat mask = Mat::zeros(frame.rows, frame.cols, CV_8UC3);
         fillConvexPoly (mask, pts, 4, Scalar(255,255,255));
-
-        Mat result, resultGray;
-
-        // Copy the bin part of the image into result
-        frame.copyTo (result, mask);
-
-        // Now transform the colours in result
-        cout << "frame r,c: " << frame.rows << "," << frame.cols << endl;
-        cout << "result r,c: " << result.rows << "," << result.cols << endl;
-
-        // Convert it to greyscale
+        Mat result, resultFloat, resultGray;
+        frame.copyTo (result, mask); // Note: 'result' will be in BGR format
         cvtColor (result, resultGray, cv::COLOR_BGR2GRAY);
-
-        // For fun
-        //result.copyTo (frame);
-
+        result.convertTo (resultFloat, CV_32FC3);
         vector<Point2i> positives;
-        findNonZero (resultGray, positives);
-
-        vector<double> boxedPixelVals (positives.size());
+        findNonZero (resultGray/*Float*/, positives); // only for CV_8UC1 :( I want 'findNonBlack' on result
+        vector<array<float, 3>> boxedPixelVals (positives.size());
         for (size_t j=0; j<positives.size(); j++) {
-            cout << "positive pixel at " << positives[j] << endl;
-
-            // Can get colour pixel from result here.
-
-            Scalar pixel = resultGray.at<uchar>(positives[j]);
-
-            boxedPixelVals[j] = (double)pixel.val[0]/255.;
+            Vec3f pixel = resultFloat.at<Vec3f>(positives[j]);
+            // NB: This assumes image is in BGR format and we return in BGR format.
+            boxedPixelVals[j][0] = pixel.val[0];
+            boxedPixelVals[j][1] = pixel.val[1];
+            boxedPixelVals[j][2] = pixel.val[2];
         }
+
         return boxedPixelVals;
     }
 };

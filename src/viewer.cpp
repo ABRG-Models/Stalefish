@@ -63,7 +63,7 @@ int main (int argc, char** argv)
             string str = frameName+"/sboxes";
             d.read_contained_vals (str.c_str(), frameQuads);
 
-            bool autoscale_per_slice = false;
+            bool autoscale_per_slice = true;
             if (autoscale_per_slice) {
                 // Use the auto-scaled version of the means
                 str = frameName+"/means_autoscaled";
@@ -84,7 +84,6 @@ int main (int argc, char** argv)
 
             quads.insert (quads.end(), frameQuads.begin(), frameQuads.end());
             means.insert (means.end(), frameMeansF.begin(), frameMeansF.end());
-
 
             // Load in linear stuff as well, to make up flat boxes? Or easier to do at source?
             vector<float> linbins;

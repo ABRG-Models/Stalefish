@@ -88,9 +88,6 @@ public:
     //! What curve type?
     CurveType ct = CurveType::Bezier;
 
-    //! What kind of colour model is in use?
-    ColourModel cmodel = ColourModel::Greyscale;
-
     //! Polynomial fit specific attributes
     //@{
     //! Order of the polynomial fit
@@ -118,10 +115,13 @@ public:
     vector<vector<Point>> PP;
     //! Index into PP
     int pp_idx = 0;
-    //! The means computed for the boxes.
+    //! The means computed for the boxes. This is now "mean_signal" really, as the pixel values
+    //! (monochrome or colour) are now converted with the colour space parameters into a signal.
     vector<double> means;
     //! The raw values for each box as a vector of doubles for each box.
-    vector<vector<double>> boxes_raw;
+    vector<vector<float>> boxes_raw;
+    //! Raw colours of boxes in RGB
+    vector<vector<array<float, 3>>> boxes_raw_bgr;
     //! Target number of bins; used by bins slider
     int nBinsTarg;
     //! The bin lengths, set with a slider.
@@ -168,6 +168,16 @@ public:
     double pixels_per_mm = 100.0;
     //! The index of the frame
     int idx;
+    //@}
+    //! Colour space parameters.
+    //@{
+    //! What kind of colour model is in use?
+    ColourModel cmodel = ColourModel::Greyscale;
+    array<float, 9> colour_rot;   //! Colour space rotation to apply to [b g r] colour vectors
+    array<float, 3> colour_trans; //! Colour space pre-translation. [x y z] is [b g r]
+    array<float, 2> ellip_axes;   //! red-green ellipse for "elliptical tube of expressing colours
+    float luminosity_factor;      //! The slope of the linear luminosity vs signal fit.
+    float luminosity_cutoff;      //! at what luminosity does the signal cut off to zero?
     //@}
 
 public:
@@ -290,26 +300,81 @@ public:
 
     //! Compute the mean values for the bins
     void getBoxMeans (void) {
+        cout << "Called" << endl;
         this->boxes_raw.resize (this->boxes.size());
+        this->boxes_raw_bgr.resize (this->boxes.size());
         this->means.resize (this->boxes.size());
         for (size_t i=0; i<this->boxes.size(); i++) {
+
+            // Zero the means value
+            this->means[i] = 0.0;
+
             // if luminance value only/greyscale:
-            this->cmodel = ColourModel::AllenDevMouse; // HACK
             if (this->cmodel == ColourModel::AllenDevMouse) {
                 // But we'll have to pass parameters for transforming the colours and
                 // determining if they're on the "expressing" axis. This will include
                 // a translate matrix, a rotation matrix and ellipse parameters,
                 // obtained from the octave script plotcolour.m
-                this->boxes_raw[i] = StaleUtil::getAllenPixelVals (this->frame, this->boxes[i]);
+                this->boxes_raw_bgr[i] = StaleUtil::getBoxedPixelColour (this->frame, this->boxes[i]);
+
+                float ellip_maj_sq = ellip_axes[0] * ellip_axes[0];
+                float ellip_min_sq = ellip_axes[1] * ellip_axes[1];
+                cout << "box " << i << " has " << this->boxes_raw_bgr[i].size() << " pixels" << endl;
+                for (size_t j=0; j<this->boxes_raw_bgr[i].size(); j++) {
+                    // Perform colour transform here, so that we get a transformed blue value
+                    float b = boxes_raw_bgr[i][j][0];
+                    float g = boxes_raw_bgr[i][j][1];
+                    float r = boxes_raw_bgr[i][j][2];
+                    //cout << "bgr: " << b << "," << g << "," << r << endl;
+
+                    // 1. Translate rgb colour. NB: It's this->colour_trans
+                    float b_t = b - colour_trans[0];
+                    float g_t = g - colour_trans[1];
+                    float r_t = r - colour_trans[2];
+
+                    // 2. Rotate colour. NB: It's this->colour_rot
+                    float b_r = colour_rot[0]*b_t + colour_rot[1]*g_t + colour_rot[2]*r_t;
+                    float g_r = colour_rot[3]*b_t + colour_rot[4]*g_t + colour_rot[5]*r_t;
+                    float r_r = colour_rot[6]*b_t + colour_rot[7]*g_t + colour_rot[8]*r_t;
+                    //cout << "bgr transformed: " << b_r << "," << g_r << "," << r_r << endl;
+
+                    // if (r_r,g_r) lies inside ellipse (given by ellip_axes) then blue_transf equals b_r
+                    float blue_transf = 0.0f;
+                    float erad = ((g_r*g_r)/ellip_maj_sq) + ((r_r*r_r)/ellip_min_sq);
+                    if (erad <= 1.0f) {
+                        // Inside ellipse:
+                        blue_transf = b_r;
+                    }
+
+                    // Now apply signal conversion
+                    float signal = blue_transf - this->luminosity_cutoff;
+                    // m * (x - x_0):
+                    signal *= this->luminosity_factor;
+                    // Any signal <0 is 0.
+                    // cout << "signal value is " << signal << endl;
+                    this->means[i] += (double)(signal > 0.0f ? signal : 0.0f);
+                }
+                // Divide the signal by the number of pixels in the box
+                this->means[i] /= (double)this->boxes_raw_bgr[i].size();
+
             } else { // Default is ColourModel::Greyscale
+
                 this->boxes_raw[i] = StaleUtil::getBoxedPixelVals (this->frame, this->boxes[i]);
+
+                for (size_t j=0; j<this->boxes_raw[i].size(); j++) {
+                    // Signal conversion is simple for monochrome pixel values:
+                    // x - x_0:
+                    float signal = this->boxes_raw[i][j] - this->luminosity_cutoff;
+                    // m * (x - x_0):
+                    signal *= this->luminosity_factor;
+                    // Any signal <0 is 0.
+                    this->means[i] += (double)(signal > 0.0f ? signal : 0.0f);
+                }
+                // Divide the signal by the number of pixels in the box
+                this->means[i] /= (double)this->boxes_raw[i].size();
             }
 
-            this->means[i] = 0.0;
-            for (size_t j=0; j<this->boxes_raw[i].size(); j++) {
-                this->means[i] += this->boxes_raw[i][j];
-            }
-            this->means[i] /= (double)this->boxes_raw[i].size();
+            cout << "========> means["<<i<<"] = " << this->means[i] << endl;
         }
     }
 

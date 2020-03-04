@@ -55,6 +55,15 @@ private:
     Config conf;
     //! Should the help text be shown?
     bool showHelp = false;
+    //! Colour space parameters
+    //@{
+    string colourmodel = "monochrome";
+    array<float, 9> colour_rot; // Colour space rotation
+    array<float, 3> colour_trans; // Colour space pre-translation
+    array<float, 2> ellip_axes; // red-green ellipse for "elliptical tube of expressing colours
+    float luminosity_factor; // The slope of the linear luminosity vs signal fit.
+    float luminosity_cutoff; // at what luminosity does the signal cut off to zero?
+    //@}
 
     // Called by next/previousFrame. Take binA, binB from the frame and change the
     // sliders. Update the fit and refresh boxes.
@@ -88,7 +97,7 @@ public:
      * @frameImgFilename (The filename for the image), @slice_x (position in the x
      * dimension) and @ppm (pixels per mm; the scale).
      */
-    void addFrame (Mat& frameImg, const string& frameImgFilename, const float& slice_x, const float& ppm) {
+    void addFrame (Mat& frameImg, const string& frameImgFilename, const float& slice_x) {
         cout << "********** DM::addFrame ***********" << endl;
         FrameData fd(frameImg);
         fd.filename = frameImgFilename;
@@ -105,8 +114,18 @@ public:
             cout << "Subsequent frame; setting previous to " << (&this->vFrameData[this->vFrameData.back().idx]) << endl;
         }
         fd.layer_x = slice_x;
-        fd.pixels_per_mm = (double)ppm;
+        fd.pixels_per_mm = (double)this->pixels_per_mm;
         fd.thickness = this->thickness;
+        if (this->colourmodel == "allen") {
+            fd.cmodel = ColourModel::AllenDevMouse;
+        } else {
+            fd.cmodel = ColourModel::Greyscale;
+        }
+        fd.colour_rot = this->colour_rot;
+        fd.colour_trans = this->colour_trans;
+        fd.ellip_axes = this->ellip_axes;
+        fd.luminosity_factor = this->luminosity_factor;
+        fd.luminosity_cutoff = this->luminosity_cutoff;
 
         cout << "Before read, binA=" << fd.binA << endl;
         cout << "             binB=" << fd.binB << endl;
@@ -247,10 +266,28 @@ public:
 
         // Set the scale from JSON, too
         this->pixels_per_mm = conf.getFloat ("pixels_per_mm", 100.0f);
+        this->thickness = conf.getFloat ("thickness", 0.05f);
 
-        float tn = conf.getFloat ("thickness", 0.05f);
-        cout << "thickness from json is " << tn << endl;
-        this->thickness = tn;
+        // The colour space information, if relevant (Allen ISH images)
+        // colourmodel - if exists, a string
+        this->colourmodel = conf.getString ("colourmodel", "monochrome");
+        // colour_rot - array<float, 9>
+        const Json::Value cr = conf.getArray ("colour_rot");
+        for (unsigned int i = 0; i < cr.size(); ++i) {
+            this->colour_rot[i] = cr[i].asFloat();
+        }
+        // colour_trans - array<float, 3>
+        const Json::Value ct = conf.getArray ("colour_trans");
+        for (unsigned int i = 0; i < ct.size(); ++i) {
+            this->colour_trans[i] = ct[i].asFloat();
+        }
+        // ellip_axes array<float, 2>
+        const Json::Value ea = conf.getArray ("ellip_axes");
+        this->ellip_axes[0] = ea[0].asFloat();
+        this->ellip_axes[1] = ea[1].asFloat();
+        // luminosity linear fit parameters
+        this->luminosity_cutoff = conf.getFloat ("luminosity_cutoff", 255.0);
+        this->luminosity_factor = conf.getFloat ("luminosity_factor", -0.00392); // -1/255
 
         // Loop over slices, creating a FrameData object for each.
         const Json::Value slices = conf.getArray ("slices");
@@ -264,7 +301,7 @@ public:
                 cout <<  "Could not open or find the image '" << fn << "', exiting." << endl;
                 exit (1);
             }
-            this->addFrame (frame, fn, slice_x, this->pixels_per_mm);
+            this->addFrame (frame, fn, slice_x);
         }
 
         namedWindow (this->winName, WINDOW_AUTOSIZE);

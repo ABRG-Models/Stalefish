@@ -86,7 +86,7 @@ ellip_major = 2.*sqrt(D(1));
 ellip_minor = 2.*sqrt(D(2));
 
 luminosity_cutoff = 250;
-luminosity_factor = -1;
+luminosity_factor = -(1./luminosity_cutoff);
 
 % Process each number through the eqn of the ellipse to get a vlaue
 % < or > 1.

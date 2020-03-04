@@ -47,14 +47,14 @@ hold on
 ex_col = [111,0,207]./255.0;
 nex_col = [12,140,84]./255.0;
 blue = [];
-redgreen = [];
+greenred = [];
 for ii = 1:len2
     ex_x = [ex(ii,1)];%b
     ex_y = [ex(ii,2)];%g
     ex_z = [ex(ii,3)];%r
     plot3(ex_x,ex_y,ex_z,'o','markeredgecolor',ex_col,'markersize', 10, 'markerfacecolor', flip(ex(ii,:)./255.0));
     blue = [blue; ex_x, 1];
-    redgreen = [redgreen; ex_y, ex_z];
+    greenred = [greenred; ex_y, ex_z];
 end
 
 plot3([0 255], [0 0], [0 0], 'b-');
@@ -66,10 +66,10 @@ ylabel ('Green channel')
 zlabel ('Red channel')
 
 % Linear regression. Regress red/green against blue
-thefit = blue\redgreen;
-redgreen_calc = (thefit(1,:) .* blue(:,1)) + thefit(2,:);
+thefit = blue\greenred;
+greenred_calc = (thefit(1,:) .* blue(:,1)) + thefit(2,:);
 % Plot best-fit line
-plot3 (blue(:,1), redgreen_calc(:,1), redgreen_calc(:,2), 'k-')
+plot3 (blue(:,1), greenred_calc(:,1), greenred_calc(:,2), 'k-')
 
 % Add Lydia Ng's luminosity line:
 t = [0:0.01:1];
@@ -81,7 +81,7 @@ plot3(bt, gt, rt, '.-', 'markerfacecolor', ng_col, 'color', ng_col);
 
 % Add the fit line to fig 1 too
 figure(1)
-plot3 (blue(:,1), redgreen_calc(:,1), redgreen_calc(:,2), 'k.-');
+plot3 (blue(:,1), greenred_calc(:,1), greenred_calc(:,2), 'k.-');
 
 % Add Lydia Ng's luminosity line:
 plot3(bt, gt, rt, 'v-', 'markerfacecolor', ng_col, 'color', ng_col);
@@ -105,7 +105,7 @@ rg_calc = (thefit(1,:) .* b_in) + trans_offset;
 % Translation - just subtract the offset in the fit.
 rg_trans = rg_calc - trans_offset;
 % Plot the translated fit
-%plot3(b_in, rg_trans(:,1), rg_trans(:,2), 'color', 'm');
+plot3(b_in, rg_trans(:,1), rg_trans(:,2), 'color', 'm');
 
 % Rotation given by thefit(1,:)
 x = 1;
@@ -128,10 +128,10 @@ Az = [cos(-phi), -sin(-phi), 0; ...
       0, 0, 1];
 
 % Create original points matrix:
-original_points = [blue(:,1), redgreen];
+original_points = [blue(:,1), greenred];
 % Create original points with the translation, too:
-rgrg_trans = redgreen - trans_offset;
-translated_points = [blue(:,1), rgrg_trans];
+gr_trans = greenred - trans_offset;
+translated_points = [blue(:,1), gr_trans];
 
 % Create a single rotation matrix A from Ay and Az
 A = Ay * Az;
@@ -149,7 +149,7 @@ zlabel ('Red channel')
 title ('Transformed points')
 
 %
-% Next job: find first two principle components in the redgreen plane and use
+% Next job: find first two principle components in the greenred plane and use
 % these to constrain an ellipse that will select those pixels whose
 % colour is close enough to be considered to be expressing.
 %
