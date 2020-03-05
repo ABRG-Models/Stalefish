@@ -68,19 +68,23 @@ def getImageToImageOffsets (images, x, y):
 # retrieve experimental metadata. With all that information, it will output, to stdout
 # (or to a file? probably better), some text which can be included into the experiment
 # json file. Or, even better, it should fully create the json file for the experiment.
-def retrieve (exptstr):
+#
+# @exptstr The experiment number, as a string. You find this on the
+# Allen Developing Mouse Brain website. This number identifies a
+# sequence of images for one developmental time point and for one gene
+# expression.
+#
+# Do we downsample the image? downsample 1 divides images in two; downsample 2
+# makes image a quarter size (along a length), etc.
+def retrieve (exptstr, downsample=3, do_download_expr=0):
 
     # Values that are going to go into the top level of the expt json file
     section_thickness = -1
     plane = -1
 
-    # Do we downsample the image? downsample 1 divides images in two; downsample 2
-    # makes image a quarter size (along a length), etc.
-    downsample = 3
-    # Do we download the ISH images?
+
+    # Do we download the ISH images? Yes, unless we're debugging
     do_download = 1
-    # Do we down load the expression images?
-    do_download_expr = 0
 
     # Create an experiment directory
     edir = './expt/' + exptstr
@@ -254,4 +258,27 @@ def retrieve (exptstr):
 ##retrieve ('100041580')
 
 # Id2 P4
-retrieve ('100081391')
+# retrieve ('100081391')
+
+import sys
+if len(sys.argv) < 2:
+    print ('')
+    print ('Usage: {0} expt_number [downsample_num] [download_expression_images]'.format (sys.argv[0]))
+    print ('')
+    print (' Where expt_number is the number you find for a given slice sequence on the')
+    print (' Allen Developing Mouse website')
+    print ('')
+    print (' [downsample_num] defaults to 3 and is the number of times the original image')
+    print (' on the Allen server is reduced in size before being sent to you')
+    print ('')
+    print (' [download_expression_images] should be 0 or 1 (if present; defaults to 0)')
+    print ('')
+    exit(0)
+
+enum = str(sys.argv[1])
+if (len(sys.argv) > 3):
+    retrieve (enum, int(sys.argv[2]), int(sys.argv[3]))
+elif (len(sys.argv) > 2):
+    retrieve (enum, int(sys.argv[2]))
+else:
+    retrieve (enum)
