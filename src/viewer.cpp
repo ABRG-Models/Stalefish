@@ -47,7 +47,7 @@ int main (int argc, char** argv)
         vector<float> fmeans;
 
         string frameName("");
-        for (int i = 0; i<nf; ++i) {
+        for (int i = 1; i<=nf; ++i) {
 
             stringstream ss;
             ss << "/Frame";
