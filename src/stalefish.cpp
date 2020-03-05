@@ -23,6 +23,13 @@ int main (int argc, char** argv)
     }
     string paramsfile (argv[1]);
 
+    // In case we need to do something special when upgrading data formats
+    if (argc > 2) {
+        if (string(argv[2]) == string("old")) {
+            DM::i()->readOldFormat = true;
+        }
+    }
+
     DM::i()->setup (paramsfile);
 
     while (1) {

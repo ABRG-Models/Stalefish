@@ -45,7 +45,7 @@ private:
     static DM* pInstance;
     //! The frame data which is being managed
     vector<FrameData> vFrameData;
-    //! The index into frames which is the current image
+    //! The index into vFrameData which is the current image
     int I = 0;
     //! The current image
     Mat img;
@@ -133,7 +133,7 @@ public:
         // Read, opportunistically
         try {
             HdfData d(this->datafile, true); // true for read
-            fd.read (d);
+            fd.read (d, this->readOldFormat);
             if (fd.flags.test (Mirrored)) {
                 fd.mirror_image_only();
             }
@@ -246,6 +246,9 @@ public:
     string datafile = "unset.h5";
     //! How many pixels in the image is 1mm?
     float pixels_per_mm = 100.0f;
+
+    //! Set to true to read in an old data format project, which is then written out in new format.
+    bool readOldFormat = false;
 
     //! Application setup
     void setup (const string& paramsfile) {

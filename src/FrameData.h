@@ -373,15 +373,16 @@ public:
                 // Divide the signal by the number of pixels in the box
                 this->means[i] /= (double)this->boxes_raw[i].size();
             }
-
-            cout << "========> means["<<i<<"] = " << this->means[i] << endl;
         }
     }
 
     //! Read important data from file
-    void read (HdfData& df) {
+    void read (HdfData& df, bool oldformat=false) {
         // Note this file assumes idx has been set for the frame.
         string frameName = this->getFrameName();
+        if (oldformat == true) {
+            frameName = this->getOldFrameName();
+        }
 
         string dname = frameName + "/class/polyOrder";
 
@@ -968,7 +969,18 @@ private:
         ss << "/Frame";
         ss.width(3);
         ss.fill('0');
+        ss << (1+this->idx); // Count from 1 in the data file
+        return ss.str();
+    }
+
+    //! Old frame format, counting from 0
+    string getOldFrameName (void) const {
+        stringstream ss;
+        ss << "/Frame";
+        ss.width(3);
+        ss.fill('0');
         ss << this->idx;
+        cout << "GET OLD FRAME NAME: " << ss.str() << endl;
         return ss.str();
     }
 
