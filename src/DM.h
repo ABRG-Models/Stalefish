@@ -225,6 +225,7 @@ public:
         }
         int nf = this->vFrameData.size();
         d.add_val("/nframes", nf);
+        cout << "writeFrames complete: All frames written to HDF5" << endl;
     }
 
     //! Toogle showHelp
