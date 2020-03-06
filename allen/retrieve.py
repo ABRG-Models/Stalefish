@@ -69,13 +69,12 @@ def getImageToImageOffsets (images, x, y):
 # (or to a file? probably better), some text which can be included into the experiment
 # json file. Or, even better, it should fully create the json file for the experiment.
 #
-# @exptstr The experiment number, as a string. You find this on the
-# Allen Developing Mouse Brain website. This number identifies a
-# sequence of images for one developmental time point and for one gene
-# expression.
+# @exptstr The experiment number, as a string. You find this on the Allen Developing
+# Mouse Brain website. This number identifies a sequence of images for one
+# developmental time point and for one gene expression.
 #
-# Do we downsample the image? downsample 1 divides images in two; downsample 2
-# makes image a quarter size (along a length), etc.
+# Do we downsample the image? downsample 1 divides images in two; downsample 2 makes
+# image a quarter size (along a length), etc.
 def retrieve (exptstr, downsample=3, do_download_expr=0):
 
     # Values that are going to go into the top level of the expt json file
@@ -96,8 +95,7 @@ def retrieve (exptstr, downsample=3, do_download_expr=0):
     ejson = edir + '/' + exptstr + '.json'
 
     # We need a dictionary structure to collect together information about each
-    # slice. Key this with the image id or with the section number?
-    # FIXME: This should be a JSON thing
+    # slice.
     sliceinfo = {}
 
     # Query SectionDataSet to obtain the section_thickness and plane information
