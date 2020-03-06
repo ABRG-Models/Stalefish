@@ -127,17 +127,18 @@ int main (int argc, char** argv)
             xx += thickness;
         }
 
-        offset[0] -= 3.0;
-        unsigned int visId = v.addQuadsVisual (&quads, offset, means, scale);
-        cout << "Added Visual with visId " << visId << endl;
+        unsigned int visId = 0;
+        //offset[0] -= 3.0;
+        //visId = v.addQuadsVisual (&quads, offset, means, scale);
+        //cout << "Added Visual with visId " << visId << endl;
 
-        offset[0]+=3.0;
-        cout << "fquads size: " << fquads.size() << "fmeans isze: " << fmeans.size() << endl;
-        visId = v.addQuadsVisual (&fquads, offset, fmeans, scale);
-        cout << "Added Visual with visId " << visId << endl;
+        //offset[0]+=3.0;
+        //cout << "fquads size: " << fquads.size() << "fmeans isze: " << fmeans.size() << endl;
+        //visId = v.addQuadsVisual (&fquads, offset, fmeans, scale);
+        //cout << "Added Visual with visId " << visId << endl;
 
-        offset[0]+=5.0;
-        visId = v.addPointRowsVisual (&points, offset, means, scale, morph::ColourMapType::Jet);
+        //offset[0]+=5.0;
+        visId = v.addPointRowsVisual (&points, offset, means, scale, morph::ColourMapType::Plasma);
         cout << "Added Visual with visId " << visId << endl;
 
         v.render();
