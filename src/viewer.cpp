@@ -43,6 +43,7 @@ int main (int argc, char** argv)
 
         vector<array<float, 12>> quads; // Get from HDF5
         vector<array<float, 12>> fquads; // Flat quads, for the flat visualization
+        vector<array<float, 3>> points; // Centres of boxes; for smooth surface (points rows)
         vector<float> means;
         vector<float> fmeans;
 
@@ -58,10 +59,17 @@ int main (int argc, char** argv)
 
             vector<array<float, 12>> frameQuads;
             vector<double> frameMeans;
+            vector<array<float, 3>> framePoints;
 
             // Read quads and data for each frame and add to an overall pair of vectors...
             string str = frameName+"/sboxes";
             d.read_contained_vals (str.c_str(), frameQuads);
+
+            for (auto fq : frameQuads) {
+                // FIXME: Use centre of box, or even each end of box, or something
+                array<float, 3> pt = {fq[0],fq[1],fq[2]};
+                framePoints.push_back (pt);
+            }
 
             bool autoscale_per_slice = true;
             if (autoscale_per_slice) {
@@ -84,6 +92,7 @@ int main (int argc, char** argv)
 
             quads.insert (quads.end(), frameQuads.begin(), frameQuads.end());
             means.insert (means.end(), frameMeansF.begin(), frameMeansF.end());
+            points.insert (points.end(), framePoints.begin(), framePoints.end());
 
             // Load in linear stuff as well, to make up flat boxes? Or easier to do at source?
             vector<float> linbins;
@@ -118,13 +127,19 @@ int main (int argc, char** argv)
             xx += thickness;
         }
 
+        offset[0] -= 3.0;
         unsigned int visId = v.addQuadsVisual (&quads, offset, means, scale);
         cout << "Added Visual with visId " << visId << endl;
 
-        offset[0]+=6.0;
+        offset[0]+=3.0;
         cout << "fquads size: " << fquads.size() << "fmeans isze: " << fmeans.size() << endl;
         visId = v.addQuadsVisual (&fquads, offset, fmeans, scale);
         cout << "Added Visual with visId " << visId << endl;
+
+        offset[0]+=5.0;
+        visId = v.addPointRowsVisual (&points, offset, means, scale, morph::ColourMapType::Jet);
+        cout << "Added Visual with visId " << visId << endl;
+
         v.render();
 
         while (v.readyToFinish == false) {
