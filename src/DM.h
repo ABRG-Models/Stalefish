@@ -311,13 +311,23 @@ public:
                 exit (1);
             }
 
-            // input frame scaling
-            float scaleFactor = 0.5; //TODO: this value should be customizable
-            Size scaledSize = Size(round(frame.cols * scaleFactor), round(frame.rows * scaleFactor));
-            Mat scaledFrame = Mat(scaledSize, frame.type());
-            resize(frame, scaledFrame, scaledSize, scaleFactor, scaleFactor, INTER_LINEAR);
+            // scaling routine //
+            float scaleFactor = conf.getFloat("scaleFactor", 1.0f); // pull scale factor from config json
 
-            this->addFrame (scaledFrame, fn, slice_x);
+            if (scaleFactor != 1.0f) {
+                cout << "rescaling frame to scaleFactor: " << scaleFactor << endl;
+
+                Size scaledSize = Size(round(frame.cols * scaleFactor), round(frame.rows * scaleFactor));
+                Mat scaledFrame = Mat(scaledSize, frame.type());
+                resize(frame, scaledFrame, scaledSize, scaleFactor, scaleFactor, INTER_LINEAR);
+
+                frame.release(); // free original frame since we have resized it
+
+                this->addFrame(scaledFrame, fn, slice_x);
+            } else {
+                // if we are at the default scale factor do not do anything
+                this->addFrame(frame, fn, slice_x);
+            }
         }
 
         namedWindow (this->winName, WINDOW_AUTOSIZE);
