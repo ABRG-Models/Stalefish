@@ -1,20 +1,24 @@
 #pragma once
 
 #include <vector>
+#include <cmath>
 using std::vector;
 #include <stdexcept>
 using std::exception;
 #include <opencv2/opencv.hpp>
 #include <opencv2/imgproc.hpp>
 using cv::Mat;
+using cv::Size;
 using cv::setMouseCallback;
 using cv::createTrackbar;
 using cv::setTrackbarPos;
 using cv::namedWindow;
 using cv::imread;
+using cv::resize;
 using cv::FONT_HERSHEY_SIMPLEX;
 using cv::WINDOW_AUTOSIZE;
 using cv::IMREAD_COLOR;
+using cv::INTER_LINEAR;
 #include <morph/HdfData.h>
 using morph::HdfData;
 #include <morph/Config.h>
@@ -299,13 +303,31 @@ public:
             Json::Value slice = slices[i];
             string fn = slice.get ("filename", "unknown").asString();
             float slice_x = slice.get ("x", 0.0).asFloat();
+
             cout << "imread " << fn << endl;
             Mat frame = imread (fn.c_str(), IMREAD_COLOR);
             if (frame.empty()) {
                 cout <<  "Could not open or find the image '" << fn << "', exiting." << endl;
                 exit (1);
             }
-            this->addFrame (frame, fn, slice_x);
+
+            // scaling routine //
+            float scaleFactor = conf.getFloat("scaleFactor", 1.0f); // pull scale factor from config json
+
+            if (scaleFactor != 1.0f) {
+                cout << "rescaling frame to scaleFactor: " << scaleFactor << endl;
+
+                Size scaledSize = Size(round(frame.cols * scaleFactor), round(frame.rows * scaleFactor));
+                Mat scaledFrame = Mat(scaledSize, frame.type());
+                resize(frame, scaledFrame, scaledSize, scaleFactor, scaleFactor, INTER_LINEAR);
+
+                frame.release(); // free original frame since we have resized it
+
+                this->addFrame(scaledFrame, fn, slice_x);
+            } else {
+                // if we are at the default scale factor do not do anything
+                this->addFrame(frame, fn, slice_x);
+            }
         }
 
         namedWindow (this->winName, WINDOW_AUTOSIZE);
