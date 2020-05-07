@@ -330,28 +330,12 @@ public:
         this->gcf()->refreshBoxes (-(this->binA-BIN_A_OFFSET), this->binB);
     }
 
-    /*!
-     * UI methods. Could possibly un-static these.
-     */
-    static void onmouse (int event, int x, int y, int flags, void* param) {
+    //! In Bezier or Polynomial modes, draw curves and users points
+    void draw_curves (const cv::Point& pt) {
 
-        // Make copies of pointers to neaten up the code, below
         DM* _this = DM::i();
         cv::Mat* pImg = _this->getImg();
         FrameData* cf = _this->gcf();
-
-        cv::Point pt = cv::Point(x,y);
-        if (x==-1 && y==-1) {
-            pt = cv::Point(_this->x, _this->y);
-        } else {
-            _this->x = x;
-            _this->y = y;
-        }
-        if (event == cv::EVENT_FLAG_LBUTTON) {
-            cf->P.push_back (pt);
-            cf->setShowUsers(true);
-        }
-        _this->cloneFrame();
 
         // red circle under the cursor
         circle (*pImg, pt, 5, SF_RED, 1);
@@ -360,9 +344,9 @@ public:
             // First the lines in the preceding PP point-sets:
             for (size_t j=0; j<cf->PP.size(); j++) {
                 Scalar linecol = j%2 ? SF_RED : SF_BLUE;
-                for (size_t i=0; i<cf->PP[j].size(); i++) {
-                    circle (*pImg, cf->PP[j][i], 5, linecol, -1);
-                    if (i) { line (*pImg, cf->PP[j][i-1], cf->PP[j][i], linecol, 2); }
+                for (size_t ii=0; ii<cf->PP[j].size(); ii++) {
+                    circle (*pImg, cf->PP[j][ii], 5, linecol, -1);
+                    if (ii) { line (*pImg, cf->PP[j][ii-1], cf->PP[j][ii], linecol, 2); }
                 }
             }
         }
@@ -392,9 +376,9 @@ public:
         if (cf->flags.test(ShowUsers) == true) {
             // Then draw the current point set:
             if (cf->PP.empty() || (!cf->PP.empty() && cf->P.size() > 1)) {
-                for (size_t i=0; i<cf->P.size(); i++) {
-                    circle (*pImg, cf->P[i], 5, SF_GREEN, -1);
-                    if (i) { line (*pImg, cf->P[i-1], cf->P[i], SF_GREEN, 1); }
+                for (size_t ii=0; ii<cf->P.size(); ii++) {
+                    circle (*pImg, cf->P[ii], 5, SF_GREEN, -1);
+                    if (ii) { line (*pImg, cf->P[ii-1], cf->P[ii], SF_GREEN, 1); }
                 }
             }
             // also draw a thin line to the cursor position
@@ -406,8 +390,8 @@ public:
 
         // This is the fit line
         if (cf->flags.test(ShowFits) == true) {
-            for (size_t i=1; i<cf->fitted.size(); i++) {
-                line (*pImg, cf->fitted[i-1], cf->fitted[i], SF_GREEN, 2);
+            for (size_t ii=1; ii<cf->fitted.size(); ii++) {
+                line (*pImg, cf->fitted[ii-1], cf->fitted[ii], SF_GREEN, 2);
             }
             // Axis line, relevant for polynomial fits only
             if (cf->ct == CurveType::Poly) {
@@ -417,9 +401,68 @@ public:
 
         if (cf->flags.test(ShowBoxes) == true) {
             // The bins; pointsInner to pointsOuter
-            for (size_t i=0; i<cf->pointsInner.size(); i++) {
-                line (*pImg, cf->pointsInner[i], cf->pointsOuter[i], SF_YELLOW, 1);
+            for (size_t ii=0; ii<cf->pointsInner.size(); ii++) {
+                line (*pImg, cf->pointsInner[ii], cf->pointsOuter[ii], SF_YELLOW, 1);
             }
+        }
+    }
+
+    //! Draw freehand loops when in CurveType::Freehand mode
+    void draw_freehand (const cv::Point& pt) {
+
+        DM* _this = DM::i();
+        cv::Mat* pImg = _this->getImg();
+        FrameData* cf = _this->gcf();
+
+        // Then draw the current point set:
+        for (size_t ii=0; ii<cf->FP.size(); ii++) {
+            circle (*pImg, cf->FP[ii], 1, SF_GREEN, -1);
+        }
+    }
+
+    /*!
+     * UI methods. Could possibly un-static these.
+     */
+    static void onmouse (int event, int x, int y, int flags, void* param) {
+
+        // Make copies of pointers to neaten up the code, below
+        DM* _this = DM::i();
+        cv::Mat* pImg = _this->getImg();
+        FrameData* cf = _this->gcf();
+
+        // What's the cv::Point under the mouse pointer?
+        cv::Point pt = cv::Point(x,y);
+        if (x==-1 && y==-1) {
+            pt = cv::Point(_this->x, _this->y);
+        } else {
+            _this->x = x;
+            _this->y = y;
+        }
+
+        // If the button is down, add it
+        if (event == cv::EVENT_LBUTTONDOWN) {
+            if (cf->ct == CurveType::Bezier || cf->ct == CurveType::Poly) {
+                cf->P.push_back (pt);
+                cf->setShowUsers(true);
+            } else if (cf->ct == CurveType::Freehand) {
+                //_this->lbutton_down = true;
+                cf->FP.push_back (pt);
+            }
+        } else if (event == cv::EVENT_MOUSEMOVE
+                   && (flags & cv::EVENT_FLAG_LBUTTON) == cv::EVENT_FLAG_LBUTTON) {
+            // Now button is down, want to add any pixel that the mouse moves over
+            cf->FP.push_back (pt);
+        }
+
+        _this->cloneFrame();
+
+        // Code for drawing stuff when we're in a curve-fitting mode
+        if (cf->ct == CurveType::Bezier || cf->ct == CurveType::Poly) {
+            _this->draw_curves (pt);
+        } else if (cf->ct == CurveType::Freehand) {
+            _this->draw_freehand (pt);
+        } else {
+            std::cerr << "WARNING: unknown curve type in current frame (this should not occur)" << std::endl;
         }
 
         std::stringstream ss;
@@ -466,7 +509,7 @@ public:
             putText (*pImg, hh.str(),
                      cv::Point(xh,yh), cv::FONT_HERSHEY_SIMPLEX, 0.8, SF_BLACK, 1, cv::LINE_AA);
             yh += yinc;
-            putText (*pImg, std::string("o:   Fit mode (Bezier or polynomial)"),
+            putText (*pImg, std::string("o:   Fit mode (Bezier, polynomial or freehand)"),
                      cv::Point(xh,yh), cv::FONT_HERSHEY_SIMPLEX, 0.8, SF_BLACK, 1, cv::LINE_AA);
             yh += yinc;
             putText (*pImg, std::string("p:   In polynomial mode, change order"),

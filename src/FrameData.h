@@ -21,8 +21,9 @@
 #include <morph/MathConst.h>
 
 enum class CurveType {
-    Poly,  // Variable order polynomial
-    Bezier // Cubic Bezier
+    Poly,     // Variable order polynomial
+    Bezier,   // Cubic Bezier
+    Freehand  // A freehand drawn loop enclosing a region
 };
 
 // What sort of colour model is in use?
@@ -83,10 +84,13 @@ public:
 
     //! Attributes which pertain either to polynomial or Bezier curves
     //@{
-    //! The vector of user-supplied points from which to make a curve fit
+    //! The vector of user-supplied points from which to make a curve fit. Also use as
+    //! a container for the points in a freehand drawn loop?
     std::vector<cv::Point> P;
     //! A vector of vectors of points for multi-section Bezier curves
     std::vector<std::vector<cv::Point>> PP;
+    //! A vector of user-supplied points for the Freehand drawn loop
+    std::vector<cv::Point> FP;
     //! Index into PP
     int pp_idx = 0;
     //! The means computed for the boxes. This is now "mean_signal" really, as the pixel values
@@ -129,7 +133,7 @@ public:
     //! A bit set containing flags
     std::bitset<8> flags;
     //! The image data, required when sampling the image in one of the boxes.
-    Mat frame;
+    cv::Mat frame;
     //! The frame image filename from which frame was loaded. Stored so it can be
     //! recorded when writing out.
     std::string filename;
@@ -225,6 +229,9 @@ public:
                 }
             }
             ss << "Bezier order: " << bb.str() << ", Bins: " << this->nBins;
+        } else if (this->ct == CurveType::Freehand) {
+            // Get any fit info for a freehand loop (e.g. is it contiguous; how many pixels)
+            ss << "Freehand";
         } else {
             ss << "unknown";
         }
@@ -597,15 +604,21 @@ public:
     void updateFit (void) {
         if (this->ct == CurveType::Poly) {
             this->updateFitPoly();
-        } else {
+        } else if (this->ct == CurveType::Bezier) {
             this->updateFitBezier();
+        } else if (this->ct == CurveType::Freehand) {
+            // What to do? Find all the pixels inside?
+        } else {
+            return;
         }
-        // Scale
-        this->offsetScaleFit();
-        // Rotate
-        this->rotateFitOptimally();
 
-        std::cout << "At end of updateFit(void). binA/binB: " << binA << "," << binB << std::endl;
+        if (this->ct == CurveType::Poly || this->ct == CurveType::Bezier) {
+            // Scale
+            this->offsetScaleFit();
+            // Rotate
+            this->rotateFitOptimally();
+            std::cout << "At end of updateFit(void). binA/binB: " << binA << "," << binB << std::endl;
+        }
     }
 
     //! Re-compute the boxes from the curve (taking ints)
@@ -615,6 +628,14 @@ public:
 
     //! Re-compute the boxes from the curve (double version)
     void refreshBoxes (const double lenA, const double lenB) {
+
+        // Don't refresh boxes for Freehand mode
+        if (this->ct == CurveType::Freehand) {
+            // Or perhaps hide stuff? Delete points in P? or leave the points in P,
+            // and have a separate store of the points in a freehand loop.
+            return;
+        }
+
         if (this->ct == CurveType::Poly) {
             this->pointsInner = PolyFit::rotate (PolyFit::tracePolyOrth (this->pf, this->minX, this->maxX,
                                                                          this->nFit, lenA),
@@ -642,12 +663,17 @@ public:
         }
     }
 
-    //! Toggle between polynomial and Bezier curve fitting
+    //! Toggle between polynomial, Bezier curve fitting and Freehand loop drawing
     void toggleCurveType (void) {
         if (this->ct == CurveType::Poly) {
             this->ct = CurveType::Bezier;
-        } else {
+        } else if (this->ct == CurveType::Bezier) {
+            this->ct = CurveType::Freehand;
+        } else if (this->ct == CurveType::Freehand) {
             this->ct = CurveType::Poly;
+        } else {
+            // Shouldn't get here...
+            this->ct = CurveType::Bezier;
         }
     }
 
