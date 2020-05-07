@@ -157,7 +157,7 @@ public:
         Mat result, resultGray;
         frame.copyTo (result, mask);
         cvtColor (result, resultGray, cv::COLOR_BGR2GRAY);
-        vector<Point2i> positives;
+        vector<cv::Point2i> positives;
         findNonZero (resultGray, positives);
         vector<float> boxedPixelVals (positives.size());
         for (size_t j=0; j<positives.size(); j++) {
@@ -168,7 +168,7 @@ public:
     }
 
     //! In a box, obtain colour values as BGR float triplets
-    static vector<array<float, 3>>
+    static vector<std::array<float, 3>>
     getBoxedPixelColour (const Mat frame, const vector<Point> pp) {
         Point pts[4] = {pp[0],pp[1],pp[2],pp[3]};
         Mat mask = Mat::zeros(frame.rows, frame.cols, CV_8UC3);
@@ -177,9 +177,9 @@ public:
         frame.copyTo (result, mask); // Note: 'result' will be in BGR format
         cvtColor (result, resultGray, cv::COLOR_BGR2GRAY);
         result.convertTo (resultFloat, CV_32FC3);
-        vector<Point2i> positives;
+        vector<cv::Point2i> positives;
         findNonZero (resultGray/*Float*/, positives); // only for CV_8UC1 :( I want 'findNonBlack' on result
-        vector<array<float, 3>> boxedPixelVals (positives.size());
+        vector<std::array<float, 3>> boxedPixelVals (positives.size());
         for (size_t j=0; j<positives.size(); j++) {
             Vec3f pixel = resultFloat.at<Vec3f>(positives[j]);
             // NB: This assumes image is in BGR format and we return in BGR format.

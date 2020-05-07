@@ -2,48 +2,22 @@
 
 #include <opencv2/opencv.hpp>
 #include <opencv2/imgproc.hpp>
-using cv::Mat;
-using cv::Point;
-using cv::Point2d;
-using cv::Point2i;
-using cv::Scalar;
 #include <stdexcept>
-using std::runtime_error;
-using std::exception;
 #include <vector>
-using std::vector;
 #include <array>
-using std::array;
 #include <string>
-using std::string;
-using std::to_string;
 #include <sstream>
-using std::stringstream;
 #include <iostream>
-using std::cout;
-using std::endl;
-using std::flush;
 #include <utility>
-using std::make_pair;
-using std::pair;
 #include <bitset>
-using std::bitset;
 #include <limits>
-using std::numeric_limits;
 #include "tools.h"
 #include <morph/BezCurvePath.h>
-using morph::BezCurvePath;
 #include <morph/BezCurve.h>
-using morph::BezCurve;
 #include <morph/BezCoord.h>
-using morph::BezCoord;
 #include <morph/HdfData.h>
-using morph::HdfData;
 #include <morph/MathAlgo.h>
-using morph::MathAlgo;
 #include <morph/NM_Simplex.h>
-using morph::NM_Simplex;
-using morph::NM_Simplex_State;
 #include <morph/MathConst.h>
 
 enum class CurveType {
@@ -76,7 +50,7 @@ class FrameData
 private:
     //! The 'previous' frame in the stack of frames (index into)
     int previous = -1;
-    vector<FrameData>* parentStack;
+    std::vector<FrameData>* parentStack;
 
     //! Number of bins to create for the fit (one less than nFit)
     int nBins;
@@ -98,67 +72,67 @@ public:
     //! Min and max value used as input to polyfit
     double minX, maxX;
     //! The parameters of a polyfit, as returned by polyfit()
-    vector<double> pf;
+    std::vector<double> pf;
     //@}
 
     //! Bezier curve attributes
     //@{
     //! A Bezier curve path to fit the cortex.
-    BezCurvePath<double> bcp;
+    morph::BezCurvePath<double> bcp;
     //@}
 
     //! Attributes which pertain either to polynomial or Bezier curves
     //@{
     //! The vector of user-supplied points from which to make a curve fit
-    vector<Point> P;
+    std::vector<cv::Point> P;
     //! A vector of vectors of points for multi-section Bezier curves
-    vector<vector<Point>> PP;
+    std::vector<std::vector<cv::Point>> PP;
     //! Index into PP
     int pp_idx = 0;
     //! The means computed for the boxes. This is now "mean_signal" really, as the pixel values
     //! (monochrome or colour) are now converted with the colour space parameters into a signal.
-    vector<double> means;
+    std::vector<double> means;
     //! The raw values for each box as a vector of doubles for each box.
-    vector<vector<float>> boxes_raw;
+    std::vector<std::vector<float>> boxes_raw;
     //! Raw colours of boxes in RGB
-    vector<vector<array<float, 3>>> boxes_raw_bgr;
+    std::vector<std::vector<std::array<float, 3>>> boxes_raw_bgr;
     //! Target number of bins; used by bins slider
     int nBinsTarg;
     //! The bin lengths, set with a slider.
     int binA = 0;
     int binB = 100;
     //! A set of points created from the fit
-    vector<Point> fitted;
+    std::vector<cv::Point> fitted;
     //! The centroid of fitted.
-    Point2d fit_centroid;
+    cv::Point2d fit_centroid;
     //! This holds offset and scaled fitted points: (fitted - fit_centroid) * pixels_per_mm
-    vector<Point2d> fitted_offset;
+    std::vector<cv::Point2d> fitted_offset;
     //! This holds the fitted_offset points after they have been rotated to be in line
     //! with fitted_rotated points in the 'previous' frame. 'in line' means the
     //! smallest sum-of-square distances between the two fitted_rotated sets. Depends
     //! on nBins being the same in each.
-    vector<Point2d> fitted_rotated;
+    std::vector<cv::Point2d> fitted_rotated;
     //! For point in fitted, the tangent at that location
-    vector<Point2d> tangents;
+    std::vector<cv::Point2d> tangents;
     //! For point in fitted, the normal at that location
-    vector<Point2d> normals;
+    std::vector<cv::Point2d> normals;
     //! The axes for the polynomial fit
-    vector<Point> axis;
+    std::vector<cv::Point> axis;
     //! Coefficients for the polynomial fit axis
-    vector<double> axiscoefs;
+    std::vector<double> axiscoefs;
     //! origins for the lines making the box sides (some distance from the curve)
-    vector<Point> pointsInner;
+    std::vector<cv::Point> pointsInner;
     //! endpoints for the lines making the box sides (a greater distance from the curve)
-    vector<Point> pointsOuter;
+    std::vector<cv::Point> pointsOuter;
     //! The boxes that are drawn and from which to sample the gene expression
-    vector<vector<Point> > boxes;
+    std::vector<std::vector<cv::Point> > boxes;
     //! A bit set containing flags
-    bitset<8> flags;
+    std::bitset<8> flags;
     //! The image data, required when sampling the image in one of the boxes.
     Mat frame;
     //! The frame image filename from which frame was loaded. Stored so it can be
     //! recorded when writing out.
-    string filename;
+    std::string filename;
     //! The 'x' position of the brain slice in this frame (coordinates in the plane of
     //! the slice are y/z (units: mm).
     float layer_x = 0.0f;
@@ -173,22 +147,22 @@ public:
     //@{
     //! What kind of colour model is in use?
     ColourModel cmodel = ColourModel::Greyscale;
-    array<float, 9> colour_rot;   //! Colour space rotation to apply to [b g r] colour vectors
-    array<float, 3> colour_trans; //! Colour space pre-translation. [x y z] is [b g r]
-    array<float, 2> ellip_axes;   //! red-green ellipse for "elliptical tube of expressing colours
+    std::array<float, 9> colour_rot;   //! Colour space rotation to apply to [b g r] colour vectors
+    std::array<float, 3> colour_trans; //! Colour space pre-translation. [x y z] is [b g r]
+    std::array<float, 2> ellip_axes;   //! red-green ellipse for "elliptical tube of expressing colours
     float luminosity_factor;      //! The slope of the linear luminosity vs signal fit.
     float luminosity_cutoff;      //! at what luminosity does the signal cut off to zero?
     //@}
 
 public:
     FrameData () {
-        throw runtime_error ("Default constructor is not allowed");
+        throw std::runtime_error ("Default constructor is not allowed");
     }
     //! Constructor initializes default values
-    FrameData (const Mat& fr) {
+    FrameData (const cv::Mat& fr) {
         // init previous to null.
         this->previous = -1;
-        this->parentStack = (vector<FrameData>*)0;
+        this->parentStack = (std::vector<FrameData>*)0;
         this->frame = fr.clone();
         this->axiscoefs.resize (2, 0.0);
         this->axis.resize (2);
@@ -204,7 +178,7 @@ public:
     //! Set the number of bins and update the size of the various containers
     void setBins (unsigned int num) {
         if (num > 5000) {
-            throw runtime_error ("Too many bins...");
+            throw std::runtime_error ("Too many bins...");
         }
         this->nBins = num;
         this->nBinsTarg = num;
@@ -230,17 +204,17 @@ public:
     void setPrevious (int prev) {
         this->previous = prev;
     }
-    void setParentStack (vector<FrameData>* parentSt) {
+    void setParentStack (std::vector<FrameData>* parentSt) {
         this->parentStack = parentSt;
     }
 
     //! Get information about the fit
-    string getFitInfo (void) const {
-        stringstream ss;
+    std::string getFitInfo (void) const {
+        std::stringstream ss;
         if (this->ct == CurveType::Poly) {
             ss << "Poly order: " << this->polyOrder << ", Bins: " << this->nBins;
         } else if (this->ct == CurveType::Bezier) {
-            stringstream bb;
+            std::stringstream bb;
             bool first = true;
             for (auto cv : this->bcp.curves) {
                 if (first) {
@@ -300,7 +274,7 @@ public:
 
     //! Compute the mean values for the bins
     void getBoxMeans (void) {
-        cout << "Called" << endl;
+        std::cout << "Called" << std::endl;
         this->boxes_raw.resize (this->boxes.size());
         this->boxes_raw_bgr.resize (this->boxes.size());
         this->means.resize (this->boxes.size());
@@ -319,13 +293,13 @@ public:
 
                 float ellip_maj_sq = ellip_axes[0] * ellip_axes[0];
                 float ellip_min_sq = ellip_axes[1] * ellip_axes[1];
-                cout << "box " << i << " has " << this->boxes_raw_bgr[i].size() << " pixels" << endl;
+                std::cout << "box " << i << " has " << this->boxes_raw_bgr[i].size() << " pixels" << std::endl;
                 for (size_t j=0; j<this->boxes_raw_bgr[i].size(); j++) {
                     // Perform colour transform here, so that we get a transformed blue value
                     float b = boxes_raw_bgr[i][j][0];
                     float g = boxes_raw_bgr[i][j][1];
                     float r = boxes_raw_bgr[i][j][2];
-                    //cout << "bgr: " << b << "," << g << "," << r << endl;
+                    //std::cout << "bgr: " << b << "," << g << "," << r << std::endl;
 
                     // 1. Translate rgb colour. NB: It's this->colour_trans
                     float b_t = b - colour_trans[0];
@@ -336,7 +310,7 @@ public:
                     float b_r = colour_rot[0]*b_t + colour_rot[1]*g_t + colour_rot[2]*r_t;
                     float g_r = colour_rot[3]*b_t + colour_rot[4]*g_t + colour_rot[5]*r_t;
                     float r_r = colour_rot[6]*b_t + colour_rot[7]*g_t + colour_rot[8]*r_t;
-                    //cout << "bgr transformed: " << b_r << "," << g_r << "," << r_r << endl;
+                    //std::cout << "bgr transformed: " << b_r << "," << g_r << "," << r_r << std::endl;
 
                     // if (r_r,g_r) lies inside ellipse (given by ellip_axes) then blue_transf equals b_r
                     float blue_transf = 0.0f;
@@ -351,7 +325,7 @@ public:
                     // m * (x - x_0):
                     signal *= this->luminosity_factor;
                     // Any signal <0 is 0.
-                    // cout << "signal value is " << signal << endl;
+                    // std::cout << "signal value is " << signal << std::endl;
                     this->means[i] += (double)(signal > 0.0f ? signal : 0.0f);
                 }
                 // Divide the signal by the number of pixels in the box
@@ -377,14 +351,14 @@ public:
     }
 
     //! Read important data from file
-    void read (HdfData& df, bool oldformat=false) {
+    void read (morph::HdfData& df, bool oldformat=false) {
         // Note this file assumes idx has been set for the frame.
-        string frameName = this->getFrameName();
+        std::string frameName = this->getFrameName();
         if (oldformat == true) {
             frameName = this->getOldFrameName();
         }
 
-        string dname = frameName + "/class/polyOrder";
+        std::string dname = frameName + "/class/polyOrder";
 
         df.read_val (dname.c_str(), this->polyOrder);
 
@@ -397,7 +371,7 @@ public:
 
         this->PP.resize(pp_size);
         for (size_t i = 0; i<pp_size; ++i) {
-            stringstream ss;
+            std::stringstream ss;
             ss << frameName + "/class/PP";
             ss.width(3);
             ss.fill('0');
@@ -429,12 +403,12 @@ public:
     }
 
     //! Write the data out to an HdfData file @df.
-    void write (HdfData& df) const {
-        string frameName = this->getFrameName();
+    void write (morph::HdfData& df) const {
+        std::string frameName = this->getFrameName();
 
         // Write out essential information to re-load state of the application and the
         // user's work saving points etc.
-        string dname = frameName + "/class/polyOrder";
+        std::string dname = frameName + "/class/polyOrder";
         df.add_val (dname.c_str(), this->polyOrder);
         dname = frameName + "/class/P";
         df.add_contained_vals (dname.c_str(), this->P);
@@ -443,7 +417,7 @@ public:
         unsigned int pp_size = this->PP.size();
         df.add_val (dname.c_str(), pp_size);
         for (size_t i = 0; i<pp_size; ++i) {
-            stringstream ss;
+            std::stringstream ss;
             ss << frameName + "/class/PP";
             ss.width(3);
             ss.fill('0');
@@ -482,7 +456,7 @@ public:
          * re-written in a later run of the program).
          */
         for (size_t bi = 0; bi < this->boxes_raw.size(); ++bi) {
-            dname = frameName + "/box" + to_string(bi);
+            dname = frameName + "/box" + std::to_string(bi);
             df.add_contained_vals (dname.c_str(), this->boxes_raw[bi]);
         }
         dname = frameName + "/nboxes";
@@ -493,23 +467,24 @@ public:
 
         // Autoscale means and save a copy
         dname = frameName + "/means_autoscaled";
-        vector<double> means_autoscaled = MathAlgo<double>::autoscale (this->means);
+        // this->means is vector<double>
+        std::vector<double> means_autoscaled = morph::MathAlgo::autoscale (this->means, 0.0, 1.0);
         df.add_contained_vals (dname.c_str(), means_autoscaled);
 
         // Need to get from fitted to y and z. Note that fitted is in (integer) pixels...
-        // vector<Point> fitted;
+        // vector<cv::Point> fitted;
         //
         // Make up the boxes. A box (in 3d space) can be a vector of 12 floats. Thus
         // we should be able to write a vector of boxes as a vector<vector<float>>
         // These are "surface_boxes" because they're the box thats in the plane of the
         // cortical sheet (roughly xy) rather than the box in the slice plane (yz).
-        vector<array<float,12>> surface_boxes;
+        std::vector<std::array<float,12>> surface_boxes;
 #if 0
-        vector<array<float,12>> smooth_boxes; // smoothed surface
+        std::vector<std::array<float,12>> smooth_boxes; // smoothed surface
 #endif
-        vector<array<float,3>> surface_box_centroids;
-        array<float, 12> sbox;
-        cout << "Surface boxes extend from " << layer_x << " to " << (layer_x + thickness) << endl;
+        std::vector<std::array<float,3>> surface_box_centroids;
+        std::array<float, 12> sbox;
+        std::cout << "Surface boxes extend from " << layer_x << " to " << (layer_x + thickness) << std::endl;
         for (int i = 1; i < this->nFit; ++i) {
             // c1 x,y,z
             sbox[0] = this->layer_x;                 // x
@@ -528,7 +503,7 @@ public:
             sbox[10] = this->fitted_rotated[i-1].x;  // y
             sbox[11] = this->fitted_rotated[i-1].y; // z
 
-            array<float, 3> sbox_centroid = MathAlgo<float>::centroid3D (sbox);
+            std::array<float, 3> sbox_centroid = morph::MathAlgo::centroid3D (sbox);//<float>
             surface_boxes.push_back (sbox);
             surface_box_centroids.push_back (sbox_centroid);
         }
@@ -576,11 +551,11 @@ public:
         // be useful for making naive maps that unroll the cortex in one dimension.
         dname = frameName + "/sbox_linear_distance";
         float total_linear_distance = 0.0f;
-        vector<float> linear_distances (this->nBins, 0.0f);
+        std::vector<float> linear_distances (this->nBins, 0.0f);
         for (int i=1; i<this->nBins; ++i) {
             // Compute distance from Previous to current
-            float d = MathAlgo<float>::distance (surface_box_centroids[i-1],
-                                                 surface_box_centroids[i]);
+            float d = morph::MathAlgo::distance<float> (surface_box_centroids[i-1],
+                                                        surface_box_centroids[i]);
             total_linear_distance += d;
             linear_distances[i] = total_linear_distance;
         }
@@ -591,7 +566,7 @@ public:
         }
         df.add_contained_vals (dname.c_str(), linear_distances);
 
-        cout << "write() completed." << endl;
+        std::cout << "write() completed." << std::endl;
     }
 
     //! Mirror the image and mark in the flags that it was mirrored
@@ -601,7 +576,7 @@ public:
     }
     //! Carry out the actual mirroring operation on its own, leaving flags unchanged
     void mirror_image_only (void) {
-        Mat mirrored (this->frame.rows, this->frame.cols, this->frame.type());
+        cv::Mat mirrored (this->frame.rows, this->frame.cols, this->frame.type());
         cv::flip (this->frame, mirrored, 1);
         this->frame = mirrored;
     }
@@ -613,7 +588,7 @@ public:
     }
     //! Flip the image without marking as flipped in flags.
     void flip_image_only (void) {
-        Mat flipped (this->frame.rows, this->frame.cols, this->frame.type());
+        cv::Mat flipped (this->frame.rows, this->frame.cols, this->frame.type());
         cv::flip (this->frame, flipped, 1);
         this->frame = flipped;
     }
@@ -630,7 +605,7 @@ public:
         // Rotate
         this->rotateFitOptimally();
 
-        cout << "At end of updateFit(void). binA/binB: " << binA << "," << binB << endl;
+        std::cout << "At end of updateFit(void). binA/binB: " << binA << "," << binB << std::endl;
     }
 
     //! Re-compute the boxes from the curve (taking ints)
@@ -649,16 +624,16 @@ public:
                                                  this->theta);
         } else {
             for (int i=0; i<this->nFit; i++) {
-                Point2d normLenA = this->normals[i]*lenA;
-                Point2d normLenB = this->normals[i]*lenB;
-                this->pointsInner[i] = this->fitted[i] + Point2i((int)normLenA.x, (int)normLenA.y);
-                this->pointsOuter[i] = this->fitted[i] + Point2i((int)normLenB.x, (int)normLenB.y);
+                cv::Point2d normLenA = this->normals[i]*lenA;
+                cv::Point2d normLenB = this->normals[i]*lenB;
+                this->pointsInner[i] = this->fitted[i] + cv::Point2i((int)normLenA.x, (int)normLenA.y);
+                this->pointsOuter[i] = this->fitted[i] + cv::Point2i((int)normLenB.x, (int)normLenB.y);
             }
         }
         // Make the boxes from pointsInner and pointsOuter
         this->boxes.resize (this->nBins);
         for (int i=0; i<this->nBins; i++) {
-            vector<Point> pts(4);
+            std::vector<cv::Point> pts(4);
             pts[0] = this->pointsInner[i];
             pts[1] = this->pointsInner[i+1];
             pts[2] = this->pointsOuter[i+1];
@@ -737,7 +712,7 @@ private:
     void updateFitBezier (void) {
 
         if (this->PP.empty() && this->P.size() < 2) {
-            cout << "Too few points to fit" << endl;
+            std::cout << "Too few points to fit" << std::endl;
             return;
         }
 
@@ -745,13 +720,13 @@ private:
 
         // Loop over PP first
         for (auto _P : this->PP) {
-            vector<pair<double,double>> user_points;
+            std::vector<std::pair<double,double>> user_points;
             user_points.clear();
             for (auto pt : _P) {
-                user_points.push_back (make_pair(pt.x, pt.y));
+                user_points.push_back (std::make_pair(pt.x, pt.y));
             }
 
-            BezCurve<double> bc;
+            morph::BezCurve<double> bc;
             if (this->bcp.isNull()) {
                 // No previous curves; fit just on user_points
                 bc.fit (user_points);
@@ -759,7 +734,7 @@ private:
             } else {
                 // Have previous curve, use last control of previous curve to make
                 // smooth transition.
-                BezCurve<double> last = this->bcp.curves.back();
+                morph::BezCurve<double> last = this->bcp.curves.back();
                 bc.fit (user_points, last);
                 this->bcp.removeCurve();
                 this->bcp.addCurve (last);
@@ -769,18 +744,18 @@ private:
         }
 
         if (this->P.size()>2) {
-            vector<pair<double,double>> user_points;
+            std::vector<std::pair<double,double>> user_points;
             user_points.clear();
             for (auto pt : this->P) {
-                user_points.push_back (make_pair(pt.x, pt.y));
+                user_points.push_back (std::make_pair(pt.x, pt.y));
             }
-            BezCurve<double> bc;
+            morph::BezCurve<double> bc;
             if (this->bcp.isNull()) {
                 // No previous curves; fit just on user_points
                 bc.fit (user_points);
                 this->bcp.addCurve (bc);
             } else {
-                BezCurve<double> last = this->bcp.curves.back();
+                morph::BezCurve<double> last = this->bcp.curves.back();
                 bc.fit (user_points, last);
                 this->bcp.removeCurve();
                 this->bcp.addCurve (last);
@@ -790,28 +765,28 @@ private:
 
         // Update this->fitted
         this->bcp.computePoints (static_cast<unsigned int>(this->nFit));
-        vector<BezCoord<double>> coords = this->bcp.getPoints();
-        vector<BezCoord<double>> tans = this->bcp.getTangents();
-        vector<BezCoord<double>> norms = this->bcp.getNormals();
+        std::vector<morph::BezCoord<double>> coords = this->bcp.getPoints();
+        std::vector<morph::BezCoord<double>> tans = this->bcp.getTangents();
+        std::vector<morph::BezCoord<double>> norms = this->bcp.getNormals();
         //Point2d fitsum;
         for (int i = 0; i < this->nFit; ++i) {
             this->fitted[i] = Point(coords[i].x(),coords[i].y());
             //fitsum += Point2d(coords[i].x(),coords[i].y());
-            this->tangents[i] = Point2d(tans[i].x(),tans[i].y());
-            this->normals[i] = Point2d(norms[i].x(),norms[i].y());
+            this->tangents[i] = cv::Point2d(tans[i].x(),tans[i].y());
+            this->normals[i] = cv::Point2d(norms[i].x(),norms[i].y());
         }
     }
 
     void offsetScaleFit (void) {
-        Point2d fitsum;
+        cv::Point2d fitsum;
         for (int i = 0; i < this->nFit; ++i) {
-            fitsum += Point2d(this->fitted[i].x, this->fitted[i].y);
+            fitsum += cv::Point2d(this->fitted[i].x, this->fitted[i].y);
         }
         this->fit_centroid = fitsum/this->nFit;
-        cout << "Fit centroid: " << this->fit_centroid << endl;
+        std::cout << "Fit centroid: " << this->fit_centroid << std::endl;
         // Apply offset and scale
         for (int i = 0; i < this->nFit; ++i) {
-            Point2d fd(this->fitted[i]);
+            cv::Point2d fd(this->fitted[i]);
             this->fitted_offset[i] = (fd - this->fit_centroid) / this->pixels_per_mm;
         }
     }
@@ -821,12 +796,12 @@ private:
     double computeSosWithPrev (double theta_) {
 
         if (this->previous < 0) {
-            return numeric_limits<double>::max();
+            return std::numeric_limits<double>::max();
         }
 
         if ((*this->parentStack)[this->previous].getNBins() != this->nBins) {
             // Number of bins has to be same
-            return numeric_limits<double>::max();
+            return std::numeric_limits<double>::max();
         }
 
         this->rotate (theta_);
@@ -837,10 +812,10 @@ private:
             double xdiff = this->fitted_rotated[i].x - (*this->parentStack)[this->previous].fitted_rotated[i].x;
             double ydiff = this->fitted_rotated[i].y - (*this->parentStack)[this->previous].fitted_rotated[i].y;
             double d_ = (xdiff*xdiff + ydiff*ydiff);
-            //cout << "sos += " << d_ << ", ";
+            //std::cout << "sos += " << d_ << ", ";
             sos += d_;
         }
-        //cout << "\nFor rotation angle " << theta_ << " returning sos=" << sos << endl;
+        //std::cout << "\nFor rotation angle " << theta_ << " returning sos=" << sos << std::endl;
         return sos;
     }
 
@@ -869,23 +844,23 @@ private:
 
         // If there's no previous frame, then fitted_rotated should be same as fitted_offset
         if (this->previous < 0) {
-            cout << "No previous frame, so just copying fitted_offset to fitted_rotated..." << endl;
+            std::cout << "No previous frame, so just copying fitted_offset to fitted_rotated..." << std::endl;
             for (int i = 0; i < this->nFit; ++i) {
                 this->fitted_rotated[i] = this->fitted_offset[i];
             }
             return;
         }
 
-        cout << "rotateFitOptimally: DO have previous frame" << endl;
+        std::cout << "rotateFitOptimally: DO have previous frame" << std::endl;
 
         // Now check if the previous frame has different number of bins
         int nBinsSave = this->nBins;
         int nBinsTmp = (*this->parentStack)[this->previous].getNBins();
-        cout << "  nBinsSave(this->nBins) = "<< nBinsSave << endl;
-        cout << "  nBinsTmp(this->previous->nBins) = "<< nBinsTmp << endl;
+        std::cout << "  nBinsSave(this->nBins) = "<< nBinsSave << std::endl;
+        std::cout << "  nBinsTmp(this->previous->nBins) = "<< nBinsTmp << std::endl;
         if (nBinsTmp != nBinsSave) {
             // This temporarily re-computes THIS frame's fit with nBinsTmp
-            cout << "set bins to nBinsTmp = " << nBinsTmp << endl;
+            std::cout << "set bins to nBinsTmp = " << nBinsTmp << std::endl;
             this->setBins (nBinsTmp);
             this->updateFit_norotate();
         }
@@ -894,51 +869,51 @@ private:
         // this means we can compute SOS objective function
         double thet1 = 0.0;
         double thet2 = 0.5;
-        NM_Simplex<double> simp (thet1, thet2);
+        morph::NM_Simplex<double> simp (thet1, thet2);
         // Set a termination threshold for the SD of the vertices of the simplex
-        simp.termination_threshold = 2.0 * numeric_limits<double>::epsilon();
+        simp.termination_threshold = 2.0 * std::numeric_limits<double>::epsilon();
         // Set a 10000 operation limit, in case the above threshold can't be reached
         simp.too_many_operations = 1000;
 
-        while (simp.state != NM_Simplex_State::ReadyToStop) {
+        while (simp.state != morph::NM_Simplex_State::ReadyToStop) {
 
-            if (simp.state == NM_Simplex_State::NeedToComputeThenOrder) {
+            if (simp.state == morph::NM_Simplex_State::NeedToComputeThenOrder) {
                 // 1. apply objective to each vertex
                 for (unsigned int i = 0; i <= simp.n; ++i) {
                     simp.values[i] = this->computeSosWithPrev (simp.vertices[i][0]);
                 }
                 simp.order();
 
-            } else if (simp.state == NM_Simplex_State::NeedToOrder) {
+            } else if (simp.state == morph::NM_Simplex_State::NeedToOrder) {
                 simp.order();
 
-            } else if (simp.state == NM_Simplex_State::NeedToComputeReflection) {
+            } else if (simp.state == morph::NM_Simplex_State::NeedToComputeReflection) {
                 double val = this->computeSosWithPrev (simp.xr[0]);
                 simp.apply_reflection (val);
 
-            } else if (simp.state == NM_Simplex_State::NeedToComputeExpansion) {
+            } else if (simp.state == morph::NM_Simplex_State::NeedToComputeExpansion) {
                 double val = this->computeSosWithPrev (simp.xe[0]);
                 simp.apply_expansion (val);
 
-            } else if (simp.state == NM_Simplex_State::NeedToComputeContraction) {
+            } else if (simp.state == morph::NM_Simplex_State::NeedToComputeContraction) {
                 double val = this->computeSosWithPrev (simp.xc[0]);
                 simp.apply_contraction (val);
             }
         }
-        vector<double> vP = simp.best_vertex();
+        std::vector<double> vP = simp.best_vertex();
         double min_sos = simp.best_value();
 
-        cout << "Best sos value: " << min_sos << " and best theta: " << vP[0] << endl;
+        std::cout << "Best sos value: " << min_sos << " and best theta: " << vP[0] << std::endl;
 
         if (nBinsTmp != nBinsSave) {
             // Need to reset bins and update the fit again, but this time rotating by vP[0]
-            cout << "reset bins to nBinsSave = " << nBinsSave << endl;
+            std::cout << "reset bins to nBinsSave = " << nBinsSave << std::endl;
             this->setBins (nBinsSave);
-            cout << "Update fit with rotation " << vP[0] << endl;
+            std::cout << "Update fit with rotation " << vP[0] << std::endl;
             this->updateFit (vP[0]);
         } else {
             // There was no need to change bin; rotate by the best theta, vP[0]
-            cout << "Update unchanged fit with rotation " << vP[0] << endl;
+            std::cout << "Update unchanged fit with rotation " << vP[0] << std::endl;
             this->rotate (vP[0]);
         }
     }
@@ -948,7 +923,7 @@ private:
         this->axiscoefs = PolyFit::polyfit (this->P, 1);
         this->axis = PolyFit::tracePoly (this->axiscoefs, 0, this->frame.cols, 2);
         this->theta = atan (this->axiscoefs[1]);
-        vector<Point> rotated = PolyFit::rotate (this->P, -this->theta);
+        std::vector<cv::Point> rotated = PolyFit::rotate (this->P, -this->theta);
 
         this->maxX = -1e9;
         this->minX = +1e9;
@@ -964,8 +939,8 @@ private:
 
 
     //! Common code to generate the frame name
-    string getFrameName (void) const {
-        stringstream ss;
+    std::string getFrameName (void) const {
+        std::stringstream ss;
         ss << "/Frame";
         ss.width(3);
         ss.fill('0');
@@ -974,13 +949,13 @@ private:
     }
 
     //! Old frame format, counting from 0
-    string getOldFrameName (void) const {
-        stringstream ss;
+    std::string getOldFrameName (void) const {
+        std::stringstream ss;
         ss << "/Frame";
         ss.width(3);
         ss.fill('0');
         ss << this->idx;
-        cout << "GET OLD FRAME NAME: " << ss.str() << endl;
+        std::cout << "GET OLD FRAME NAME: " << ss.str() << std::endl;
         return ss.str();
     }
 

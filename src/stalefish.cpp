@@ -10,6 +10,8 @@ using std::cout;
 using std::endl;
 #include <sstream>
 using std::stringstream;
+#include <string>
+using std::string;
 #include <unistd.h>
 #include <morph/Config.h>
 using morph::Config;

@@ -1,8 +1,10 @@
-# AUTOMOC requires 2.8.6. Per-target include directories would require 2.8.8
-cmake_minimum_required(VERSION 2.8.8)
+# 3.1 required for the CMAKE_CXX_STANDARD variable
+cmake_minimum_required(VERSION 3.1)
 project(Stalefish)
 set(VERSION 0.1)
 set(SOVERSION 1.0)
+
+set(CMAKE_CXX_STANDARD 17)
 
 message(STATUS "Install prefix: ${CMAKE_INSTALL_PREFIX}")
 message(STATUS "  (This can be changed with `cmake -DCMAKE_INSTALL_PREFIX=/some/place`")
@@ -26,9 +28,9 @@ set(CMAKE_CXX_FLAGS "${STALEFISH_HOST_DEFINITION}")
 set(CMAKE_C_FLAGS "${STALEFISH_HOST_DEFINITION}")
 
 if(APPLE)
-  set(CMAKE_CXX_FLAGS "${CMAKE_C_FLAGS} -Wall -std=c++11")
+  set(CMAKE_CXX_FLAGS "${CMAKE_C_FLAGS} -Wall -Wfatal-errors")
 else()
-  set(CMAKE_CXX_FLAGS "${CMAKE_C_FLAGS} -Wall -g -std=c++11")
+  set(CMAKE_CXX_FLAGS "${CMAKE_C_FLAGS} -Wall -Wfatal-errors -g")
 endif()
 
 # Following `cmake --help-policy CMP0072`

@@ -6,10 +6,12 @@
 using morph::Visual;
 #include <morph/HdfData.h>
 using morph::HdfData;
+#include <morph/Vector.h>
 #include <iostream>
 #include <fstream>
 #include <cmath>
 #include <array>
+#include <morph/PointRowsVisual.h>
 
 using namespace std;
 
@@ -29,8 +31,10 @@ int main (int argc, char** argv)
     string datafile (argv[1]);
 
     try {
-        array<float, 3> offset = { 0.0, 0.0, 0.0 };
-        array<float, 2> scale = { 1.0f, 0.0f };
+        morph::Vector<float> offset = { 0.0, 0.0, 0.0 };
+
+        morph::Scale<float> scale;
+        scale.setParams (1.0, 0.0);
 
         cout << "Opening H5 file " << datafile << endl;
         HdfData d(datafile, true); // true for read
@@ -43,7 +47,7 @@ int main (int argc, char** argv)
 
         vector<array<float, 12>> quads; // Get from HDF5
         vector<array<float, 12>> fquads; // Flat quads, for the flat visualization
-        vector<array<float, 3>> points; // Centres of boxes; for smooth surface (points rows)
+        vector<morph::Vector<float>> points; // Centres of boxes; for smooth surface (points rows)
         vector<float> means;
         vector<float> fmeans;
 
@@ -59,7 +63,7 @@ int main (int argc, char** argv)
 
             vector<array<float, 12>> frameQuads;
             vector<double> frameMeans;
-            vector<array<float, 3>> framePoints;
+            vector<morph::Vector<float>> framePoints;
 
             // Read quads and data for each frame and add to an overall pair of vectors...
             string str = frameName+"/sboxes";
@@ -67,7 +71,7 @@ int main (int argc, char** argv)
 
             for (auto fq : frameQuads) {
                 // FIXME: Use centre of box, or even each end of box, or something
-                array<float, 3> pt = {fq[0],fq[1],fq[2]};
+                morph::Vector<float> pt = {fq[0],fq[1],fq[2]};
                 framePoints.push_back (pt);
             }
 
@@ -80,8 +84,7 @@ int main (int argc, char** argv)
                 // Use the raw means and autoscale them as an entire group
                 str = frameName+"/means";
                 d.read_contained_vals (str.c_str(), frameMeans);
-                scale = { 0.0f, 0.0f }; // setting scale to 0,0 means that the
-                                        // QuadsVisual will autoscale the data together
+                scale.do_autoscale = true;
             }
 
             // Gah, convert frameMeans to float (there's a better way to do this)
@@ -138,7 +141,12 @@ int main (int argc, char** argv)
         //cout << "Added Visual with visId " << visId << endl;
 
         //offset[0]+=5.0;
-        visId = v.addPointRowsVisual (&points, offset, means, scale, morph::ColourMapType::Plasma);
+        //visId = v.addPointRowsVisual (&points, offset, means, scale, morph::ColourMapType::Plasma);
+        visId = v.addVisualModel (new morph::PointRowsVisual<float> (v.shaderprog,
+                                                                     &points, offset,
+                                                                     &means, scale,
+                                                                     morph::ColourMapType::Plasma));
+
         cout << "Added Visual with visId " << visId << endl;
 
         v.render();

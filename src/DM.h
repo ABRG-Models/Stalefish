@@ -1,28 +1,13 @@
 #pragma once
 
+#include <iostream>
 #include <vector>
 #include <cmath>
-using std::vector;
 #include <stdexcept>
-using std::exception;
 #include <opencv2/opencv.hpp>
 #include <opencv2/imgproc.hpp>
-using cv::Mat;
-using cv::Size;
-using cv::setMouseCallback;
-using cv::createTrackbar;
-using cv::setTrackbarPos;
-using cv::namedWindow;
-using cv::imread;
-using cv::resize;
-using cv::FONT_HERSHEY_SIMPLEX;
-using cv::WINDOW_AUTOSIZE;
-using cv::IMREAD_COLOR;
-using cv::INTER_LINEAR;
 #include <morph/HdfData.h>
-using morph::HdfData;
 #include <morph/Config.h>
-using morph::Config;
 #include "FrameData.h"
 
 // OpenCV functions mostly expect colours in Blue-Green-Red order
@@ -48,23 +33,23 @@ private:
     //! A pointer returned to the single instance of this class
     static DM* pInstance;
     //! The frame data which is being managed
-    vector<FrameData> vFrameData;
+    std::vector<FrameData> vFrameData;
     //! The index into vFrameData which is the current image
     int I = 0;
     //! The current image
-    Mat img;
+    cv::Mat img;
     //! The thickness of each brain slice in mm
     float thickness = 0.05f;
     //! The application configuration
-    Config conf;
+    morph::Config conf;
     //! Should the help text be shown?
     bool showHelp = false;
     //! Colour space parameters
     //@{
-    string colourmodel = "monochrome";
-    array<float, 9> colour_rot; // Colour space rotation
-    array<float, 3> colour_trans; // Colour space pre-translation
-    array<float, 2> ellip_axes; // red-green ellipse for "elliptical tube of expressing colours
+    std::string colourmodel = "monochrome";
+    std::array<float, 9> colour_rot; // Colour space rotation
+    std::array<float, 3> colour_trans; // Colour space pre-translation
+    std::array<float, 2> ellip_axes; // red-green ellipse for "elliptical tube of expressing colours
     float luminosity_factor; // The slope of the linear luminosity vs signal fit.
     float luminosity_cutoff; // at what luminosity does the signal cut off to zero?
     //@}
@@ -101,8 +86,8 @@ public:
      * @frameImgFilename (The filename for the image), @slice_x (position in the x
      * dimension) and @ppm (pixels per mm; the scale).
      */
-    void addFrame (Mat& frameImg, const string& frameImgFilename, const float& slice_x) {
-        cout << "********** DM::addFrame ***********" << endl;
+    void addFrame (cv::Mat& frameImg, const std::string& frameImgFilename, const float& slice_x) {
+        std::cout << "********** DM::addFrame ***********" << std::endl;
         FrameData fd(frameImg);
         fd.filename = frameImgFilename;
         fd.setParentStack (&this->vFrameData);
@@ -110,12 +95,12 @@ public:
         // they are unlikely always to be in perfect increments.
         if (this->vFrameData.empty()) {
             fd.idx = 0;
-            cout << "First frame; not setting previous" << endl;
+            std::cout << "First frame; not setting previous" << std::endl;
         } else {
             fd.idx = this->vFrameData.back().idx + 1;
             // Set pointer to previous so slices can be aligned during FrameData::write or updateFit
             fd.setPrevious (this->vFrameData.back().idx);
-            cout << "Subsequent frame; setting previous to " << (&this->vFrameData[this->vFrameData.back().idx]) << endl;
+            std::cout << "Subsequent frame; setting previous to " << (&this->vFrameData[this->vFrameData.back().idx]) << std::endl;
         }
         fd.layer_x = slice_x;
         fd.pixels_per_mm = (double)this->pixels_per_mm;
@@ -131,23 +116,23 @@ public:
         fd.luminosity_factor = this->luminosity_factor;
         fd.luminosity_cutoff = this->luminosity_cutoff;
 
-        cout << "Before read, binA=" << fd.binA << endl;
-        cout << "             binB=" << fd.binB << endl;
+        std::cout << "Before read, binA=" << fd.binA << std::endl;
+        std::cout << "             binB=" << fd.binB << std::endl;
 
         // Read, opportunistically
         try {
-            HdfData d(this->datafile, true); // true for read
+            morph::HdfData d(this->datafile, true); // true for read
             fd.read (d, this->readOldFormat);
             if (fd.flags.test (Mirrored)) {
                 fd.mirror_image_only();
             }
-            cout << "DM::addFrame: Calling FrameData::updateFit()" << endl;
+            std::cout << "DM::addFrame: Calling FrameData::updateFit()" << std::endl;
             fd.updateFit();
-        } catch (const exception& e) {
+        } catch (...) {
             // No problem, just carry on
         }
-        cout << "After read,  binA=" << fd.binA << endl;
-        cout << "             binB=" << fd.binB << endl;
+        std::cout << "After read,  binA=" << fd.binA << std::endl;
+        std::cout << "             binB=" << fd.binB << std::endl;
 
         this->vFrameData.push_back (fd);
     }
@@ -198,7 +183,7 @@ public:
     }
 
     // Get a pointer to the persistent Mat img member attribute
-    Mat* getImg (void) {
+    cv::Mat* getImg (void) {
         return &(this->img);
     }
 
@@ -221,7 +206,7 @@ public:
 
     //! Write frames to HdfData
     void writeFrames (void) {
-        HdfData d(this->datafile);
+        morph::HdfData d(this->datafile);
         for (auto f : this->vFrameData) {
             f.getBoxMeans();
             f.write (d);
@@ -229,7 +214,7 @@ public:
         }
         int nf = this->vFrameData.size();
         d.add_val("/nframes", nf);
-        cout << "writeFrames complete: All frames written to HDF5" << endl;
+        std::cout << "writeFrames complete: All frames written to HDF5" << std::endl;
     }
 
     //! Toogle showHelp
@@ -238,7 +223,7 @@ public:
     }
 
     //! The application window name
-    const string winName = "StaleFish";
+    const std::string winName = "StaleFish";
     //! Saved/last cursor position
     int x = 0;
     int y = 0;
@@ -248,7 +233,7 @@ public:
     int binA = 0+BIN_A_OFFSET; // 200 means the slider is in the middle
     int binB = 40;
     //! Filename for writing
-    string datafile = "unset.h5";
+    std::string datafile = "unset.h5";
     //! How many pixels in the image is 1mm?
     float pixels_per_mm = 100.0f;
 
@@ -256,11 +241,11 @@ public:
     bool readOldFormat = false;
 
     //! Application setup
-    void setup (const string& paramsfile) {
+    void setup (const std::string& paramsfile) {
 
         // Set the HDF5 data file path based on the .json file path
-        string::size_type jsonpos = paramsfile.find(".json");
-        if (jsonpos == string::npos) {
+        std::string::size_type jsonpos = paramsfile.find(".json");
+        if (jsonpos == std::string::npos) {
             this->datafile = paramsfile + ".h5";
         } else {
             this->datafile = paramsfile.substr (0,jsonpos) + ".h5";
@@ -268,7 +253,7 @@ public:
 
         this->conf.init (paramsfile);
         if (!this->conf.ready) {
-            cerr << "Error setting up JSON config: " << this->conf.emsg << ", exiting." << endl;
+            std::cerr << "Error setting up JSON config: " << this->conf.emsg << ", exiting." << std::endl;
             exit (1);
         }
 
@@ -301,13 +286,13 @@ public:
         const Json::Value slices = conf.getArray ("slices");
         for (unsigned int i = 0; i < slices.size(); ++i) {
             Json::Value slice = slices[i];
-            string fn = slice.get ("filename", "unknown").asString();
+            std::string fn = slice.get ("filename", "unknown").asString();
             float slice_x = slice.get ("x", 0.0).asFloat();
 
-            cout << "imread " << fn << endl;
-            Mat frame = imread (fn.c_str(), IMREAD_COLOR);
+            std::cout << "imread " << fn << std::endl;
+            cv::Mat frame = cv::imread (fn.c_str(), cv::IMREAD_COLOR);
             if (frame.empty()) {
-                cout <<  "Could not open or find the image '" << fn << "', exiting." << endl;
+                std::cout <<  "Could not open or find the image '" << fn << "', exiting." << std::endl;
                 exit (1);
             }
 
@@ -315,11 +300,11 @@ public:
             float scaleFactor = conf.getFloat("scaleFactor", 1.0f); // pull scale factor from config json
 
             if (scaleFactor != 1.0f) {
-                cout << "rescaling frame to scaleFactor: " << scaleFactor << endl;
+                std::cout << "rescaling frame to scaleFactor: " << scaleFactor << std::endl;
 
-                Size scaledSize = Size(round(frame.cols * scaleFactor), round(frame.rows * scaleFactor));
-                Mat scaledFrame = Mat(scaledSize, frame.type());
-                resize(frame, scaledFrame, scaledSize, scaleFactor, scaleFactor, INTER_LINEAR);
+                cv::Size scaledSize = cv::Size(round(frame.cols * scaleFactor), round(frame.rows * scaleFactor));
+                cv::Mat scaledFrame = cv::Mat(scaledSize, frame.type());
+                cv::resize (frame, scaledFrame, scaledSize, scaleFactor, scaleFactor, cv::INTER_LINEAR);
 
                 frame.release(); // free original frame since we have resized it
 
@@ -330,10 +315,11 @@ public:
             }
         }
 
-        namedWindow (this->winName, WINDOW_AUTOSIZE);
+        //cv::namedWindow (this->winName, cv::WINDOW_AUTOSIZE);
+        cv::namedWindow (this->winName, cv::WINDOW_NORMAL|cv::WINDOW_FREERATIO);
         // Make sure there's an image in DM to start with
         this->cloneFrame();
-        setMouseCallback (this->winName, DM::onmouse, this->getImg());
+        cv::setMouseCallback (this->winName, DM::onmouse, this->getImg());
         // Init current frame with binA, binB and nBinsTarg taken from the current
         // frame... But... is that information stored? Yes, it is.
         this->binA = this->gcf()->binA+BIN_A_OFFSET;
@@ -351,12 +337,12 @@ public:
 
         // Make copies of pointers to neaten up the code, below
         DM* _this = DM::i();
-        Mat* pImg = _this->getImg();
+        cv::Mat* pImg = _this->getImg();
         FrameData* cf = _this->gcf();
 
-        Point pt = Point(x,y);
+        cv::Point pt = cv::Point(x,y);
         if (x==-1 && y==-1) {
-            pt = Point(_this->x, _this->y);
+            pt = cv::Point(_this->x, _this->y);
         } else {
             _this->x = x;
             _this->y = y;
@@ -383,20 +369,20 @@ public:
 
         if (cf->flags.test(ShowCtrls)) {
             // Add the control points in similar colours
-            list<BezCurve<double>> theCurves = cf->bcp.curves;
+            std::list<morph::BezCurve<double>> theCurves = cf->bcp.curves;
             size_t j = 0;
             for (auto curv : theCurves) {
-                Scalar linecol = j%2 ? SF_RED : SF_BLUE;
-                vector<pair<double,double>> ctrls = curv.getControls();
+                cv::Scalar linecol = j%2 ? SF_RED : SF_BLUE;
+                std::vector<std::pair<double,double>> ctrls = curv.getControls();
                 for (size_t cc = 0; cc<ctrls.size(); ++cc) {
-                    Point p1(ctrls[cc].first, ctrls[cc].second);
-                    circle (*pImg, p1, 5, linecol, -1);
+                    cv::Point p1(ctrls[cc].first, ctrls[cc].second);
+                    cv::circle (*pImg, p1, 5, linecol, -1);
                 }
-                Point ps(ctrls[0].first, ctrls[0].second);
-                Point pe(ctrls[1].first, ctrls[1].second);
+                cv::Point ps(ctrls[0].first, ctrls[0].second);
+                cv::Point pe(ctrls[1].first, ctrls[1].second);
                 line (*pImg, ps, pe, SF_GREEN, 1);
-                Point ps2(ctrls[ctrls.size()-2].first, ctrls[ctrls.size()-2].second);
-                Point pe2(ctrls[ctrls.size()-1].first, ctrls[ctrls.size()-1].second);
+                cv::Point ps2(ctrls[ctrls.size()-2].first, ctrls[ctrls.size()-2].second);
+                cv::Point pe2(ctrls[ctrls.size()-1].first, ctrls[ctrls.size()-1].second);
                 line (*pImg, ps2, pe2, SF_GREEN, 1);
 
                 j++;
@@ -421,7 +407,7 @@ public:
         // This is the fit line
         if (cf->flags.test(ShowFits) == true) {
             for (size_t i=1; i<cf->fitted.size(); i++) {
-                line (*pImg, cf->fitted[i-1], cf->fitted[i], SF_GREEN, 1);
+                line (*pImg, cf->fitted[i-1], cf->fitted[i], SF_GREEN, 2);
             }
             // Axis line, relevant for polynomial fits only
             if (cf->ct == CurveType::Poly) {
@@ -436,67 +422,67 @@ public:
             }
         }
 
-        stringstream ss;
+        std::stringstream ss;
         int xh = 30;
         ss << "Frame: " << _this->getFrameNum() << "/" << _this->getNumFrames()
            << " " << cf->getFitInfo() << ". 'h' to toggle help.";
-        putText (*pImg, ss.str(), Point(xh,30), FONT_HERSHEY_SIMPLEX, 0.8, SF_BLACK, 1, cv::LINE_AA);
+        putText (*pImg, ss.str(), cv::Point(xh,30), cv::FONT_HERSHEY_SIMPLEX, 0.8, SF_BLACK, 1, cv::LINE_AA);
 
         int yh = 90;
         int yinc = 40;
         if (_this->showHelp) {
-            putText (*pImg, string("Use the sliders to control the bin parameters"),
-                     Point(xh,yh), FONT_HERSHEY_SIMPLEX, 0.8, SF_BLACK, 1, cv::LINE_AA);
+            putText (*pImg, std::string("Use the sliders to control the bin parameters"),
+                     cv::Point(xh,yh), cv::FONT_HERSHEY_SIMPLEX, 0.8, SF_BLACK, 1, cv::LINE_AA);
             yh += yinc;
-            putText (*pImg, string("1:   Toggle Bezier controls"),
-                     Point(xh,yh), FONT_HERSHEY_SIMPLEX, 0.8, SF_BLACK, 1, cv::LINE_AA);
+            putText (*pImg, std::string("1:   Toggle Bezier controls"),
+                     cv::Point(xh,yh), cv::FONT_HERSHEY_SIMPLEX, 0.8, SF_BLACK, 1, cv::LINE_AA);
             yh += yinc;
-            putText (*pImg, string("2:   Toggle user points"),
-                     Point(xh,yh), FONT_HERSHEY_SIMPLEX, 0.8, SF_BLACK, 1, cv::LINE_AA);
+            putText (*pImg, std::string("2:   Toggle user points"),
+                     cv::Point(xh,yh), cv::FONT_HERSHEY_SIMPLEX, 0.8, SF_BLACK, 1, cv::LINE_AA);
             yh += yinc;
-            putText (*pImg, string("3:   Toggle the fit line"),
-                     Point(xh,yh), FONT_HERSHEY_SIMPLEX, 0.8, SF_BLACK, 1, cv::LINE_AA);
+            putText (*pImg, std::string("3:   Toggle the fit line"),
+                     cv::Point(xh,yh), cv::FONT_HERSHEY_SIMPLEX, 0.8, SF_BLACK, 1, cv::LINE_AA);
             yh += yinc;
-            putText (*pImg, string("4:   Toggle the bins"),
-                     Point(xh,yh), FONT_HERSHEY_SIMPLEX, 0.8, SF_BLACK, 1, cv::LINE_AA);
+            putText (*pImg, std::string("4:   Toggle the bins"),
+                     cv::Point(xh,yh), cv::FONT_HERSHEY_SIMPLEX, 0.8, SF_BLACK, 1, cv::LINE_AA);
             yh += yinc;
-            putText (*pImg, string("Spc: Next curve"),
-                     Point(xh,yh), FONT_HERSHEY_SIMPLEX, 0.8, SF_BLACK, 1, cv::LINE_AA);
+            putText (*pImg, std::string("Spc: Next curve"),
+                     cv::Point(xh,yh), cv::FONT_HERSHEY_SIMPLEX, 0.8, SF_BLACK, 1, cv::LINE_AA);
             yh += yinc;
-            putText (*pImg, string("c:   Cancel last point"),
-                     Point(xh,yh), FONT_HERSHEY_SIMPLEX, 0.8, SF_BLACK, 1, cv::LINE_AA);
+            putText (*pImg, std::string("c:   Cancel last point"),
+                     cv::Point(xh,yh), cv::FONT_HERSHEY_SIMPLEX, 0.8, SF_BLACK, 1, cv::LINE_AA);
             yh += yinc;
-            putText (*pImg, string("f:   Update the fit"),
-                     Point(xh,yh), FONT_HERSHEY_SIMPLEX, 0.8, SF_BLACK, 1, cv::LINE_AA);
+            putText (*pImg, std::string("f:   Update the fit"),
+                     cv::Point(xh,yh), cv::FONT_HERSHEY_SIMPLEX, 0.8, SF_BLACK, 1, cv::LINE_AA);
             yh += yinc;
-            putText (*pImg, string("F:   Update ALL fits"),
-                     Point(xh,yh), FONT_HERSHEY_SIMPLEX, 0.8, SF_BLACK, 1, cv::LINE_AA);
+            putText (*pImg, std::string("F:   Update ALL fits"),
+                     cv::Point(xh,yh), cv::FONT_HERSHEY_SIMPLEX, 0.8, SF_BLACK, 1, cv::LINE_AA);
             yh += yinc;
-            putText (*pImg, string("B:   Copy current bin params to all frames"),
-                     Point(xh,yh), FONT_HERSHEY_SIMPLEX, 0.8, SF_BLACK, 1, cv::LINE_AA);
+            putText (*pImg, std::string("B:   Copy current bin params to all frames"),
+                     cv::Point(xh,yh), cv::FONT_HERSHEY_SIMPLEX, 0.8, SF_BLACK, 1, cv::LINE_AA);
             yh += yinc;
-            stringstream hh;
+            std::stringstream hh;
             hh << "w:   Save to file: " << _this->datafile;
             putText (*pImg, hh.str(),
-                     Point(xh,yh), FONT_HERSHEY_SIMPLEX, 0.8, SF_BLACK, 1, cv::LINE_AA);
+                     cv::Point(xh,yh), cv::FONT_HERSHEY_SIMPLEX, 0.8, SF_BLACK, 1, cv::LINE_AA);
             yh += yinc;
-            putText (*pImg, string("o:   Fit mode (Bezier or polynomial)"),
-                     Point(xh,yh), FONT_HERSHEY_SIMPLEX, 0.8, SF_BLACK, 1, cv::LINE_AA);
+            putText (*pImg, std::string("o:   Fit mode (Bezier or polynomial)"),
+                     cv::Point(xh,yh), cv::FONT_HERSHEY_SIMPLEX, 0.8, SF_BLACK, 1, cv::LINE_AA);
             yh += yinc;
-            putText (*pImg, string("p:   In polynomial mode, change order"),
-                     Point(xh,yh), FONT_HERSHEY_SIMPLEX, 0.8, SF_BLACK, 1, cv::LINE_AA);
+            putText (*pImg, std::string("p:   In polynomial mode, change order"),
+                     cv::Point(xh,yh), cv::FONT_HERSHEY_SIMPLEX, 0.8, SF_BLACK, 1, cv::LINE_AA);
             yh += yinc;
-            putText (*pImg, string("n:   Next frame"),
-                     Point(xh,yh), FONT_HERSHEY_SIMPLEX, 0.8, SF_BLACK, 1, cv::LINE_AA);
+            putText (*pImg, std::string("n:   Next frame"),
+                     cv::Point(xh,yh), cv::FONT_HERSHEY_SIMPLEX, 0.8, SF_BLACK, 1, cv::LINE_AA);
             yh += yinc;
-            putText (*pImg, string("b:   Back to previous frame"),
-                     Point(xh,yh), FONT_HERSHEY_SIMPLEX, 0.8, SF_BLACK, 1, cv::LINE_AA);
+            putText (*pImg, std::string("b:   Back to previous frame"),
+                     cv::Point(xh,yh), cv::FONT_HERSHEY_SIMPLEX, 0.8, SF_BLACK, 1, cv::LINE_AA);
             yh += yinc;
-            putText (*pImg, string("m:   Mirror this frame"),
-                     Point(xh,yh), FONT_HERSHEY_SIMPLEX, 0.8, SF_BLACK, 1, cv::LINE_AA);
+            putText (*pImg, std::string("m:   Mirror this frame"),
+                     cv::Point(xh,yh), cv::FONT_HERSHEY_SIMPLEX, 0.8, SF_BLACK, 1, cv::LINE_AA);
             yh += yinc;
-            putText (*pImg, string("x:   Exit the program"),
-                     Point(xh,yh), FONT_HERSHEY_SIMPLEX, 0.8, SF_BLACK, 1, cv::LINE_AA);
+            putText (*pImg, std::string("x:   Exit the program"),
+                     cv::Point(xh,yh), cv::FONT_HERSHEY_SIMPLEX, 0.8, SF_BLACK, 1, cv::LINE_AA);
         }
 
         imshow (_this->winName, *pImg);
@@ -529,28 +515,28 @@ public:
 
     static void createTrackbars (void) {
         // Set up trackbars. Have to do this for each frame
-        string tbBinA = "Box A";
-        string tbBinB = "Box B";
-        string tbNBins = "Num bins";
+        std::string tbBinA = "Box A";
+        std::string tbBinB = "Box B";
+        std::string tbNBins = "Num bins";
         DM* _this = DM::i();
-        cout << "createTrackbars: _this->binA=" << _this->binA << endl;
-        createTrackbar (tbBinA, _this->winName, &_this->binA, 400, ontrackbar_boxes);
-        setTrackbarPos (tbBinA, _this->winName, _this->binA);
-        cout << "createTrackbars: _this->binB=" << _this->binB << endl;
-        createTrackbar (tbBinB, _this->winName, &_this->binB, 200, ontrackbar_boxes);
-        setTrackbarPos (tbBinB, _this->winName, _this->binB);
-        createTrackbar (tbNBins, _this->winName, &_this->nBinsTarg, 200, ontrackbar_nbins);
-        setTrackbarPos (tbNBins, _this->winName, _this->nBinsTarg);
+        std::cout << "createTrackbars: _this->binA=" << _this->binA << std::endl;
+        cv::createTrackbar (tbBinA, _this->winName, &_this->binA, 400, ontrackbar_boxes);
+        cv::setTrackbarPos (tbBinA, _this->winName, _this->binA);
+        std::cout << "createTrackbars: _this->binB=" << _this->binB << std::endl;
+        cv::createTrackbar (tbBinB, _this->winName, &_this->binB, 200, ontrackbar_boxes);
+        cv::setTrackbarPos (tbBinB, _this->winName, _this->binB);
+        cv::createTrackbar (tbNBins, _this->winName, &_this->nBinsTarg, 200, ontrackbar_nbins);
+        cv::setTrackbarPos (tbNBins, _this->winName, _this->nBinsTarg);
     }
 
     static void updateTrackbars (void) {
-        string tbBinA = "Box A";
-        string tbBinB = "Box B";
-        string tbNBins = "Num bins";
+        std::string tbBinA = "Box A";
+        std::string tbBinB = "Box B";
+        std::string tbNBins = "Num bins";
         DM* _this = DM::i();
-        setTrackbarPos (tbBinA, _this->winName, _this->binA);
-        setTrackbarPos (tbBinB, _this->winName, _this->binB);
-        setTrackbarPos (tbNBins, _this->winName, _this->nBinsTarg);
+        cv::setTrackbarPos (tbBinA, _this->winName, _this->binA);
+        cv::setTrackbarPos (tbBinB, _this->winName, _this->binB);
+        cv::setTrackbarPos (tbNBins, _this->winName, _this->nBinsTarg);
     }
 };
 
