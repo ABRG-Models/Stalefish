@@ -414,9 +414,15 @@ public:
         cv::Mat* pImg = _this->getImg();
         FrameData* cf = _this->gcf();
 
+        for (size_t j=0; j<cf->FPE.size(); j++) {
+            for (size_t ii=0; ii<cf->FPE[j].size(); ii++) {
+                rectangle (*pImg, cf->FPE[j][ii], cf->FPE[j][ii], SF_RED, 1);
+            }
+        }
+
         // Then draw the current point set:
         for (size_t ii=0; ii<cf->FP.size(); ii++) {
-            circle (*pImg, cf->FP[ii], 1, SF_GREEN, -1);
+            rectangle (*pImg, cf->FP[ii], cf->FP[ii], SF_GREEN, 1);
         }
     }
 

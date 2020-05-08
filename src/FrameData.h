@@ -91,6 +91,8 @@ public:
     std::vector<std::vector<cv::Point>> PP;
     //! A vector of user-supplied points for the Freehand drawn loop
     std::vector<cv::Point> FP;
+    //! vector of vectors containing the points enclosed by the path FP
+    std::vector<std::vector<cv::Point>> FPE;
     //! Index into PP
     int pp_idx = 0;
     //! The means computed for the boxes. This is now "mean_signal" really, as the pixel values
@@ -368,17 +370,34 @@ public:
         return this->fillFP (firstSquare, endSquare);
     }
 
+    std::vector<cv::Point> getEnclosedByFP() {
+        std::vector<cv::Point> rtn = this->FP;
+        return rtn;
+    }
+
     //! Add a pixel that was under the mouse pointer to the freehand points FP. Also
     //! add the pixels between the last pixel in FP and endSquare.
     void addToFP (cv::Point& pt) {
-        if (!this->FP.empty()) {
-            cv::Point startPt = this->FP.back();
-            // Draw a line between lastPt and pt. Fill in all pixels which are crossed
-            // by the line. Do this with a recursive algorithm, as it's easy and we're
-            // very unlikely to exceed the recursion limit.
-            this->fillFP (startPt, pt);
+
+        auto existing = std::find (this->FP.begin(), this->FP.end(), pt);
+        if (existing != this->FP.end()) {
+            std::cout << "Point has been found!\n";
+            // If pt is in FP already, then we closed the loop
+            std::vector<cv::Point> inside = this->getEnclosedByFP();
+            this->FPE.push_back (inside);
+            this->FP.clear();
+
         } else {
-            this->FP.push_back (pt);
+            // Otherwise, continue to add points to the freehand-drawn loop
+            if (!this->FP.empty()) {
+                cv::Point startPt = this->FP.back();
+                // Draw a line between lastPt and pt. Fill in all pixels which are crossed
+                // by the line. Do this with a recursive algorithm, as it's easy and we're
+                // very unlikely to exceed the recursion limit.
+                this->fillFP (startPt, pt);
+            } else {
+                this->FP.push_back (pt);
+            }
         }
     }
 
