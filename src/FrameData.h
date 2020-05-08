@@ -238,6 +238,150 @@ public:
         return ss.str();
     }
 
+    //! This is a candidate for MathAlgo; filling squares in between two randomly
+    //! chosen squares on a grid. Each square is 1x1 on a grid, with its centre
+    //! specified by its cv::Point.
+    void fillFP (cv::Point& firstSquare, const cv::Point& endSquare) {
+
+        // Finished when the last element of FP is pt.
+        if (!this->FP.empty() && this->FP.back() == endSquare) {
+            return;
+        }
+
+        // Start at firstSquare
+        if (firstSquare == endSquare) {
+            // There's nothing to do
+            return;
+        }
+
+        // firstSquare is not the same as endSquare, so fill in between them.  Which of the 8
+        // adjoining squares contains the line specified by firstSquare.xy and m?  What's
+        // the intersection of the line and the square perimeter of firstSquare? Note, we
+        // also need to track currentSquare.
+
+        // Don't need to test if .x==.x AND .y==.y
+
+        // First, push back the firstSquare itself
+        this->FP.push_back (firstSquare);
+
+        int xdiff = std::abs(firstSquare.x - endSquare.x);
+        int ydiff = std::abs(firstSquare.y - endSquare.y);
+
+        if (firstSquare.y == endSquare.y) {
+            // Dirn is east or west
+            firstSquare.x += (endSquare.x > firstSquare.x ? 1 : -1);
+            return this->fillFP (firstSquare, endSquare);
+
+        } else if (firstSquare.x == endSquare.x) {
+            // Dirn is n or s
+            firstSquare.y += (endSquare.y > firstSquare.y ? 1 : -1);
+            return this->fillFP (firstSquare, endSquare);
+
+        } else if (firstSquare.y < endSquare.y) {
+            // SouthWest or SouthEast
+            if (firstSquare.x < endSquare.x) {
+                // SouthEast
+                if (xdiff > ydiff) {
+                    // Mark E and move SE
+                    firstSquare.x += 1;
+                    this->FP.push_back (firstSquare);
+                    firstSquare.y += 1;
+
+                } else if (xdiff < ydiff) {
+                    // Mark S and move SE
+                    firstSquare.y += 1;
+                    this->FP.push_back (firstSquare);
+                    firstSquare.x += 1;
+
+                } else { // xdiff == ydiff
+                    // Move SE only
+                    firstSquare.x += 1;
+                    firstSquare.y += 1;
+                }
+
+            } else {
+                // SouthWest
+                if (xdiff > ydiff) {
+                    // Mark W and move SW
+                    firstSquare.x -= 1;
+                    this->FP.push_back (firstSquare);
+                    firstSquare.y += 1;
+
+                } else if (xdiff < ydiff) {
+                    // Mark S and move SW
+                    firstSquare.y += 1;
+                    this->FP.push_back (firstSquare);
+                    firstSquare.x -= 1;
+
+                } else { // xdiff == ydiff
+                    // Move SE only
+                    firstSquare.x -= 1;
+                    firstSquare.y += 1;
+                }
+            }
+        } else {
+            // std::cout << "Dirn is NW/NE, computing...\n";
+            // North West/East
+            if (firstSquare.x < endSquare.x) {
+                // NorthEast
+                if (xdiff > ydiff) {
+                    // Mark E and move NE
+                    firstSquare.x += 1;
+                    this->FP.push_back (firstSquare);
+                    firstSquare.y -= 1;
+
+                } else if (xdiff < ydiff) {
+                    // Mark N and move NE
+                    firstSquare.y -= 1;
+                    this->FP.push_back (firstSquare);
+                    firstSquare.x += 1;
+
+                } else { // xdiff == ydiff
+                    // Move NE only
+                    firstSquare.x += 1;
+                    firstSquare.y -= 1;
+                }
+
+            } else {
+                // NorthWest
+                if (xdiff > ydiff) {
+                    // Mark W and move NW
+                    firstSquare.x -= 1;
+                    this->FP.push_back (firstSquare);
+                    firstSquare.y -= 1;
+
+                } else if (xdiff < ydiff) {
+                    // Mark N and move NW
+                    firstSquare.y -= 1;
+                    this->FP.push_back (firstSquare);
+                    firstSquare.x -= 1;
+
+                } else { // xdiff == ydiff
+                    // Move NW only
+                    firstSquare.x -= 1;
+                    firstSquare.y -= 1;
+                }
+            }
+        }
+
+        // Recurse
+        return this->fillFP (firstSquare, endSquare);
+    }
+
+    //! Add a pixel that was under the mouse pointer to the freehand points FP. Also
+    //! add the pixels between the last pixel in FP and endSquare.
+    void addToFP (cv::Point& pt) {
+        if (!this->FP.empty()) {
+            cv::Point startPt = this->FP.back();
+            // Draw a line between lastPt and pt. Fill in all pixels which are crossed
+            // by the line. Do this with a recursive algorithm, as it's easy and we're
+            // very unlikely to exceed the recursion limit.
+            this->fillFP (startPt, pt);
+        } else {
+            this->FP.push_back (pt);
+        }
+    }
+
     //! Remove the last user point
     void removeLastPoint (void) {
         if (this->PP.empty() && this->P.size() == 1) {

@@ -446,12 +446,12 @@ public:
                 cf->setShowUsers(true);
             } else if (cf->ct == CurveType::Freehand) {
                 //_this->lbutton_down = true;
-                cf->FP.push_back (pt);
+                cf->addToFP (pt);
             }
         } else if (event == cv::EVENT_MOUSEMOVE
                    && (flags & cv::EVENT_FLAG_LBUTTON) == cv::EVENT_FLAG_LBUTTON) {
             // Now button is down, want to add any pixel that the mouse moves over
-            cf->FP.push_back (pt);
+            cf->addToFP (pt);
         }
 
         _this->cloneFrame();
