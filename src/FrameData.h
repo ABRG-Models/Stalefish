@@ -90,9 +90,14 @@ public:
     //! A vector of vectors of points for multi-section Bezier curves
     std::vector<std::vector<cv::Point>> PP;
     //! A vector of user-supplied points for the Freehand drawn loop
-    std::vector<cv::Point> FP;
-    //! vector of vectors containing the points enclosed by the path FP
-    std::vector<std::vector<cv::Point>> FPE;
+    std::vector<cv::Point> FL;
+    std::array<cv::Point, 2> extents_FL; // Extnents of the loop FL
+    std::vector<cv::Point> tested_FL;
+    std::vector<cv::Point> outside_FL; // Points outside FL boundary (for temporary visualization during debug)
+    std::vector<cv::Point> inside_FL; // Points inside FL.
+    //! vector of vectors containing the points enclosed by the path FL
+    std::vector<std::vector<cv::Point>> FLE;
+
     //! Index into PP
     int pp_idx = 0;
     //! The means computed for the boxes. This is now "mean_signal" really, as the pixel values
@@ -161,7 +166,7 @@ public:
     //@}
 
 public:
-    FrameData () {
+    FrameData() {
         throw std::runtime_error ("Default constructor is not allowed");
     }
     //! Constructor initializes default values
@@ -199,10 +204,10 @@ public:
     }
 
     //! Getter for nBins
-    int getNBins (void) {
+    int getNBins() {
         return this->nBins;
     }
-    int getNBinsTarg (void) {
+    int getNBinsTarg() {
         return this->nBinsTarg;
     }
 
@@ -215,7 +220,7 @@ public:
     }
 
     //! Get information about the fit
-    std::string getFitInfo (void) const {
+    std::string getFitInfo() const {
         std::stringstream ss;
         if (this->ct == CurveType::Poly) {
             ss << "Poly order: " << this->polyOrder << ", Bins: " << this->nBins;
@@ -242,11 +247,14 @@ public:
 
     //! This is a candidate for MathAlgo; filling squares in between two randomly
     //! chosen squares on a grid. Each square is 1x1 on a grid, with its centre
-    //! specified by its cv::Point.
-    void fillFP (cv::Point& firstSquare, const cv::Point& endSquare) {
+    //! specified by its cv::Point.  Draw a line between firstSquare and
+    //! endSquare. Fill in all pixels which are crossed by the line. Do this with a
+    //! recursive algorithm, as it's easy and we're very unlikely to exceed the
+    //! recursion limit.
+    void fillFL (cv::Point& firstSquare, const cv::Point& endSquare) {
 
-        // Finished when the last element of FP is pt.
-        if (!this->FP.empty() && this->FP.back() == endSquare) {
+        // Finished when the last element of FL is pt.
+        if (!this->FL.empty() && this->FL.back() == endSquare) {
             return;
         }
 
@@ -264,7 +272,7 @@ public:
         // Don't need to test if .x==.x AND .y==.y
 
         // First, push back the firstSquare itself
-        this->FP.push_back (firstSquare);
+        this->FL.push_back (firstSquare);
 
         int xdiff = std::abs(firstSquare.x - endSquare.x);
         int ydiff = std::abs(firstSquare.y - endSquare.y);
@@ -272,12 +280,12 @@ public:
         if (firstSquare.y == endSquare.y) {
             // Dirn is east or west
             firstSquare.x += (endSquare.x > firstSquare.x ? 1 : -1);
-            return this->fillFP (firstSquare, endSquare);
+            return this->fillFL (firstSquare, endSquare);
 
         } else if (firstSquare.x == endSquare.x) {
             // Dirn is n or s
             firstSquare.y += (endSquare.y > firstSquare.y ? 1 : -1);
-            return this->fillFP (firstSquare, endSquare);
+            return this->fillFL (firstSquare, endSquare);
 
         } else if (firstSquare.y < endSquare.y) {
             // SouthWest or SouthEast
@@ -286,13 +294,13 @@ public:
                 if (xdiff > ydiff) {
                     // Mark E and move SE
                     firstSquare.x += 1;
-                    this->FP.push_back (firstSquare);
+                    this->FL.push_back (firstSquare);
                     firstSquare.y += 1;
 
                 } else if (xdiff < ydiff) {
                     // Mark S and move SE
                     firstSquare.y += 1;
-                    this->FP.push_back (firstSquare);
+                    this->FL.push_back (firstSquare);
                     firstSquare.x += 1;
 
                 } else { // xdiff == ydiff
@@ -306,13 +314,13 @@ public:
                 if (xdiff > ydiff) {
                     // Mark W and move SW
                     firstSquare.x -= 1;
-                    this->FP.push_back (firstSquare);
+                    this->FL.push_back (firstSquare);
                     firstSquare.y += 1;
 
                 } else if (xdiff < ydiff) {
                     // Mark S and move SW
                     firstSquare.y += 1;
-                    this->FP.push_back (firstSquare);
+                    this->FL.push_back (firstSquare);
                     firstSquare.x -= 1;
 
                 } else { // xdiff == ydiff
@@ -329,13 +337,13 @@ public:
                 if (xdiff > ydiff) {
                     // Mark E and move NE
                     firstSquare.x += 1;
-                    this->FP.push_back (firstSquare);
+                    this->FL.push_back (firstSquare);
                     firstSquare.y -= 1;
 
                 } else if (xdiff < ydiff) {
                     // Mark N and move NE
                     firstSquare.y -= 1;
-                    this->FP.push_back (firstSquare);
+                    this->FL.push_back (firstSquare);
                     firstSquare.x += 1;
 
                 } else { // xdiff == ydiff
@@ -349,13 +357,13 @@ public:
                 if (xdiff > ydiff) {
                     // Mark W and move NW
                     firstSquare.x -= 1;
-                    this->FP.push_back (firstSquare);
+                    this->FL.push_back (firstSquare);
                     firstSquare.y -= 1;
 
                 } else if (xdiff < ydiff) {
                     // Mark N and move NW
                     firstSquare.y -= 1;
-                    this->FP.push_back (firstSquare);
+                    this->FL.push_back (firstSquare);
                     firstSquare.x -= 1;
 
                 } else { // xdiff == ydiff
@@ -367,42 +375,193 @@ public:
         }
 
         // Recurse
-        return this->fillFP (firstSquare, endSquare);
+        return this->fillFL (firstSquare, endSquare);
     }
 
-    std::vector<cv::Point> getEnclosedByFP() {
-        std::vector<cv::Point> rtn = this->FP;
+    //! Find rectangular region enclosing loop, return as two coordinates of top left
+    //! (minimum x and y, with y going down) and bottom right (max x and y) corners
+    std::array<cv::Point, 2> getExtents (const std::vector<cv::Point>& loop) {
+        std::array<cv::Point, 2> extents;
+        extents[0] =  {10000000, 10000000};   // MIN values for x and y
+        extents[1] = {-10000000,-10000000}; // MAX values for x and y
+        for (auto p : loop) {
+            if (p.x < extents[0].x) {
+                extents[0].x = p.x;
+            }
+            if (p.y < extents[0].y) {
+                extents[0].y = p.y;
+            }
+            if (p.x > extents[1].x) {
+                extents[1].x = p.x;
+            }
+            if (p.y > extents[1].y) {
+                extents[1].y = p.y;
+            }
+        }
+        return extents;
+    }
+
+    //! Find all pixels enclosed by the pixels in this->FL which define a loop
+    std::vector<cv::Point> getEnclosedByFL() {
+
+        //std::sort(this->FL.begin(), this->FL.end()); // can't sort without providing a sorting fn/lambda.
+        auto last = std::unique(this->FL.begin(), this->FL.end());
+        this->FL.erase(last, this->FL.end());
+
+        std::vector<cv::Point> rtn;
+        // First, find extents of the loop
+        this->extents_FL = this->getExtents (this->FL);
+        // Now go through pixels within the extents, checking the winding number of each.
+        std::cout << "Extents: " << this->extents_FL[0] << " -> " << this->extents_FL[1] << std::endl;
+        for (int x = this->extents_FL[0].x; x <= this->extents_FL[1].x; ++x) {
+        //for (int x = (this->extents_FL[0].x+this->extents_FL[1].x)/2; x < this->extents_FL[1].x; ++x) {
+            for (int y = this->extents_FL[0].y; y <= this->extents_FL[1].y; ++y) {
+            //for (int y = (this->extents_FL[0].y+this->extents_FL[1].y)/2; y < this->extents_FL[1].y; ++y) {
+                cv::Point px (x, y);
+                this->tested_FL.push_back (px);
+                auto inloop = std::find (this->FL.begin(), this->FL.end(), px);
+                if (inloop == this->FL.end()) {
+                    // Current pixel is not a member of the loop itself.
+                    // Compute winding number
+                    double angle_sum = 0.0;
+                    double angle_last = 0.0;
+                    double angle_initial = -1.0;
+                    std::cout << "From pixel: " << px << "\n";
+                    for (auto bp : this->FL) { // bp: boundary pixel
+                        // Get angle from px to bp
+                        cv::Point pt = bp-px;
+                        double angle = std::atan2 (pt.y, pt.x);
+                        if (angle_initial == -1.0) {
+                            angle_initial = angle;
+                            angle_last = angle_initial;
+                        }
+                        // Instead of 0 -> pi or 0 -> -pi, I want 0 -> 2pi:
+                        std::cout << "Boundary pixel: " << bp << ", vector " << pt << ", From pixel: " << bp;
+                        if (angle == 0.0) {
+                            // Angle to add is 2pi - the current angle_sum, unless angle_sum is 0
+                            std::cout << " (angle is 0, so may need to add remaining slice of pie. 2pi-angle_sum="
+                                      << (morph::TWO_PI_D-angle_sum) << ")";
+
+                            // Failed attempt:
+                            //double angle_ = (angle_sum < 0.0) ? angle_sum : (morph::TWO_PI_D-angle_sum);
+                            // This doesn't work, particularly when angle_initial is negative:
+                            angle = (angle_sum == 0.0) ? 0.0 : (morph::TWO_PI_D-angle_sum);
+
+                            // When angle clicks over to 0.0, have to reset angle_last, too:
+                            angle_last = 0.0;
+                        } else if (angle < 0.0) {
+                            std::cout << "angle<0; b4: " << angle;
+                            angle = morph::PI_D + (morph::PI_D + angle);
+                        }
+                        std::cout << ", angle: " << angle
+                                  << " delta: " << (angle - angle_last) << ",  angle_sum now: " << angle_sum << std::endl;
+                        angle_sum += (angle - angle_last);
+                        angle_last = angle;
+                    }
+
+                    // Do first pixel again to complete (FIXME: update to match code
+                    // above, or make these a function)
+#if 0
+                    {
+                        auto bp = this->FL.front();
+                        cv::Point pt = bp-px;
+                        double angle = std::atan2 (pt.y, pt.x);
+                        if (angle_initial == -1.0) {
+                            angle_initial = angle;
+                            angle_last = angle_initial;
+                        }
+                        std::cout << "*Boundary pixel: " << bp << ", vector " << pt << ", Boundary pixel: " << bp;
+                        if (angle == 0.0) {
+                            std::cout << " (angle is 0, so may need to add remaining slice of pie. 2pi-angle_sum="
+                                      << (morph::TWO_PI_D-angle_sum) << ")";
+                            angle = (angle_sum == 0.0) ? 0.0 : (morph::TWO_PI_D-angle_sum);
+                            angle_last = 0.0;
+                        } else if (angle < 0.0) {
+                            std::cout << "angle<0; b4: " << angle;
+                            angle = morph::PI_D + (morph::PI_D + angle);
+                        }
+                        std::cout << ", angle: " << angle
+                                  << " delta: " << (angle - angle_last) << ",  angle_sum now: " << angle_sum << std::endl;
+                        angle_sum += (angle - angle_last);
+                        angle_last = angle;
+                    }
+#endif
+
+                    // If something: rtn.push_back();
+                    double winding_no = (angle_sum/morph::TWO_PI_D);
+                    std::cout << "For pixel " << px << ", winding number is " << winding_no << std::endl;
+                    if (std::abs(winding_no - 1.0) < 0.1) {
+                        std::cout << px << " is INSIDE boundary\n";
+                        rtn.push_back (px);
+                        this->inside_FL.push_back (px);
+                    } else {
+                        std::cout << px << " is outside boundary\n";
+                        this->outside_FL.push_back (px);
+                    }
+                }
+                //break;
+            }
+            //break;
+        }
         return rtn;
     }
 
-    //! Add a pixel that was under the mouse pointer to the freehand points FP. Also
-    //! add the pixels between the last pixel in FP and endSquare.
-    void addToFP (cv::Point& pt) {
+    //! Add a pixel that was under the mouse pointer to the freehand points FL. Also
+    //! add the pixels between the last pixel in FL and endSquare.
+    void addToFL (cv::Point& pt) {
 
-        auto existing = std::find (this->FP.begin(), this->FP.end(), pt);
-        if (existing != this->FP.end()) {
-            std::cout << "Point has been found!\n";
-            // If pt is in FP already, then we closed the loop
-            std::vector<cv::Point> inside = this->getEnclosedByFP();
-            this->FPE.push_back (inside);
-            this->FP.clear();
+        // If FL empty then task is simple:
+        if (this->FL.empty()) {
+             this->FL.push_back (pt);
+             return;
+        }
 
-        } else {
-            // Otherwise, continue to add points to the freehand-drawn loop
-            if (!this->FP.empty()) {
-                cv::Point startPt = this->FP.back();
-                // Draw a line between lastPt and pt. Fill in all pixels which are crossed
-                // by the line. Do this with a recursive algorithm, as it's easy and we're
-                // very unlikely to exceed the recursion limit.
-                this->fillFP (startPt, pt);
+        auto existing = std::find (this->FL.begin(), this->FL.end(), pt);
+        if (existing != this->FL.end()) {  // we found a pt in FL
+
+            std::cout << "An existing point has been found, so close the loop.\n";
+            // If pt is in FL already, then we closed the loop
+
+            // FIXME: want to cut off any extraneous pixels in FL.
+
+            std::vector<cv::Point> inside = this->getEnclosedByFL();
+            // Then would:
+            this->FLE.push_back (inside);
+            //this->FL.clear();
+
+        } else { // The new point pt is NOT in FL already
+
+            std::pair<float, float> p1, p2;
+            float snap_threshold = 3.0;
+
+            // Otherwise, check if we can close the loop...
+            p1.first = (float)this->FL.begin()->x;
+            p1.second = (float)this->FL.begin()->y;
+            p2.first = (float)pt.x;
+            p2.second = (float)pt.y;
+
+            if (this->FL.size() > 20 // Avoid joining a just-started loop
+                && morph::MathAlgo::distance<float>(p1, p2) < snap_threshold) {
+                // The point pt close to the start of the freehand-drawn loop, so "autosnap" to it.
+                pt = *(this->FL.begin());
+                std::cout << "Joining the loop!\n";
+                cv::Point fp = this->FL.back();
+                this->fillFL (fp, pt);
+                std::vector<cv::Point> inside = this->getEnclosedByFL();
+                // Then would:
+                this->FLE.push_back (inside);
+                //this->FL.clear();
+
             } else {
-                this->FP.push_back (pt);
+                // Can't close the loop; just add to it
+                cv::Point fp = this->FL.back();
+                this->fillFL (fp, pt);
             }
         }
     }
 
     //! Remove the last user point
-    void removeLastPoint (void) {
+    void removeLastPoint() {
         if (this->PP.empty() && this->P.size() == 1) {
             // Normal behaviour, just remove point from P
             this->P.pop_back();
@@ -427,7 +586,7 @@ public:
     }
 
     //! In Bezier mode, store the current set of user points (P) into PP and clear P.
-    void nextCurve (void) {
+    void nextCurve() {
         if (this->ct == CurveType::Poly) {
             // no op.
             return;
@@ -443,7 +602,7 @@ public:
     }
 
     //! Compute the mean values for the bins
-    void getBoxMeans (void) {
+    void getBoxMeans() {
         std::cout << "Called" << std::endl;
         this->boxes_raw.resize (this->boxes.size());
         this->boxes_raw_bgr.resize (this->boxes.size());
@@ -740,31 +899,31 @@ public:
     }
 
     //! Mirror the image and mark in the flags that it was mirrored
-    void mirror (void) {
+    void mirror() {
         this->mirror_image_only();
         this->flags.flip (Mirrored);
     }
     //! Carry out the actual mirroring operation on its own, leaving flags unchanged
-    void mirror_image_only (void) {
+    void mirror_image_only() {
         cv::Mat mirrored (this->frame.rows, this->frame.cols, this->frame.type());
         cv::flip (this->frame, mirrored, 1);
         this->frame = mirrored;
     }
 
     //! Flip the image & mark as such in flags
-    void flip (void) {
+    void flip() {
         this->flip_image_only();
         this->flags.flip (Flipped);
     }
     //! Flip the image without marking as flipped in flags.
-    void flip_image_only (void) {
+    void flip_image_only() {
         cv::Mat flipped (this->frame.rows, this->frame.cols, this->frame.type());
         cv::flip (this->frame, flipped, 1);
         this->frame = flipped;
     }
 
     //! Recompute the fit
-    void updateFit (void) {
+    void updateFit() {
         if (this->ct == CurveType::Poly) {
             this->updateFitPoly();
         } else if (this->ct == CurveType::Bezier) {
@@ -827,7 +986,7 @@ public:
     }
 
     //! Toggle between polynomial, Bezier curve fitting and Freehand loop drawing
-    void toggleCurveType (void) {
+    void toggleCurveType() {
         if (this->ct == CurveType::Poly) {
             this->ct = CurveType::Bezier;
         } else if (this->ct == CurveType::Bezier) {
@@ -842,28 +1001,28 @@ public:
 
     //! Toggle controls
     //@{
-    void toggleShowBoxes (void) {
+    void toggleShowBoxes() {
         this->flags[ShowBoxes] = this->flags.test(ShowBoxes) ? false : true;
     }
     void setShowBoxes (bool t) {
         this->flags[ShowBoxes] = t;
     }
 
-    void toggleShowFits (void) {
+    void toggleShowFits() {
         this->flags[ShowFits] = this->flags.test(ShowFits) ? false : true;
     }
     void setShowFits (bool t) {
         this->flags[ShowFits] = t;
     }
 
-    void toggleShowUsers (void) {
+    void toggleShowUsers() {
         this->flags[ShowUsers] = this->flags.test(ShowUsers) ? false : true;
     }
     void setShowUsers (bool t) {
         this->flags[ShowUsers] = t;
     }
 
-    void toggleShowCtrls (void) {
+    void toggleShowCtrls() {
         this->flags[ShowCtrls] = this->flags.test(ShowCtrls) ? false : true;
     }
     void setShowCtrls (bool t) {
@@ -876,7 +1035,7 @@ private:
      * Private methods
      */
     //! Update the fit, but don't rotate. Used by rotateFitOptimally()
-    void updateFit_norotate (void) {
+    void updateFit_norotate() {
         if (this->ct == CurveType::Poly) {
             this->updateFitPoly();
         } else {
@@ -898,7 +1057,7 @@ private:
     }
 
     //! Recompute the Bezier fit
-    void updateFitBezier (void) {
+    void updateFitBezier() {
 
         if (this->PP.empty() && this->P.size() < 2) {
             std::cout << "Too few points to fit" << std::endl;
@@ -966,7 +1125,7 @@ private:
         }
     }
 
-    void offsetScaleFit (void) {
+    void offsetScaleFit() {
         cv::Point2d fitsum;
         for (int i = 0; i < this->nFit; ++i) {
             fitsum += cv::Point2d(this->fitted[i].x, this->fitted[i].y);
@@ -1029,7 +1188,7 @@ private:
     }
 
     //! Rotate the fit until we get the best one.
-    void rotateFitOptimally (void) {
+    void rotateFitOptimally() {
 
         // If there's no previous frame, then fitted_rotated should be same as fitted_offset
         if (this->previous < 0) {
@@ -1108,7 +1267,7 @@ private:
     }
 
     //! Recompute the polynomial fit
-    void updateFitPoly (void) {
+    void updateFitPoly() {
         this->axiscoefs = PolyFit::polyfit (this->P, 1);
         this->axis = PolyFit::tracePoly (this->axiscoefs, 0, this->frame.cols, 2);
         this->theta = atan (this->axiscoefs[1]);
@@ -1128,7 +1287,7 @@ private:
 
 
     //! Common code to generate the frame name
-    std::string getFrameName (void) const {
+    std::string getFrameName() const {
         std::stringstream ss;
         ss << "/Frame";
         ss.width(3);
@@ -1138,7 +1297,7 @@ private:
     }
 
     //! Old frame format, counting from 0
-    std::string getOldFrameName (void) const {
+    std::string getOldFrameName() const {
         std::stringstream ss;
         ss << "/Frame";
         ss.width(3);

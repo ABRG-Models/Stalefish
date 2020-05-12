@@ -413,17 +413,43 @@ public:
         DM* _this = DM::i();
         cv::Mat* pImg = _this->getImg();
         FrameData* cf = _this->gcf();
-
-        for (size_t j=0; j<cf->FPE.size(); j++) {
-            for (size_t ii=0; ii<cf->FPE[j].size(); ii++) {
-                rectangle (*pImg, cf->FPE[j][ii], cf->FPE[j][ii], SF_RED, 1);
+#if 0
+        for (size_t j=0; j<cf->FLE.size(); j++) {
+            for (size_t ii=0; ii<cf->FLE[j].size(); ii++) {
+                rectangle (*pImg, cf->FLE[j][ii], cf->FLE[j][ii], SF_RED, 1);
             }
         }
-
+#endif
         // Then draw the current point set:
-        for (size_t ii=0; ii<cf->FP.size(); ii++) {
-            rectangle (*pImg, cf->FP[ii], cf->FP[ii], SF_GREEN, 1);
+        for (size_t ii=0; ii<cf->FL.size(); ii++) {
+            rectangle (*pImg, cf->FL[ii], cf->FL[ii], SF_GREEN, 1);
         }
+
+        // Tested points:
+        //for (size_t ii=0; ii<cf->tested_FL.size(); ii++) {
+        //    rectangle (*pImg, cf->tested_FL[ii], cf->tested_FL[ii]+cv::Point(1,1), SF_YELLOW, 2);
+        //}
+        // DEBUG Inside/outside boundary:
+        for (size_t ii=0; ii<cf->inside_FL.size(); ii++) {
+            rectangle (*pImg, cf->inside_FL[ii], cf->inside_FL[ii], SF_RED, 1);
+        }
+        for (size_t ii=0; ii<cf->outside_FL.size(); ii++) {
+            rectangle (*pImg, cf->outside_FL[ii], cf->outside_FL[ii], SF_BLUE, 1);
+        }
+#if 0
+        // RESULT inside boundary
+        for (size_t ii=0; ii<cf->FLE.back().size(); ii++) {
+            rectangle (*pImg, cf->FLE.back()[ii], cf->FLE.back()[ii]+cv::Point(1,1), SF_BLUE, 2); // Make low alpha patch or something
+        }
+#endif
+
+#if 0
+        // show extents
+        line (*pImg, cf->extents_FL[0], cf->extents_FL[0]+cv::Point(0,3), SF_BLACK, 1);
+        line (*pImg, cf->extents_FL[0], cf->extents_FL[0]+cv::Point(3,0), SF_BLACK, 1);
+        line (*pImg, cf->extents_FL[1], cf->extents_FL[1]+cv::Point(0,-3), SF_BLACK, 1);
+        line (*pImg, cf->extents_FL[1], cf->extents_FL[1]+cv::Point(-3,0), SF_BLACK, 1);
+#endif
     }
 
     /*!
@@ -452,12 +478,12 @@ public:
                 cf->setShowUsers(true);
             } else if (cf->ct == CurveType::Freehand) {
                 //_this->lbutton_down = true;
-                cf->addToFP (pt);
+                cf->addToFL (pt);
             }
         } else if (event == cv::EVENT_MOUSEMOVE
                    && (flags & cv::EVENT_FLAG_LBUTTON) == cv::EVENT_FLAG_LBUTTON) {
             // Now button is down, want to add any pixel that the mouse moves over
-            cf->addToFP (pt);
+            cf->addToFL (pt);
         }
 
         _this->cloneFrame();
