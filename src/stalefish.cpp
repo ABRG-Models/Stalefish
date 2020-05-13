@@ -80,10 +80,10 @@ int main (int argc, char** argv)
             DM::i()->gcf()->refreshBoxes (-DM::i()->gcf()->binA, DM::i()->gcf()->binB);
             break;
         }
-        // Remove last point
+        // Remove last point or freehand region
         case('c'):
         {
-            DM::i()->gcf()->removeLastPoint();
+            DM::i()->gcf()->removeLastThing();
             break;
         }
         // Go to the next frame

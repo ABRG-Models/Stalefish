@@ -19,6 +19,7 @@
 #define SF_WHITE Scalar(255,255,255)
 #define SF_C1 Scalar(238,121,159) // mediumpurple2
 #define SF_C2 Scalar(238,58,178) // darkorchid2
+#define SF_TRANS Scalar(255,0,0,100)
 
 //! OpenCV sliders can't be negative, so we have an offset.
 #define BIN_A_OFFSET 200
@@ -413,37 +414,32 @@ public:
         DM* _this = DM::i();
         cv::Mat* pImg = _this->getImg();
         FrameData* cf = _this->gcf();
-#if 0
+#if 1
+        // Existing regions
+        double alpha = 0.3;
         for (size_t j=0; j<cf->FLE.size(); j++) {
             for (size_t ii=0; ii<cf->FLE[j].size(); ii++) {
-                rectangle (*pImg, cf->FLE[j][ii], cf->FLE[j][ii], SF_RED, 1);
+                // This fills area with transparent blue. First get region from *pImg
+                cv::Mat roi = (*pImg)(cv::Rect(cf->FLE[j][ii].x, cf->FLE[j][ii].y, 1, 1));
+                // Create a colour
+                cv::Mat color(roi.size(), CV_8UC3, SF_BLUE);
+                cv::addWeighted (color, alpha, roi, 1.0 - alpha , 0.0, roi);
+                //rectangle (*pImg, cf->FLE[j][ii], cf->FLE[j][ii], SF_RED, 1);
             }
         }
 #endif
-        // Then draw the current point set:
+        // The current point set in green:
         for (size_t ii=0; ii<cf->FL.size(); ii++) {
-            if (ii == 0) {
-                rectangle (*pImg, cf->FL[ii], cf->FL[ii], SF_BLACK, 2); // start marker
-            } else {
-                rectangle (*pImg, cf->FL[ii], cf->FL[ii], SF_GREEN, 1);
-            }
+            rectangle (*pImg, cf->FL[ii], cf->FL[ii], SF_GREEN, 1);
         }
 
-        // Tested points:
-        //for (size_t ii=0; ii<cf->tested_FL.size(); ii++) {
-        //    rectangle (*pImg, cf->tested_FL[ii], cf->tested_FL[ii]+cv::Point(1,1), SF_YELLOW, 2);
-        //}
+#if 0
         // DEBUG Inside/outside boundary:
         for (size_t ii=0; ii<cf->inside_FL.size(); ii++) {
             rectangle (*pImg, cf->inside_FL[ii], cf->inside_FL[ii], SF_RED, 1);
         }
         for (size_t ii=0; ii<cf->outside_FL.size(); ii++) {
             rectangle (*pImg, cf->outside_FL[ii], cf->outside_FL[ii], SF_BLUE, 1);
-        }
-#if 0
-        // RESULT inside boundary
-        for (size_t ii=0; ii<cf->FLE.back().size(); ii++) {
-            rectangle (*pImg, cf->FLE.back()[ii], cf->FLE.back()[ii]+cv::Point(1,1), SF_BLUE, 2); // Make low alpha patch or something
         }
 #endif
 
@@ -533,7 +529,7 @@ public:
             putText (*pImg, std::string("Spc: Next curve"),
                      cv::Point(xh,yh), cv::FONT_HERSHEY_SIMPLEX, 0.8, SF_BLACK, 1, cv::LINE_AA);
             yh += yinc;
-            putText (*pImg, std::string("c:   Cancel last point"),
+            putText (*pImg, std::string("c:   Cancel last point/freehand region"),
                      cv::Point(xh,yh), cv::FONT_HERSHEY_SIMPLEX, 0.8, SF_BLACK, 1, cv::LINE_AA);
             yh += yinc;
             putText (*pImg, std::string("f:   Update the fit"),

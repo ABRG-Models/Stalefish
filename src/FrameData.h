@@ -420,6 +420,8 @@ public:
         // Create a winder object to compute winding numbers
         morph::Winder w (this->FL);
 
+        // It's perhaps inefficient to compute the winding number of EVERY pixel here,
+        // but I'll leave it for now (computers are fast).
         for (int x = this->extents_FL[0].x; x <= this->extents_FL[1].x; ++x) {
             for (int y = this->extents_FL[0].y; y <= this->extents_FL[1].y; ++y) {
                 cv::Point px (x, y);
@@ -451,17 +453,19 @@ public:
         }
 
         auto existing = std::find (this->FL.begin(), this->FL.end(), pt);
-        if (existing != this->FL.end()) {  // we found a pt in FL
-
-            std::cout << "An existing point has been found, so close the loop.\n";
+        if (existing != this->FL.end() && existing != this->FL.begin()) {
             // If pt is in FL already, then we closed the loop
-
-            // FIXME: want to cut off any extraneous pixels in FL.
-
+            std::cout << "An existing point has been found, so close the loop.\n";
+            // We want to cut off any extraneous pixels in FL.
+            // Delete from this->FL from start to one before existing.
+            this->FL.erase (this->FL.begin(), existing);
+            // Fill the gap between last point on curve and the existing curve point.
+            cv::Point fp = this->FL.back();
+            this->fillFL (fp, pt);
+            // Get enclosed and add to FLE:
             std::vector<cv::Point> inside = this->getEnclosedByFL();
-            // Then would:
             this->FLE.push_back (inside);
-            //this->FL.clear();
+            this->FL.clear();
             this->loopFinished = true;
 
         } else { // The new point pt is NOT in FL already
@@ -482,10 +486,10 @@ public:
                 std::cout << "Joining the loop!\n";
                 cv::Point fp = this->FL.back();
                 this->fillFL (fp, pt);
+                // Get the enclosed points and add:
                 std::vector<cv::Point> inside = this->getEnclosedByFL();
-                // Then would:
                 this->FLE.push_back (inside);
-                //this->FL.clear();
+                this->FL.clear();
                 this->loopFinished = true;
 
             } else {
@@ -493,6 +497,22 @@ public:
                 cv::Point fp = this->FL.back();
                 this->fillFL (fp, pt);
             }
+        }
+    }
+
+    //! Remove the last freehand drawn region or the last point, depending on mode
+    void removeLastThing() {
+        if (this->ct == CurveType::Freehand) {
+            this->removeLastRegion();
+        } else {
+            this->removeLastPoint();
+        }
+    }
+
+    //! Remove the last freehand drawn region
+    void removeLastRegion() {
+        if (!this->FLE.empty()) {
+            this->FLE.pop_back();
         }
     }
 
