@@ -19,8 +19,7 @@
 #include <morph/MathAlgo.h>
 #include <morph/NM_Simplex.h>
 #include <morph/MathConst.h>
-// For debug:
-//#include <morph/Random.h>
+#include "Winder.h" // To become a part of morphologica
 
 enum class CurveType {
     Poly,     // Variable order polynomial
@@ -406,117 +405,37 @@ public:
     //! Set true if a loop has been drawn, then completed. Reset to false once mouse button is released
     bool loopFinished = false;
 
-    //! Add the correct angle to the winding number
-    void wind (const cv::Point& px, const cv::Point& bp,
-               double& angle, double& angle_sum, double& angle_last) {
-        // Get angle from px to bp
-        cv::Point pt = bp-px;
-        //std::cout << "Boundary pixel: " << bp << ", vector " << pt << ", From pixel: " << px;
-
-        {
-            double angle__ = std::atan2 (pt.y, pt.x);
-            // Convert -pi -> 0 -> +pi range of atan2 to 0->2pi:
-            angle = angle__ >= 0 ? angle__ : (morph::TWO_PI_D + angle__);
-        }
-
-        // Set the initial angle.
-        if (angle_last == -100.0) {
-            angle_last = angle;
-            //std::cout << "Initial angle: " << angle_last << std::endl;
-        }
-
-        double delta = 0.0; // delta is 'angle change'
-        if (angle == 0.0) {
-            // Special treatment
-            if (angle_last > morph::PI_D) {
-                // Clockwise to 0
-                //std::cout << " cw0 ";
-                delta = (morph::TWO_PI_D - angle_last);
-            } else if (angle_last < morph::PI_D) {
-                // Anti-clockwise to 0
-                //std::cout << " acw0 ";
-                delta = -angle_last;
-            } else { //angle_last must have been 0.0
-                //std::cout << " 0to0 ";
-                delta = 0.0;
-            }
-
-        } else {
-
-            // Special treatment required ALSO if we crossed the 0 line without being on it.
-            if (angle_last > morph::PI_D && angle < morph::PI_D) {
-                // crossed from 2pi side to 0 side: Clockwise
-                //std::cout << " cw_x ";
-                delta = angle + (morph::TWO_PI_D - angle_last);
-            } else if (angle_last < morph::PI_OVER_2_D && angle > morph::PI_x3_OVER_2_D) {
-                // crossed from 0 side to 2pi side: Anti-clockwise
-                //std::cout << " acw_x ";
-                delta = - angle_last - (morph::TWO_PI_D - angle);
-            } else { // Both are > pi or both are < pi.
-                //std::cout << " dflt ";
-                delta = (angle - angle_last);
-            }
-        }
-        //std::cout << ", angle_last: " << angle_last;
-        angle_last = angle;
-        angle_sum += delta;
-        //std::cout << ", angle: " << angle << " delta: " << delta
-        //          << ",  angle_sum now: " << angle_sum << std::endl;
-    }
-
     //! Find all pixels enclosed by the pixels in this->FL which define a loop
     std::vector<cv::Point> getEnclosedByFL() {
 
-        //std::sort(this->FL.begin(), this->FL.end()); // can't sort without providing a sorting fn/lambda.
+        // FIXME: Prefer not to have to uniquify here:
         auto last = std::unique(this->FL.begin(), this->FL.end());
         this->FL.erase(last, this->FL.end());
 
         std::vector<cv::Point> rtn;
+
         // First, find extents of the loop
         this->extents_FL = this->getExtents (this->FL);
-        // Now go through pixels within the extents, checking the winding number of each.
-        std::cout << "Extents: " << this->extents_FL[0] << " -> " << this->extents_FL[1] << std::endl;
 
-        // Select random pixels to test from range given by extents
-        //morph::RandUniform<int> rngx (this->extents_FL[0].x, this->extents_FL[1].x);
-        //morph::RandUniform<int> rngy (this->extents_FL[0].y, this->extents_FL[1].y);
-        //int x_test = rngx.get();
-        //int y_test = rngy.get();
+        // Create a winder object to compute winding numbers
+        morph::Winder w (this->FL);
 
         for (int x = this->extents_FL[0].x; x <= this->extents_FL[1].x; ++x) {
             for (int y = this->extents_FL[0].y; y <= this->extents_FL[1].y; ++y) {
-                //for (int x = x_test; x < x_test+5 && x <= this->extents_FL[1].x; ++x) {
-                //for (int y = y_test; y < y_test+5 && y <= this->extents_FL[1].y; ++y) {
                 cv::Point px (x, y);
-                this->tested_FL.push_back (px);
                 auto inloop = std::find (this->FL.begin(), this->FL.end(), px);
                 if (inloop == this->FL.end()) {
-                    // Current pixel is not a member of the loop itself.
                     // Compute winding number
-                    double angle = 0.0;
-                    double angle_sum = 0.0;
-                    double angle_last = -100.0;
-                    std::cout << "From pixel: " << px << "\n";
-                    for (auto bp : this->FL) { // bp: boundary pixel
-                        this->wind (px, bp, angle, angle_sum, angle_last);
-                    }
-                    // Do first pixel again to complete the winding:
-                    this->wind (px, this->FL.front(), angle, angle_sum, angle_last);
-
-                    double winding_no = (angle_sum/morph::TWO_PI_D);
-                    std::cout << "For pixel " << px << ", winding number is " << winding_no << std::endl;
-                    if (std::abs(winding_no) > 0.5) {
-                        std::cout << px << " is INSIDE boundary\n";
+                    int winding_number = w.wind (px);
+                    //std::cout << "Winding number of pixel " << px << " = " << winding_number << std::endl;
+                    if (winding_number != 0) {
                         rtn.push_back (px);
                         this->inside_FL.push_back (px);
                     } else {
-                        std::cout << px << " is outside boundary\n";
                         this->outside_FL.push_back (px);
                     }
-                }
-                //break;
+                } // else current pixel is a member of the loop itself.
             }
-            //break;
         }
         return rtn;
     }
