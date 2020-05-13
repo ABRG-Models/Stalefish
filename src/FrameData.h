@@ -19,6 +19,8 @@
 #include <morph/MathAlgo.h>
 #include <morph/NM_Simplex.h>
 #include <morph/MathConst.h>
+// For debug:
+//#include <morph/Random.h>
 
 enum class CurveType {
     Poly,     // Variable order polynomial
@@ -401,6 +403,67 @@ public:
         return extents;
     }
 
+    //! Set true if a loop has been drawn, then completed. Reset to false once mouse button is released
+    bool loopFinished = false;
+
+    //! Add the correct angle to the winding number
+    void wind (const cv::Point& px, const cv::Point& bp,
+               double& angle, double& angle_sum, double& angle_last) {
+        // Get angle from px to bp
+        cv::Point pt = bp-px;
+        //std::cout << "Boundary pixel: " << bp << ", vector " << pt << ", From pixel: " << px;
+
+        {
+            double angle__ = std::atan2 (pt.y, pt.x);
+            // Convert -pi -> 0 -> +pi range of atan2 to 0->2pi:
+            angle = angle__ >= 0 ? angle__ : (morph::TWO_PI_D + angle__);
+        }
+
+        // Set the initial angle.
+        if (angle_last == -100.0) {
+            angle_last = angle;
+            //std::cout << "Initial angle: " << angle_last << std::endl;
+        }
+
+        double delta = 0.0; // delta is 'angle change'
+        if (angle == 0.0) {
+            // Special treatment
+            if (angle_last > morph::PI_D) {
+                // Clockwise to 0
+                //std::cout << " cw0 ";
+                delta = (morph::TWO_PI_D - angle_last);
+            } else if (angle_last < morph::PI_D) {
+                // Anti-clockwise to 0
+                //std::cout << " acw0 ";
+                delta = -angle_last;
+            } else { //angle_last must have been 0.0
+                //std::cout << " 0to0 ";
+                delta = 0.0;
+            }
+
+        } else {
+
+            // Special treatment required ALSO if we crossed the 0 line without being on it.
+            if (angle_last > morph::PI_D && angle < morph::PI_D) {
+                // crossed from 2pi side to 0 side: Clockwise
+                //std::cout << " cw_x ";
+                delta = angle + (morph::TWO_PI_D - angle_last);
+            } else if (angle_last < morph::PI_OVER_2_D && angle > morph::PI_x3_OVER_2_D) {
+                // crossed from 0 side to 2pi side: Anti-clockwise
+                //std::cout << " acw_x ";
+                delta = - angle_last - (morph::TWO_PI_D - angle);
+            } else { // Both are > pi or both are < pi.
+                //std::cout << " dflt ";
+                delta = (angle - angle_last);
+            }
+        }
+        //std::cout << ", angle_last: " << angle_last;
+        angle_last = angle;
+        angle_sum += delta;
+        //std::cout << ", angle: " << angle << " delta: " << delta
+        //          << ",  angle_sum now: " << angle_sum << std::endl;
+    }
+
     //! Find all pixels enclosed by the pixels in this->FL which define a loop
     std::vector<cv::Point> getEnclosedByFL() {
 
@@ -413,84 +476,36 @@ public:
         this->extents_FL = this->getExtents (this->FL);
         // Now go through pixels within the extents, checking the winding number of each.
         std::cout << "Extents: " << this->extents_FL[0] << " -> " << this->extents_FL[1] << std::endl;
+
+        // Select random pixels to test from range given by extents
+        //morph::RandUniform<int> rngx (this->extents_FL[0].x, this->extents_FL[1].x);
+        //morph::RandUniform<int> rngy (this->extents_FL[0].y, this->extents_FL[1].y);
+        //int x_test = rngx.get();
+        //int y_test = rngy.get();
+
         for (int x = this->extents_FL[0].x; x <= this->extents_FL[1].x; ++x) {
-        //for (int x = (this->extents_FL[0].x+this->extents_FL[1].x)/2; x < this->extents_FL[1].x; ++x) {
             for (int y = this->extents_FL[0].y; y <= this->extents_FL[1].y; ++y) {
-            //for (int y = (this->extents_FL[0].y+this->extents_FL[1].y)/2; y < this->extents_FL[1].y; ++y) {
+                //for (int x = x_test; x < x_test+5 && x <= this->extents_FL[1].x; ++x) {
+                //for (int y = y_test; y < y_test+5 && y <= this->extents_FL[1].y; ++y) {
                 cv::Point px (x, y);
                 this->tested_FL.push_back (px);
                 auto inloop = std::find (this->FL.begin(), this->FL.end(), px);
                 if (inloop == this->FL.end()) {
                     // Current pixel is not a member of the loop itself.
                     // Compute winding number
+                    double angle = 0.0;
                     double angle_sum = 0.0;
-                    double angle_last = 0.0;
-                    double angle_initial = -1.0;
+                    double angle_last = -100.0;
                     std::cout << "From pixel: " << px << "\n";
                     for (auto bp : this->FL) { // bp: boundary pixel
-                        // Get angle from px to bp
-                        cv::Point pt = bp-px;
-                        double angle = std::atan2 (pt.y, pt.x);
-                        if (angle_initial == -1.0) {
-                            angle_initial = angle;
-                            angle_last = angle_initial;
-                        }
-                        // Instead of 0 -> pi or 0 -> -pi, I want 0 -> 2pi:
-                        std::cout << "Boundary pixel: " << bp << ", vector " << pt << ", From pixel: " << bp;
-                        if (angle == 0.0) {
-                            // Angle to add is 2pi - the current angle_sum, unless angle_sum is 0
-                            std::cout << " (angle is 0, so may need to add remaining slice of pie. 2pi-angle_sum="
-                                      << (morph::TWO_PI_D-angle_sum) << ")";
-
-                            // Failed attempt:
-                            //double angle_ = (angle_sum < 0.0) ? angle_sum : (morph::TWO_PI_D-angle_sum);
-                            // This doesn't work, particularly when angle_initial is negative:
-                            angle = (angle_sum == 0.0) ? 0.0 : (morph::TWO_PI_D-angle_sum);
-
-                            // When angle clicks over to 0.0, have to reset angle_last, too:
-                            angle_last = 0.0;
-                        } else if (angle < 0.0) {
-                            std::cout << "angle<0; b4: " << angle;
-                            angle = morph::PI_D + (morph::PI_D + angle);
-                        }
-                        std::cout << ", angle: " << angle
-                                  << " delta: " << (angle - angle_last) << ",  angle_sum now: " << angle_sum << std::endl;
-                        angle_sum += (angle - angle_last);
-                        angle_last = angle;
+                        this->wind (px, bp, angle, angle_sum, angle_last);
                     }
+                    // Do first pixel again to complete the winding:
+                    this->wind (px, this->FL.front(), angle, angle_sum, angle_last);
 
-                    // Do first pixel again to complete (FIXME: update to match code
-                    // above, or make these a function)
-#if 0
-                    {
-                        auto bp = this->FL.front();
-                        cv::Point pt = bp-px;
-                        double angle = std::atan2 (pt.y, pt.x);
-                        if (angle_initial == -1.0) {
-                            angle_initial = angle;
-                            angle_last = angle_initial;
-                        }
-                        std::cout << "*Boundary pixel: " << bp << ", vector " << pt << ", Boundary pixel: " << bp;
-                        if (angle == 0.0) {
-                            std::cout << " (angle is 0, so may need to add remaining slice of pie. 2pi-angle_sum="
-                                      << (morph::TWO_PI_D-angle_sum) << ")";
-                            angle = (angle_sum == 0.0) ? 0.0 : (morph::TWO_PI_D-angle_sum);
-                            angle_last = 0.0;
-                        } else if (angle < 0.0) {
-                            std::cout << "angle<0; b4: " << angle;
-                            angle = morph::PI_D + (morph::PI_D + angle);
-                        }
-                        std::cout << ", angle: " << angle
-                                  << " delta: " << (angle - angle_last) << ",  angle_sum now: " << angle_sum << std::endl;
-                        angle_sum += (angle - angle_last);
-                        angle_last = angle;
-                    }
-#endif
-
-                    // If something: rtn.push_back();
                     double winding_no = (angle_sum/morph::TWO_PI_D);
                     std::cout << "For pixel " << px << ", winding number is " << winding_no << std::endl;
-                    if (std::abs(winding_no - 1.0) < 0.1) {
+                    if (std::abs(winding_no) > 0.5) {
                         std::cout << px << " is INSIDE boundary\n";
                         rtn.push_back (px);
                         this->inside_FL.push_back (px);
@@ -528,6 +543,7 @@ public:
             // Then would:
             this->FLE.push_back (inside);
             //this->FL.clear();
+            this->loopFinished = true;
 
         } else { // The new point pt is NOT in FL already
 
@@ -551,6 +567,7 @@ public:
                 // Then would:
                 this->FLE.push_back (inside);
                 //this->FL.clear();
+                this->loopFinished = true;
 
             } else {
                 // Can't close the loop; just add to it

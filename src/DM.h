@@ -422,7 +422,11 @@ public:
 #endif
         // Then draw the current point set:
         for (size_t ii=0; ii<cf->FL.size(); ii++) {
-            rectangle (*pImg, cf->FL[ii], cf->FL[ii], SF_GREEN, 1);
+            if (ii == 0) {
+                rectangle (*pImg, cf->FL[ii], cf->FL[ii], SF_BLACK, 2); // start marker
+            } else {
+                rectangle (*pImg, cf->FL[ii], cf->FL[ii], SF_GREEN, 1);
+            }
         }
 
         // Tested points:
@@ -480,8 +484,13 @@ public:
                 //_this->lbutton_down = true;
                 cf->addToFL (pt);
             }
+        } else if (event == cv::EVENT_LBUTTONUP) {
+            cf->loopFinished = false;
+
         } else if (event == cv::EVENT_MOUSEMOVE
-                   && (flags & cv::EVENT_FLAG_LBUTTON) == cv::EVENT_FLAG_LBUTTON) {
+                   && (flags & cv::EVENT_FLAG_LBUTTON) == cv::EVENT_FLAG_LBUTTON
+                   && cf->ct == CurveType::Freehand
+                   && cf->loopFinished == false) {
             // Now button is down, want to add any pixel that the mouse moves over
             cf->addToFL (pt);
         }
