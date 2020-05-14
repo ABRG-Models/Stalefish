@@ -11,7 +11,7 @@
 //
 #include <type_traits>
 
-namespace morph {
+namespace sf {
 
     /*!
      * A winding number class
@@ -48,23 +48,27 @@ namespace morph {
         }
 
     private:
-        //template <typename _T=T, std::enable_if_t<std::is_object<std::decay_t<typename _T::x>>::value, int> = 1 >
+        //! Find angle from px to bp and then call wind(const double&). The reason for
+        //! having this function is so that it can be specialized for different Ts;
+        //! those which have .x and .y attributes, and those which have .x() and .y()
+        //! methods, as well as those which are std::array or std::vector based (so
+        //! that x is T::operator[0] and y is T::operator[1])
         void wind (const T& px, const T& bp) {
-
-            // Get angle from px to bp.
 
             // This code assumes that T can support operator-
             T pt = bp - px;
 
+#if 0 // This would work to test for cv::Point on OpenCV 4.2
             double raw_angle = 0.0;
-            // Could try compile-time if here? https://www.bfilipek.com/2016/02/notes-on-c-sfinae.html
             if constexpr (cv::traits::Type<T>::value > -1) { // Matches T == cv::Point, Point2i, etc
                 raw_angle = std::atan2 (pt.y, pt.x);
-//          } else if constexpr (std::something to identify morph::vVector or morph::Vector or BezCoord etc) {
             } else {
                 raw_angle = std::atan2 (pt[0], pt[1]);
             }
-
+#else // But I'll keep this compatible with OpenCV 3 (which lacks cv::traits) as in
+      // Stalefish I KNOW that T is cv::Point
+            double raw_angle = std::atan2 (pt.y, pt.x);
+#endif
             this->wind (raw_angle);
         }
 
