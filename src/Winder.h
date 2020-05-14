@@ -9,7 +9,7 @@
 // FIXME: Want to test T's attributes with type traits to allow T to be cv::Point or
 // morph::Vector or morph::vVector or std::array etc etc.
 //
-//#include <type_traits>
+#include <type_traits>
 
 namespace morph {
 
@@ -50,11 +50,21 @@ namespace morph {
     private:
         //template <typename _T=T, std::enable_if_t<std::is_object<std::decay_t<typename _T::x>>::value, int> = 1 >
         void wind (const T& px, const T& bp) {
-            // Get angle from px to bp. Assumes T can do subtraction and has .x and .y
-            // attributes. FIXME: Figure out template incantations to repeat this
-            // function for other coordinate types, based on checking their attributes.
+
+            // Get angle from px to bp.
+
+            // This code assumes that T can support operator-
             T pt = bp - px;
-            double raw_angle = std::atan2 (pt.y, pt.x);
+
+            double raw_angle = 0.0;
+            // Could try compile-time if here? https://www.bfilipek.com/2016/02/notes-on-c-sfinae.html
+            if constexpr (cv::traits::Type<T>::value > -1) { // Matches T == cv::Point, Point2i, etc
+                raw_angle = std::atan2 (pt.y, pt.x);
+//          } else if constexpr (std::something to identify morph::vVector or morph::Vector or BezCoord etc) {
+            } else {
+                raw_angle = std::atan2 (pt[0], pt[1]);
+            }
+
             this->wind (raw_angle);
         }
 
