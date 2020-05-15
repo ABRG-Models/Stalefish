@@ -90,6 +90,7 @@ public:
     void addFrame (cv::Mat& frameImg, const std::string& frameImgFilename, const float& slice_x) {
         std::cout << "********** DM::addFrame ***********" << std::endl;
         FrameData fd(frameImg);
+        fd.ct = this->default_mode;
         fd.filename = frameImgFilename;
         fd.setParentStack (&this->vFrameData);
         // Increment layer index. Best might be to use JSON info for layer positions as
@@ -240,6 +241,9 @@ public:
     //! Set to true to read in an old data format project, which is then written out in new format.
     bool readOldFormat = false;
 
+    //! Which drawing mode should the application start in? Bezier by default. JSON can be used to modify.
+    CurveType default_mode = CurveType::Bezier;
+
     //! Application setup
     void setup (const std::string& paramsfile) {
 
@@ -260,6 +264,15 @@ public:
         // Set the scale from JSON, too
         this->pixels_per_mm = conf.getFloat ("pixels_per_mm", 100.0f);
         this->thickness = conf.getFloat ("thickness", 0.05f);
+
+        std::string default_mode_str = conf.getString ("mode", "bezier"); // or polynomial or freehand
+        if (default_mode_str == "polynomial") {
+            this->default_mode = CurveType::Poly;
+        } else if (default_mode_str == "freehand") {
+            this->default_mode = CurveType::Freehand;
+        } else {
+            this->default_mode = CurveType::Bezier;
+        }
 
         // The colour space information, if relevant (Allen ISH images)
         // colourmodel - if exists, a string
@@ -413,8 +426,8 @@ public:
         DM* _this = DM::i();
         cv::Mat* pImg = _this->getImg();
         FrameData* cf = _this->gcf();
-#if 1
-        // Existing regions
+
+        // Draw the existing regions
         double alpha = 0.3;
         for (size_t j=0; j<cf->FLE.size(); j++) {
             for (size_t ii=0; ii<cf->FLE[j].size(); ii++) {
@@ -423,11 +436,10 @@ public:
                 // Create a colour
                 cv::Mat color(roi.size(), CV_8UC3, SF_BLUE);
                 cv::addWeighted (color, alpha, roi, 1.0 - alpha , 0.0, roi);
-                //rectangle (*pImg, cf->FLE[j][ii], cf->FLE[j][ii], SF_RED, 1);
             }
         }
-#endif
-        // The current point set in green:
+
+        // Draw the current point set in green:
         for (size_t ii=0; ii<cf->FL.size(); ii++) {
             rectangle (*pImg, cf->FL[ii], cf->FL[ii], SF_GREEN, 1);
         }

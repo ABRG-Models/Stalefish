@@ -516,8 +516,14 @@ public:
 
     //! Remove the last freehand drawn region
     void removeLastRegion() {
-        if (!this->FLE.empty()) {
-            this->FLE.pop_back();
+        // If there's a half-finished boundary, get rid of that first:
+        if (!this->FL.empty()) {
+            this->FL.clear();
+        } else {
+            // Otherwise, remove the last completed freehand drawn region
+            if (!this->FLE.empty()) {
+                this->FLE.pop_back();
+            }
         }
     }
 
