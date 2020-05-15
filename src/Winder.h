@@ -4,12 +4,9 @@
 
 #pragma once
 
+#include <memory>
 #include <cmath>
-
-// FIXME: Want to test T's attributes with type traits to allow T to be cv::Point or
-// morph::Vector or morph::vVector or std::array etc etc.
-//
-#include <type_traits>
+#include <morph/MathConst.h>
 
 namespace sf {
 
