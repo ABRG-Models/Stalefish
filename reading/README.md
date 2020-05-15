@@ -37,11 +37,11 @@ includes the filename of the image that was used, the points that the
 user set to define the curve, the parameters for the gene expression
 sampling bins and so
 on. So, at the root level there are several data structures called
-'Frame000', 'Frame001' ann so on, as well as an integer 'nframes'
+'Frame001', 'Frame002' ann so on, as well as an integer 'nframes'
 which makes it easy to write a loop through all the frames in an
 analysis script.
 
- * Frame000, Frame001 etc: One Frame object for each brain slice.
+ * Frame001, Frame002 etc: One Frame object for each brain slice.
  * nframes: The number of Frame objects in this data file.
 
 ### Frame level
@@ -72,6 +72,10 @@ Each frame contains:
    contains 12 numbers, which specify 4 coordinates in 3D space; the
    corners of the surface boxes.
  * nboxes: The number of box objects.
+ * freehand0, freehand1, etc, each of which is a list of the pixel
+   values in freehand drawn regions (drawn in 'freehand' mode)
+ * freehand_means The mean pixel value in each freehand drawn region.
+ * nfreehand The number of freehand drawn regions.
 
 ### Class level
 
@@ -96,3 +100,6 @@ Each frame's class object contains:
  * pp_idx: A state variable for the program (not useful for analysis).
  * thickness: The thickness of the brain slice, as copied from the
   JSON config file.
+ * FLE000, FLE001, etc: 2D coordinates of the pixels enclosed in each
+  freehand loop.
+ * FLE_n: The number of freehand loops
