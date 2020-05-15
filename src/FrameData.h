@@ -19,7 +19,7 @@
 #include <morph/MathAlgo.h>
 #include <morph/NM_Simplex.h>
 #include <morph/MathConst.h>
-#include "Winder.h"
+#include <morph/Winder.h>
 
 enum class CurveType {
     Poly,     // Variable order polynomial
@@ -426,7 +426,7 @@ public:
         this->extents_FL = this->getExtents (this->FL);
 
         // Create a winder object to compute winding numbers
-        sf::Winder w (this->FL);
+        morph::Winder w (this->FL);
 
         // It's perhaps inefficient to compute the winding number of EVERY pixel here,
         // but I'll leave it for now (computers are fast).
