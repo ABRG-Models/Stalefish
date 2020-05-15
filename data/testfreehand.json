@@ -1,0 +1,20 @@
+{
+    // The thickness of a brain slice, assuming they'll all be the same.
+    "thickness" : 0.05,
+
+    // How many pixels in the image corresponds to 1 mm? True in horz(y) and vert(z) directions equally?
+    "pixels_per_mm" : 233,
+
+    // This example is the same as testimg.json, but for this
+    // parameter, which means the application opens in freehand mode by default.
+    "mode" : "freehand", // bezier, polynomial or freehand
+
+    // The brain slices in the y-z plane, where y points to the
+    // anterior, z points dorsally (and so x is the lateral dimension).
+    "slices": [
+        { "filename" : "data/testimg1.tif", "x" : 0.0   },
+        { "filename" : "data/testimg2.tif", "x" : 0.05  },
+        { "filename" : "data/testimg3.tif", "x" : 0.1   },
+        { "filename" : "data/testimg4.tif", "x" : 0.15  }
+    ] // end
+}
