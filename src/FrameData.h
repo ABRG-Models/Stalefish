@@ -460,7 +460,7 @@ public:
         auto existing = std::find (this->FL.begin(), this->FL.end(), pt);
         if (existing != this->FL.end() && existing != this->FL.begin()) {
             // If pt is in FL already, then we closed the loop
-            std::cout << "An existing point has been found, so close the loop.\n";
+            // std::cout << "An existing point has been found, so close the loop.\n";
             // We want to cut off any extraneous pixels in FL.
             // Delete from this->FL from start to one before existing.
             this->FL.erase (this->FL.begin(), existing);
@@ -488,7 +488,7 @@ public:
                 && morph::MathAlgo::distance<float>(p1, p2) < snap_threshold) {
                 // The point pt close to the start of the freehand-drawn loop, so "autosnap" to it.
                 pt = *(this->FL.begin());
-                std::cout << "Joining the loop!\n";
+                //std::cout << "Joining the loop!\n";
                 cv::Point fp = this->FL.back();
                 this->fillFL (fp, pt);
                 // Get the enclosed points and add:
@@ -614,9 +614,9 @@ public:
             ss.width(3);
             ss.fill('0');
             ss << i;
-            std::cout << "Reading into FLE["<<i<<"] with name " << ss.str() << "\n";
+            //std::cout << "Reading into FLE["<<i<<"] with name " << ss.str() << "\n";
             df.read_contained_vals (ss.str().c_str(), this->FLE[i]);
-            std::cout << "FLE[i] now has size " << this->FLE[i].size() << "\n";
+            //std::cout << "FLE[i] now has size " << this->FLE[i].size() << "\n";
         }
 
         dname = frameName + "/class/nBinsTarg";
@@ -733,7 +733,7 @@ public:
         // Freehand drawn regions - results
         for (size_t ri = 0; ri < this->FL_raw.size(); ++ri) {
             dname = frameName + "/freehand" + std::to_string(ri);
-            std::cout << "Writing out: " << dname << std::endl;
+            //std::cout << "Writing out: " << dname << std::endl;
             df.add_contained_vals (dname.c_str(), this->FL_raw[ri]);
         }
         dname = frameName + "/nfreehand";
@@ -755,7 +755,7 @@ public:
 #endif
         std::vector<std::array<float,3>> surface_box_centroids;
         std::array<float, 12> sbox;
-        std::cout << "Surface boxes extend from " << layer_x << " to " << (layer_x + thickness) << std::endl;
+        //std::cout << "Surface boxes extend from " << layer_x << " to " << (layer_x + thickness) << std::endl;
         for (int i = 1; i < this->nFit; ++i) {
             // c1 x,y,z
             sbox[0] = this->layer_x;                 // x

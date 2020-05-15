@@ -88,7 +88,7 @@ public:
      * dimension) and @ppm (pixels per mm; the scale).
      */
     void addFrame (cv::Mat& frameImg, const std::string& frameImgFilename, const float& slice_x) {
-        std::cout << "********** DM::addFrame ***********" << std::endl;
+        //std::cout << "********** DM::addFrame ***********" << std::endl;
         FrameData fd(frameImg);
         fd.ct = this->default_mode;
         fd.filename = frameImgFilename;
@@ -97,12 +97,12 @@ public:
         // they are unlikely always to be in perfect increments.
         if (this->vFrameData.empty()) {
             fd.idx = 0;
-            std::cout << "First frame; not setting previous" << std::endl;
+            //std::cout << "First frame; not setting previous" << std::endl;
         } else {
             fd.idx = this->vFrameData.back().idx + 1;
             // Set pointer to previous so slices can be aligned during FrameData::write or updateFit
             fd.setPrevious (this->vFrameData.back().idx);
-            std::cout << "Subsequent frame; setting previous to " << (&this->vFrameData[this->vFrameData.back().idx]) << std::endl;
+            //std::cout << "Subsequent frame; setting previous to " << (&this->vFrameData[this->vFrameData.back().idx]) << std::endl;
         }
         fd.layer_x = slice_x;
         fd.pixels_per_mm = (double)this->pixels_per_mm;
@@ -118,8 +118,8 @@ public:
         fd.luminosity_factor = this->luminosity_factor;
         fd.luminosity_cutoff = this->luminosity_cutoff;
 
-        std::cout << "Before read, binA=" << fd.binA << std::endl;
-        std::cout << "             binB=" << fd.binB << std::endl;
+        //std::cout << "Before read, binA=" << fd.binA << std::endl;
+        //std::cout << "             binB=" << fd.binB << std::endl;
 
         // Read, opportunistically
         try {
@@ -128,13 +128,13 @@ public:
             if (fd.flags.test (Mirrored)) {
                 fd.mirror_image_only();
             }
-            std::cout << "DM::addFrame: Calling FrameData::updateFit()" << std::endl;
+            //std::cout << "DM::addFrame: Calling FrameData::updateFit()" << std::endl;
             fd.updateFit();
         } catch (...) {
             // No problem, just carry on
         }
-        std::cout << "After read,  binA=" << fd.binA << std::endl;
-        std::cout << "             binB=" << fd.binB << std::endl;
+        //std::cout << "After read,  binA=" << fd.binA << std::endl;
+        //std::cout << "             binB=" << fd.binB << std::endl;
 
         this->vFrameData.push_back (fd);
     }
@@ -302,7 +302,7 @@ public:
             std::string fn = slice.get ("filename", "unknown").asString();
             float slice_x = slice.get ("x", 0.0).asFloat();
 
-            std::cout << "imread " << fn << std::endl;
+            //std::cout << "imread " << fn << std::endl;
             cv::Mat frame = cv::imread (fn.c_str(), cv::IMREAD_COLOR);
             if (frame.empty()) {
                 std::cout <<  "Could not open or find the image '" << fn << "', exiting." << std::endl;
@@ -610,10 +610,10 @@ public:
         std::string tbBinB = "Box B";
         std::string tbNBins = "Num bins";
         DM* _this = DM::i();
-        std::cout << "createTrackbars: _this->binA=" << _this->binA << std::endl;
+        //std::cout << "createTrackbars: _this->binA=" << _this->binA << std::endl;
         cv::createTrackbar (tbBinA, _this->winName, &_this->binA, 400, ontrackbar_boxes);
         cv::setTrackbarPos (tbBinA, _this->winName, _this->binA);
-        std::cout << "createTrackbars: _this->binB=" << _this->binB << std::endl;
+        //std::cout << "createTrackbars: _this->binB=" << _this->binB << std::endl;
         cv::createTrackbar (tbBinB, _this->winName, &_this->binB, 200, ontrackbar_boxes);
         cv::setTrackbarPos (tbBinB, _this->winName, _this->binB);
         cv::createTrackbar (tbNBins, _this->winName, &_this->nBinsTarg, 200, ontrackbar_nbins);
