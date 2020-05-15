@@ -19,7 +19,7 @@
 #include <morph/MathAlgo.h>
 #include <morph/NM_Simplex.h>
 #include <morph/MathConst.h>
-#include "Winder.h" // To become a part of morphologica
+#include "Winder.h"
 
 enum class CurveType {
     Poly,     // Variable order polynomial
@@ -90,29 +90,23 @@ public:
     std::vector<cv::Point> P;
     //! A vector of vectors of points for multi-section Bezier curves
     std::vector<std::vector<cv::Point>> PP;
-    //! A vector of user-supplied points for the Freehand drawn loop
-    std::vector<cv::Point> FL;
-    std::array<cv::Point, 2> extents_FL; // Extnents of the loop FL
-    std::vector<cv::Point> tested_FL;
-    std::vector<cv::Point> outside_FL; // Points outside FL boundary (for temporary visualization during debug)
-    std::vector<cv::Point> inside_FL; // Points inside FL.
-    //! vector of vectors containing the points enclosed by the path FL
-    std::vector<std::vector<cv::Point>> FLE;
-
     //! Index into PP
     int pp_idx = 0;
+
     //! The means computed for the boxes. This is now "mean_signal" really, as the pixel values
     //! (monochrome or colour) are now converted with the colour space parameters into a signal.
     std::vector<double> means;
-    //! The raw values for each box as a vector of doubles for each box.
+    //! The raw values for each box as a vector of floating points numbers for each box.
     std::vector<std::vector<float>> boxes_raw;
     //! Raw colours of boxes in RGB
     std::vector<std::vector<std::array<float, 3>>> boxes_raw_bgr;
+
     //! Target number of bins; used by bins slider
     int nBinsTarg;
     //! The bin lengths, set with a slider.
     int binA = 0;
     int binB = 100;
+
     //! A set of points created from the fit
     std::vector<cv::Point> fitted;
     //! The centroid of fitted.
@@ -138,6 +132,20 @@ public:
     std::vector<cv::Point> pointsOuter;
     //! The boxes that are drawn and from which to sample the gene expression
     std::vector<std::vector<cv::Point> > boxes;
+
+    //! A vector of user-supplied points for the Freehand drawn loop
+    std::vector<cv::Point> FL;
+    std::array<cv::Point, 2> extents_FL; // Extnents of the loop FL
+    //! vector of vectors containing the points enclosed by the path FL
+    std::vector<std::vector<cv::Point>> FLE;
+
+    //! The mean luminance of each freehand loop enclosed region in FLE.
+    std::vector<double> FL_means;
+    //! The raw values for each region as a vector of floating points numbers for each one.
+    std::vector<std::vector<float>> FL_raw;
+    //! Raw values for each region in colour
+    std::vector<std::vector<std::array<float, 3>>> FL_raw_bgr;
+
     //! A bit set containing flags
     std::bitset<8> flags;
     //! The image data, required when sampling the image in one of the boxes.
@@ -418,7 +426,7 @@ public:
         this->extents_FL = this->getExtents (this->FL);
 
         // Create a winder object to compute winding numbers
-        morph::Winder w (this->FL);
+        sf::Winder w (this->FL);
 
         // It's perhaps inefficient to compute the winding number of EVERY pixel here,
         // but I'll leave it for now (computers are fast).
@@ -432,9 +440,6 @@ public:
                     //std::cout << "Winding number of pixel " << px << " = " << winding_number << std::endl;
                     if (winding_number != 0) {
                         rtn.push_back (px);
-                        this->inside_FL.push_back (px);
-                    } else {
-                        this->outside_FL.push_back (px);
                     }
                 } // else current pixel is a member of the loop itself.
             }
@@ -557,89 +562,12 @@ public:
         this->pp_idx++;
     }
 
-    //! Compute the mean values for the bins
-    void getBoxMeans() {
-        std::cout << "Called" << std::endl;
-        this->boxes_raw.resize (this->boxes.size());
-        this->boxes_raw_bgr.resize (this->boxes.size());
-        this->means.resize (this->boxes.size());
-        for (size_t i=0; i<this->boxes.size(); i++) {
-
-            // Zero the means value
-            this->means[i] = 0.0;
-
-            // if luminance value only/greyscale:
-            if (this->cmodel == ColourModel::AllenDevMouse) {
-                // But we'll have to pass parameters for transforming the colours and
-                // determining if they're on the "expressing" axis. This will include
-                // a translate matrix, a rotation matrix and ellipse parameters,
-                // obtained from the octave script plotcolour.m
-                this->boxes_raw_bgr[i] = StaleUtil::getBoxedPixelColour (this->frame, this->boxes[i]);
-
-                float ellip_maj_sq = ellip_axes[0] * ellip_axes[0];
-                float ellip_min_sq = ellip_axes[1] * ellip_axes[1];
-                std::cout << "box " << i << " has " << this->boxes_raw_bgr[i].size() << " pixels" << std::endl;
-                for (size_t j=0; j<this->boxes_raw_bgr[i].size(); j++) {
-                    // Perform colour transform here, so that we get a transformed blue value
-                    float b = boxes_raw_bgr[i][j][0];
-                    float g = boxes_raw_bgr[i][j][1];
-                    float r = boxes_raw_bgr[i][j][2];
-                    //std::cout << "bgr: " << b << "," << g << "," << r << std::endl;
-
-                    // 1. Translate rgb colour. NB: It's this->colour_trans
-                    float b_t = b - colour_trans[0];
-                    float g_t = g - colour_trans[1];
-                    float r_t = r - colour_trans[2];
-
-                    // 2. Rotate colour. NB: It's this->colour_rot
-                    float b_r = colour_rot[0]*b_t + colour_rot[1]*g_t + colour_rot[2]*r_t;
-                    float g_r = colour_rot[3]*b_t + colour_rot[4]*g_t + colour_rot[5]*r_t;
-                    float r_r = colour_rot[6]*b_t + colour_rot[7]*g_t + colour_rot[8]*r_t;
-                    //std::cout << "bgr transformed: " << b_r << "," << g_r << "," << r_r << std::endl;
-
-                    // if (r_r,g_r) lies inside ellipse (given by ellip_axes) then blue_transf equals b_r
-                    float blue_transf = 0.0f;
-                    float erad = ((g_r*g_r)/ellip_maj_sq) + ((r_r*r_r)/ellip_min_sq);
-                    if (erad <= 1.0f) {
-                        // Inside ellipse:
-                        blue_transf = b_r;
-                    }
-
-                    // Now apply signal conversion
-                    float signal = blue_transf - this->luminosity_cutoff;
-                    // m * (x - x_0):
-                    signal *= this->luminosity_factor;
-                    // Any signal <0 is 0.
-                    // std::cout << "signal value is " << signal << std::endl;
-                    this->means[i] += (double)(signal > 0.0f ? signal : 0.0f);
-                }
-                // Divide the signal by the number of pixels in the box
-                this->means[i] /= (double)this->boxes_raw_bgr[i].size();
-
-            } else { // Default is ColourModel::Greyscale
-
-                this->boxes_raw[i] = StaleUtil::getBoxedPixelVals (this->frame, this->boxes[i]);
-
-                for (size_t j=0; j<this->boxes_raw[i].size(); j++) {
-                    // Signal conversion is simple for monochrome pixel values:
-                    // x - x_0:
-                    float signal = this->boxes_raw[i][j] - this->luminosity_cutoff;
-                    // m * (x - x_0):
-                    signal *= this->luminosity_factor;
-                    // Any signal <0 is 0.
-                    this->means[i] += (double)(signal > 0.0f ? signal : 0.0f);
-                }
-                // Divide the signal by the number of pixels in the box
-                this->means[i] /= (double)this->boxes_raw[i].size();
-            }
-        }
-    }
-
     //! Read important data from file
     void read (morph::HdfData& df, bool oldformat=false) {
         // Note this file assumes idx has been set for the frame.
         std::string frameName = this->getFrameName();
         if (oldformat == true) {
+            std::cout << "INFO/WARNING: read() is reading old format frame names\n";
             frameName = this->getOldFrameName();
         }
 
@@ -667,6 +595,24 @@ public:
         dname = frameName + "/class/pp_idx";
         df.read_val (dname.c_str(), this->pp_idx);
 
+        // Freehand-drawn regions
+        dname = frameName + "/class/FL";
+        df.read_contained_vals (dname.c_str(), this->FL);
+        dname = frameName + "/class/FLE_n";
+        unsigned int fle_size = 0;
+        df.read_val (dname.c_str(), fle_size);
+        this->FLE.resize(fle_size);
+        for (size_t i = 0; i<fle_size; ++i) {
+            std::stringstream ss;
+            ss << frameName + "/class/FLE";
+            ss.width(3);
+            ss.fill('0');
+            ss << i;
+            std::cout << "Reading into FLE["<<i<<"] with name " << ss.str() << "\n";
+            df.read_contained_vals (ss.str().c_str(), this->FLE[i]);
+            std::cout << "FLE[i] now has size " << this->FLE[i].size() << "\n";
+        }
+
         dname = frameName + "/class/nBinsTarg";
         df.read_val (dname.c_str(), this->nBinsTarg);
         dname = frameName + "/class/binA";
@@ -688,7 +634,14 @@ public:
     }
 
     //! Write the data out to an HdfData file @df.
-    void write (morph::HdfData& df) const {
+    void write (morph::HdfData& df) {
+
+        // Update box means. not const
+        this->computeBoxMeans();
+
+        // And any freehand regions. not const
+        this->computeFreehandMeans();
+
         std::string frameName = this->getFrameName();
 
         // Write out essential information to re-load state of the application and the
@@ -708,6 +661,21 @@ public:
             ss.fill('0');
             ss << i;
             df.add_contained_vals (ss.str().c_str(), this->PP[i]);
+        }
+
+        // Freehand drawn regions
+        dname = frameName + "/class/FL";
+        df.add_contained_vals (dname.c_str(), this->FL);
+        dname = frameName + "/class/FLE_n";
+        unsigned int fle_size = this->FLE.size();
+        df.add_val (dname.c_str(), fle_size);
+        for (size_t i = 0; i<fle_size; ++i) {
+            std::stringstream ss;
+            ss << frameName + "/class/FLE";
+            ss.width(3);
+            ss.fill('0');
+            ss << i;
+            df.add_contained_vals (ss.str().c_str(), this->FLE[i]);
         }
 
         dname = frameName + "/class/pp_idx";
@@ -755,6 +723,18 @@ public:
         // this->means is vector<double>
         std::vector<double> means_autoscaled = morph::MathAlgo::autoscale (this->means, 0.0, 1.0);
         df.add_contained_vals (dname.c_str(), means_autoscaled);
+
+        // Freehand drawn regions - results
+        for (size_t ri = 0; ri < this->FL_raw.size(); ++ri) {
+            dname = frameName + "/freehand" + std::to_string(ri);
+            std::cout << "Writing out: " << dname << std::endl;
+            df.add_contained_vals (dname.c_str(), this->FL_raw[ri]);
+        }
+        dname = frameName + "/nfreehand";
+        df.add_val (dname.c_str(), static_cast<unsigned int>(this->FL_raw.size()));
+
+        dname = frameName + "/freehand_means";
+        df.add_contained_vals (dname.c_str(), this->FL_means);
 
         // Need to get from fitted to y and z. Note that fitted is in (integer) pixels...
         // vector<cv::Point> fitted;
@@ -990,6 +970,179 @@ private:
     /*!
      * Private methods
      */
+
+    //! Find a value for each pixel of image @frame within the box defined by @pp and
+    //! return this in a vector of floats, without conversion
+    std::vector<float> getBoxedPixelVals (const std::vector<cv::Point> pp) {
+        cv::Point pts[4] = {pp[0],pp[1],pp[2],pp[3]};
+        cv::Mat mask = Mat::zeros(this->frame.rows, this->frame.cols, CV_8UC3);
+        cv::fillConvexPoly (mask, pts, 4, cv::Scalar(255,255,255));
+        cv::Mat result, resultGray;
+        this->frame.copyTo (result, mask);
+        cv::cvtColor (result, resultGray, cv::COLOR_BGR2GRAY);
+        std::vector<cv::Point2i> positives;
+        cv::findNonZero (resultGray, positives);
+        std::vector<float> boxedPixelVals (positives.size());
+        for (size_t j=0; j<positives.size(); j++) {
+            cv::Scalar pixel = resultGray.at<uchar>(positives[j]);
+            boxedPixelVals[j] = (float)pixel.val[0]/* /255.0f */; // fixme: Better to do the scaling elsewhere
+        }
+        return boxedPixelVals;
+    }
+
+    //! In a box, obtain colour values as BGR float triplets
+    std::vector<std::array<float, 3>> getBoxedPixelColour (const std::vector<Point> pp) {
+        cv::Point pts[4] = {pp[0],pp[1],pp[2],pp[3]};
+        cv::Mat mask = Mat::zeros(frame.rows, frame.cols, CV_8UC3);
+        cv::fillConvexPoly (mask, pts, 4, cv::Scalar(255,255,255));
+        cv::Mat result, resultFloat, resultGray;
+        frame.copyTo (result, mask); // Note: 'result' will be in BGR format
+        cv::cvtColor (result, resultGray, cv::COLOR_BGR2GRAY);
+        result.convertTo (resultFloat, CV_32FC3);
+        std::vector<cv::Point2i> positives;
+        cv::findNonZero (resultGray/*Float*/, positives); // only for CV_8UC1 :( I want 'findNonBlack' on result
+        std::vector<std::array<float, 3>> boxedPixelVals (positives.size());
+        for (size_t j=0; j<positives.size(); j++) {
+            cv::Vec3f pixel = resultFloat.at<cv::Vec3f>(positives[j]);
+            // NB: This assumes image is in BGR format and we return in BGR format.
+            boxedPixelVals[j][0] = pixel.val[0];
+            boxedPixelVals[j][1] = pixel.val[1];
+            boxedPixelVals[j][2] = pixel.val[2];
+        }
+
+        return boxedPixelVals;
+    }
+
+    std::vector<float> getRegionPixelVals (const std::vector<cv::Point>& region) {
+        cv::Mat mask = cv::Mat::zeros(this->frame.rows, this->frame.cols, CV_8UC3);
+        std::cout << "mask rows: " << mask.rows << ", mask cols: " << mask.cols << std::endl;
+        for (auto px : region) {
+            int _col = px.x;
+            int _row = px.y;
+            mask.at<cv::Scalar>(_col, _row) = cv::Scalar(255,255,255);
+        }
+        // From here, same as getBoxedPixelVals
+        cv::Mat result, resultGray;
+        this->frame.copyTo (result, mask);
+        cv::cvtColor (result, resultGray, cv::COLOR_BGR2GRAY);
+        std::vector<cv::Point2i> positives;
+        cv::findNonZero (resultGray, positives);
+        std::vector<float> regionPixelVals (positives.size());
+        for (size_t j=0; j<positives.size(); j++) {
+            cv::Scalar pixel = resultGray.at<uchar>(positives[j]);
+            regionPixelVals[j] = (float)pixel.val[0];
+        }
+        return regionPixelVals;
+    }
+
+    void computeFreehandMeans() {
+        // Loop through FLE. For each set of points, output the points as a list and
+        // also compute the mean.
+        this->FL_means.resize (this->FLE.size());
+        this->FL_raw.resize (this->FLE.size());
+        this->FL_raw_bgr.resize (this->FLE.size());
+        for (size_t i=0; i<this->FLE.size(); i++) {
+            // region is FLE[i]
+            this->FL_means[i] = 0.0;
+
+            if (this->cmodel == ColourModel::AllenDevMouse) {
+                throw std::runtime_error ("AllenDevMouse ColourModel is not implemented for freehand regions right now");
+
+            } else { // Default is ColourModel::Greyscale
+                this->FL_raw[i] = this->getRegionPixelVals (this->FLE[i]);
+                for (size_t j=0; j<this->FL_raw[i].size(); j++) {
+                    // Signal conversion: x - x_0:
+                    float signal = this->FL_raw[i][j] - this->luminosity_cutoff;
+                    // m * (x - x_0):
+                    signal *= this->luminosity_factor;
+                    // Any signal <0 is 0.
+                    this->FL_means[i] += (double)(signal > 0.0f ? signal : 0.0f);
+                }
+                // Divide the signal by the number of pixels in the region
+                this->FL_means[i] /= (double)this->FL_raw[i].size();
+            }
+        }
+    }
+
+    //! Compute the mean values for the bins. Not const. But means don't need to be a
+    //! member as they're only computed to be written out to file.
+    void computeBoxMeans() {
+        std::cout << "Called" << std::endl;
+        this->boxes_raw.resize (this->boxes.size());
+        this->boxes_raw_bgr.resize (this->boxes.size());
+        this->means.resize (this->boxes.size());
+        for (size_t i=0; i<this->boxes.size(); i++) {
+
+            // Zero the means value
+            this->means[i] = 0.0;
+
+            // if luminance value only/greyscale:
+            if (this->cmodel == ColourModel::AllenDevMouse) {
+                // But we'll have to pass parameters for transforming the colours and
+                // determining if they're on the "expressing" axis. This will include
+                // a translate matrix, a rotation matrix and ellipse parameters,
+                // obtained from the octave script plotcolour.m
+                this->boxes_raw_bgr[i] = this->getBoxedPixelColour (this->boxes[i]);
+
+                float ellip_maj_sq = ellip_axes[0] * ellip_axes[0];
+                float ellip_min_sq = ellip_axes[1] * ellip_axes[1];
+                std::cout << "box " << i << " has " << this->boxes_raw_bgr[i].size() << " pixels" << std::endl;
+                for (size_t j=0; j<this->boxes_raw_bgr[i].size(); j++) {
+                    // Perform colour transform here, so that we get a transformed blue value
+                    float b = boxes_raw_bgr[i][j][0];
+                    float g = boxes_raw_bgr[i][j][1];
+                    float r = boxes_raw_bgr[i][j][2];
+                    //std::cout << "bgr: " << b << "," << g << "," << r << std::endl;
+
+                    // 1. Translate rgb colour. NB: It's this->colour_trans
+                    float b_t = b - colour_trans[0];
+                    float g_t = g - colour_trans[1];
+                    float r_t = r - colour_trans[2];
+
+                    // 2. Rotate colour. NB: It's this->colour_rot
+                    float b_r = colour_rot[0]*b_t + colour_rot[1]*g_t + colour_rot[2]*r_t;
+                    float g_r = colour_rot[3]*b_t + colour_rot[4]*g_t + colour_rot[5]*r_t;
+                    float r_r = colour_rot[6]*b_t + colour_rot[7]*g_t + colour_rot[8]*r_t;
+                    //std::cout << "bgr transformed: " << b_r << "," << g_r << "," << r_r << std::endl;
+
+                    // if (r_r,g_r) lies inside ellipse (given by ellip_axes) then blue_transf equals b_r
+                    float blue_transf = 0.0f;
+                    float erad = ((g_r*g_r)/ellip_maj_sq) + ((r_r*r_r)/ellip_min_sq);
+                    if (erad <= 1.0f) {
+                        // Inside ellipse:
+                        blue_transf = b_r;
+                    }
+
+                    // Now apply signal conversion
+                    float signal = blue_transf - this->luminosity_cutoff;
+                    // m * (x - x_0):
+                    signal *= this->luminosity_factor;
+                    // Any signal <0 is 0.
+                    // std::cout << "signal value is " << signal << std::endl;
+                    this->means[i] += (double)(signal > 0.0f ? signal : 0.0f);
+                }
+                // Divide the signal by the number of pixels in the box
+                this->means[i] /= (double)this->boxes_raw_bgr[i].size();
+
+            } else { // Default is ColourModel::Greyscale
+
+                this->boxes_raw[i] = this->getBoxedPixelVals (this->boxes[i]);
+
+                for (size_t j=0; j<this->boxes_raw[i].size(); j++) {
+                    // Signal conversion is simple for monochrome pixel values:
+                    // x - x_0:
+                    float signal = this->boxes_raw[i][j] - this->luminosity_cutoff;
+                    // m * (x - x_0):
+                    signal *= this->luminosity_factor;
+                    // Any signal <0 is 0.
+                    this->means[i] += (double)(signal > 0.0f ? signal : 0.0f);
+                }
+                // Divide the signal by the number of pixels in the box
+                this->means[i] /= (double)this->boxes_raw[i].size();
+            }
+        }
+    }
+
     //! Update the fit, but don't rotate. Used by rotateFitOptimally()
     void updateFit_norotate() {
         if (this->ct == CurveType::Poly) {

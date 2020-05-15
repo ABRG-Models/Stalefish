@@ -209,7 +209,6 @@ public:
     void writeFrames (void) {
         morph::HdfData d(this->datafile);
         for (auto f : this->vFrameData) {
-            f.getBoxMeans();
             f.write (d);
             // Also build up an "overall" data store of the bins
         }
