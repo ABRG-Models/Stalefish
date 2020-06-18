@@ -983,12 +983,18 @@ private:
         cv::Point pts[4] = {pp[0],pp[1],pp[2],pp[3]};
         cv::Mat mask = Mat::zeros(this->frame.rows, this->frame.cols, CV_8UC3);
         cv::fillConvexPoly (mask, pts, 4, cv::Scalar(255,255,255));
+        cv::Mat maskGray;
+        cv::cvtColor (mask, maskGray, cv::COLOR_BGR2GRAY);
+        std::vector<cv::Point2i> maskpositives;
+        cv::findNonZero (maskGray, maskpositives);
         cv::Mat result, resultGray;
         this->frame.copyTo (result, mask);
         cv::cvtColor (result, resultGray, cv::COLOR_BGR2GRAY);
         std::vector<cv::Point2i> positives;
         cv::findNonZero (resultGray, positives);
-        std::vector<float> boxedPixelVals (positives.size());
+        // As long as we make boxedPixelVals the size of the non-zeros in mask, the
+        // numbers will work out!
+        std::vector<float> boxedPixelVals (maskpositives.size());
         for (size_t j=0; j<positives.size(); j++) {
             cv::Scalar pixel = resultGray.at<uchar>(positives[j]);
             boxedPixelVals[j] = (float)pixel.val[0]/* /255.0f */; // fixme: Better to do the scaling elsewhere
