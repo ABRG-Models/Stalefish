@@ -995,9 +995,9 @@ private:
         // As long as we make boxedPixelVals the size of the non-zeros in mask, the
         // numbers will work out!
         std::vector<float> boxedPixelVals (maskpositives.size());
-        for (size_t j=0; j<positives.size(); j++) {
-            cv::Scalar pixel = resultGray.at<uchar>(positives[j]);
-            boxedPixelVals[j] = (float)pixel.val[0]/* /255.0f */; // fixme: Better to do the scaling elsewhere
+        for (size_t j=0; j<maskpositives.size(); j++) {
+            cv::Scalar pixel = resultGray.at<uchar>(maskpositives[j]);
+            boxedPixelVals[j] = (float)pixel.val[0];
         }
         return boxedPixelVals;
     }
@@ -1007,15 +1007,21 @@ private:
         cv::Point pts[4] = {pp[0],pp[1],pp[2],pp[3]};
         cv::Mat mask = Mat::zeros(frame.rows, frame.cols, CV_8UC3);
         cv::fillConvexPoly (mask, pts, 4, cv::Scalar(255,255,255));
+        //
+        cv::Mat maskGray;
+        cv::cvtColor (mask, maskGray, cv::COLOR_BGR2GRAY);
+        std::vector<cv::Point2i> maskpositives;
+        cv::findNonZero (maskGray, maskpositives);
+
         cv::Mat result, resultFloat, resultGray;
         frame.copyTo (result, mask); // Note: 'result' will be in BGR format
         cv::cvtColor (result, resultGray, cv::COLOR_BGR2GRAY);
         result.convertTo (resultFloat, CV_32FC3);
         std::vector<cv::Point2i> positives;
         cv::findNonZero (resultGray/*Float*/, positives); // only for CV_8UC1 :( I want 'findNonBlack' on result
-        std::vector<std::array<float, 3>> boxedPixelVals (positives.size());
-        for (size_t j=0; j<positives.size(); j++) {
-            cv::Vec3f pixel = resultFloat.at<cv::Vec3f>(positives[j]);
+        std::vector<std::array<float, 3>> boxedPixelVals (maskpositives.size());
+        for (size_t j=0; j<maskpositives.size(); j++) {
+            cv::Vec3f pixel = resultFloat.at<cv::Vec3f>(maskpositives[j]);
             // NB: This assumes image is in BGR format and we return in BGR format.
             boxedPixelVals[j][0] = pixel.val[0];
             boxedPixelVals[j][1] = pixel.val[1];
