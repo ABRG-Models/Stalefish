@@ -171,6 +171,14 @@ public:
         }
     }
 
+    //! Call before write to ensure boxes are all created from the current fits.
+    void refreshAllBoxes (void) {
+        int nfr = DM::i()->getNumFrames();
+        for (int f = 0; f < nfr; ++f) {
+            this->vFrameData[f].refreshBoxes (-this->vFrameData[f].binA, this->vFrameData[f].binB);
+        }
+    }
+
     //! get current frame. Short name on purpose.
     FrameData* gcf (void) {
         if (!this->vFrameData.empty()) {
@@ -208,6 +216,11 @@ public:
 
     //! Write frames to HdfData
     void writeFrames (void) {
+
+        // Call updateAllFits() before writing only to ensure that all the boxes have
+        // been refreshed. Seems these are not read out of the .h5 file. Bit of a hack, this.
+        this->refreshAllBoxes();
+
         morph::HdfData d(this->datafile);
         for (auto f : this->vFrameData) {
             f.write (d);
