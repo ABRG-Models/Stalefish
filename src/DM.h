@@ -238,6 +238,8 @@ public:
 
     //! The application window name
     const std::string winName = "StaleFish";
+    const std::string blurWin = "blurWin";
+    const std::string offsWin = "offsWin";
     //! Saved/last cursor position
     int x = 0;
     int y = 0;
@@ -315,7 +317,7 @@ public:
             std::string fn = slice.get ("filename", "unknown").asString();
             float slice_x = slice.get ("x", 0.0).asFloat();
 
-            //std::cout << "imread " << fn << std::endl;
+            std::cout << "imread " << fn << std::endl;
             cv::Mat frame = cv::imread (fn.c_str(), cv::IMREAD_COLOR);
             if (frame.empty()) {
                 std::cout <<  "Could not open or find the image '" << fn << "', exiting." << std::endl;
@@ -343,6 +345,10 @@ public:
 
         //cv::namedWindow (this->winName, cv::WINDOW_AUTOSIZE);
         cv::namedWindow (this->winName, cv::WINDOW_NORMAL|cv::WINDOW_FREERATIO);
+        cv::namedWindow (this->blurWin, cv::WINDOW_NORMAL|cv::WINDOW_FREERATIO);
+        cv::setWindowTitle (this->blurWin, "Gaussian blur");
+        cv::namedWindow (this->offsWin, cv::WINDOW_NORMAL|cv::WINDOW_FREERATIO);
+        cv::setWindowTitle (this->offsWin, "mRNA signal");
         // Make sure there's an image in DM to start with
         this->cloneFrame();
         cv::setMouseCallback (this->winName, DM::onmouse, this->getImg());
@@ -590,6 +596,8 @@ public:
         }
 
         imshow (_this->winName, *pImg);
+        imshow (_this->blurWin, *cf->getBlur());
+        imshow (_this->offsWin, *cf->getFrameOffs());
     }
 
     //! On any trackbar changing, refresh the boxes

@@ -145,7 +145,7 @@ int main (int argc, char** argv)
         visId = v.addVisualModel (new morph::PointRowsVisual<float> (v.shaderprog,
                                                                      &points, offset,
                                                                      &means, scale,
-                                                                     morph::ColourMapType::Plasma));
+                                                                     morph::ColourMapType::MonochromeBlue));
 
         cout << "Added Visual with visId " << visId << endl;
 

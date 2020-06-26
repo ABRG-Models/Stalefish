@@ -13,10 +13,15 @@ import sys
 
 # Get a file name from the cmd line
 if len(sys.argv) < 2:
-    print ('Usage: {0} path/to/experiment.h5'.format (sys.argv[0]))
+    print ('Usage: {0} path/to/experiment.h5 [n]'.format (sys.argv[0]))
+    print ('[n]: (optional) 1 shows un-autoscaled signal; 2 shows autoscaled signal')
     exit(0)
 
 filename = sys.argv[1]
+n = 3
+if len(sys.argv) > 2:
+    n = int(sys.argv[2])
+print ('n is {0}'.format(n))
 
 with h5py.File (filename, 'r') as f:
     #print("Keys: {0}".format(list(f.keys())))
@@ -76,52 +81,63 @@ with h5py.File (filename, 'r') as f:
     # awful results. Instead, plot each x/y as a rectangle with colour
     # given by means.
     F = plt.figure()
-    F.add_subplot (2,1,1)
-    plt.title('Flattened heat plot')
-    for ii in range(0,len(x)): # len(x) is the number of frames.
-        # Within each frame, make polygons
-        x_l = np.array(x[ii])
-        x_r = np.add (np.array(x[ii]), np.array(thicks[ii]))
-        y_ar = np.array(y[ii]) # convert the list y[ii] into a np array
-        y_t = y_ar + (shift(y_ar, -1, cval=y_ar[-1]) - y_ar) / 2.0 # half way between y and the next y
-        y_b = y_ar - (y_ar - shift(y_ar, 1, cval=y_ar[0])) / 2. # half way between y and the previous y
+    if n == 3:
+        F.add_subplot (2,1,1)
+    elif n == 1:
+        F.add_subplot (1,1,1)
 
-        for jj in range(0,len(x[ii])): # len(x[ii]) is the number of bins in a frame
-            # Boxes have vertices: (x_l,y_b) -> (x_r,y_b) -> (x_r,y_t) -> (x_l,y_t)
-            v = np.array([ [ x_l[jj], y_b[jj] ], # v stands for 'vertices'
-                           [ x_r[jj],  y_b[jj] ],
-                           [ x_r[jj], y_t[jj] ],
-                           [ x_l[jj], y_t[jj] ] ])
-            poly = Polygon (v, facecolor=mpl.cm.Greys(means[ii][jj]), edgecolor='None')
-            plt.gca().add_patch(poly)
+    if n == 3 or n == 1:
+        plt.title('Flattened heat plot')
+        for ii in range(0,len(x)): # len(x) is the number of frames.
+            # Within each frame, make polygons
+            x_l = np.array(x[ii])
+            x_r = np.add (np.array(x[ii]), np.array(thicks[ii]))
+            y_ar = np.array(y[ii]) # convert the list y[ii] into a np array
+            y_t = y_ar + (shift(y_ar, -1, cval=y_ar[-1]) - y_ar) / 2.0 # half way between y and the next y
+            y_b = y_ar - (y_ar - shift(y_ar, 1, cval=y_ar[0])) / 2. # half way between y and the previous y
 
-
-    plt.xlabel('x')
-    plt.ylabel('y')
-    plt.autoscale()
-
-    F.add_subplot (2,1,2)
-    plt.title('Flattened heat plot (autoscale)')
-    for ii in range(0,len(x)): # len(x) is the number of frames.
-        # Within each frame, make polygons
-        x_l = np.array(x[ii])
-        x_r = np.add (np.array(x[ii]), np.array(thicks[ii]))
-        y_ar = np.array(y[ii]) # convert the list y[ii] into a np array
-        y_t = y_ar + (shift(y_ar, -1, cval=y_ar[-1]) - y_ar) / 2.0 # half way between y and the next y
-        y_b = y_ar - (y_ar - shift(y_ar, 1, cval=y_ar[0])) / 2. # half way between y and the previous y
-
-        for jj in range(0,len(x[ii])): # len(x[ii]) is the number of bins in a frame
-            # Boxes have vertices: (x_l,y_b) -> (x_r,y_b) -> (x_r,y_t) -> (x_l,y_t)
-            v = np.array([ [ x_l[jj], y_b[jj] ], # v stands for 'vertices'
-                           [ x_r[jj],  y_b[jj] ],
-                           [ x_r[jj], y_t[jj] ],
-                           [ x_l[jj], y_t[jj] ] ])
-            poly = Polygon (v, facecolor=mpl.cm.Greys(means_autoscaled[ii][jj]), edgecolor='None')
-            plt.gca().add_patch(poly)
+            for jj in range(0,len(x[ii])): # len(x[ii]) is the number of bins in a frame
+                # Boxes have vertices: (x_l,y_b) -> (x_r,y_b) -> (x_r,y_t) -> (x_l,y_t)
+                v = np.array([ [ x_l[jj], y_b[jj] ], # v stands for 'vertices'
+                                   [ x_r[jj],  y_b[jj] ],
+                                   [ x_r[jj], y_t[jj] ],
+                                   [ x_l[jj], y_t[jj] ] ])
+                poly = Polygon (v, facecolor=mpl.cm.Greys(means[ii][jj]), edgecolor='None')
+                plt.gca().add_patch(poly)
 
 
-    plt.xlabel('x')
-    plt.ylabel('y')
-    plt.autoscale()
+        plt.xlabel('x')
+        plt.ylabel('y')
+        plt.autoscale()
+
+    if n == 3:
+        F.add_subplot (2,1,2)
+    elif n == 2:
+        F.add_subplot (1,1,1)
+
+    if n == 3 or n == 2:
+        plt.title('Flattened heat plot (autoscale)')
+        for ii in range(0,len(x)): # len(x) is the number of frames.
+            # Within each frame, make polygons
+            x_l = np.array(x[ii])
+            x_r = np.add (np.array(x[ii]), np.array(thicks[ii]))
+            y_ar = np.array(y[ii]) # convert the list y[ii] into a np array
+            y_t = y_ar + (shift(y_ar, -1, cval=y_ar[-1]) - y_ar) / 2.0 # half way between y and the next y
+            y_b = y_ar - (y_ar - shift(y_ar, 1, cval=y_ar[0])) / 2. # half way between y and the previous y
+
+            for jj in range(0,len(x[ii])): # len(x[ii]) is the number of bins in a frame
+                # Boxes have vertices: (x_l,y_b) -> (x_r,y_b) -> (x_r,y_t) -> (x_l,y_t)
+                v = np.array([ [ x_l[jj], y_b[jj] ], # v stands for 'vertices'
+                               [ x_r[jj],  y_b[jj] ],
+                               [ x_r[jj], y_t[jj] ],
+                               [ x_l[jj], y_t[jj] ] ])
+                poly = Polygon (v, facecolor=mpl.cm.Greys(means_autoscaled[ii][jj]), edgecolor='None')
+                plt.gca().add_patch(poly)
+
+
+        plt.xlabel('x')
+        plt.ylabel('y')
+        plt.autoscale()
+
     plt.tight_layout()
     plt.show()

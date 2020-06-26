@@ -150,6 +150,10 @@ public:
     std::bitset<8> flags;
     //! The image data, required when sampling the image in one of the boxes.
     cv::Mat frame;
+    //! A blurred copy of the image data
+    cv::Mat blurred;
+    //! The frame, with the blurred background offset
+    cv::Mat frame_bgoff;
     //! The frame image filename from which frame was loaded. Stored so it can be
     //! recorded when writing out.
     std::string filename;
@@ -193,6 +197,58 @@ public:
         this->flags.set (ShowFits);
         this->flags.set (ShowUsers);
         this->flags.set (ShowBoxes);
+
+        // Make a blurred copy of the frame, for estimating lighting background
+        this->blurred = Mat::zeros (this->frame.rows, this->frame.cols, CV_8UC3);
+        cv::Size ksz;
+        ksz.width = this->frame.cols/3;
+        ksz.width += (ksz.width%2 == 1) ? 0 : 1; // ensure ksz.width is odd
+        ksz.height = this->frame.rows/3;
+        ksz.height += (ksz.height%2 == 1) ? 0 : 1;
+        double sigma = (double)this->frame.cols/6.0;
+        cv::GaussianBlur (this->frame, this->blurred, ksz, sigma);
+
+        // Now subtract the blur from the original
+        //cv::Mat constMat;
+        //constMat = Mat::ones (this->frame.rows, this->frame.cols, CV_8UC3);
+        //constMat *= 176;
+        //cv::Mat tmp1;
+        //cv::subtract (constMat, this->blurred, tmp1, cv::noArray(), CV_8UC3); // CV_32SC3
+        //cv::add (this->frame, tmp1, this->frame_bgoff, cv::noArray(), CV_8UC3);
+
+        this->frame_bgoff = this->frame + (255-this->blurred);
+
+        // What's max of this->frame?
+        int minval = 100000;
+        int maxval = -100000;
+        int minblur = 100000;
+        int maxblur = -100000;
+        int minoffs = 100000;
+        int maxoffs = -100000;
+        for (int r = 0; r < this->frame.rows; ++r) {
+            for (int c = 0; c < this->frame.cols; ++c) {
+                int val = (int)this->frame.at<cv::Vec3b>(r,c)[0];
+                int blurval = (int)this->blurred.at<cv::Vec3b>(r,c)[0];
+                //std::cout << "frame_bgoff: (" << (int)this->frame_bgoff.at<cv::Vec3i>(r,c)[0]
+                //          << ", " <<  (int)this->frame_bgoff.at<cv::Vec3i>(r,c)[0]
+                //          << ", " <<  (int)this->frame_bgoff.at<cv::Vec3i>(r,c)[0] << ")\n";
+                int offsval = (int)this->frame_bgoff.at<cv::Vec3i>(r,c)[0];
+                minval = val < minval ? val : minval;
+                maxval = val > maxval ? val : maxval;
+                minblur = blurval < minblur ? blurval : minblur;
+                maxblur = blurval > maxblur ? blurval : maxblur;
+                minoffs = offsval < minoffs ? offsval : minoffs;
+                maxoffs = offsval > maxoffs ? offsval : maxoffs;
+            }
+        }
+        std::cout << "minval: " << minval << " and maxval: " << maxval << std::endl;
+        std::cout << "minblurval: " << minblur << " and maxblurval: " << maxblur << std::endl;
+        std::cout << "minoffsval: " << minoffs << " and maxoffsval: " << maxoffs << std::endl;
+        //cv::Vec3i vi = {minoffs, minoffs, minoffs};
+        //std::cout << "add..." << std::endl;
+        //cv::add (vi, this->frame_bgoff, this->frame_bgoff, cv::noArray(), CV_32SC3);
+        //std::cout << "convertTo..." << std::endl;
+        //this->frame_bgoff.convertTo (this->frame_bgoff, CV_8UC3);
     };
 
     //! Set the number of bins and update the size of the various containers
@@ -210,6 +266,13 @@ public:
         this->pointsOuter.resize (this->nFit);
         this->tangents.resize (this->nFit);
         this->normals.resize (this->nFit);
+    }
+
+    cv::Mat* getBlur() {
+        return &this->blurred;
+    }
+    cv::Mat* getFrameOffs() {
+        return &this->frame_bgoff;
     }
 
     //! Getter for nBins
@@ -977,18 +1040,29 @@ private:
      * Private methods
      */
 
+    //! Blur the image and use the blurred result to estimate the overall background
+    //! luminance, which may vary due to the arrangement of lighting when the brain
+    //! slices were imaged.
+    void estimateBackgroundLuminance() {
+        cv::Mat blurred = Mat::zeros (this->frame.rows, this->frame.cols, CV_8UC3);
+        cv::Size ksz;
+        ksz.width = 21;
+        ksz.height = 21;
+        cv::GaussianBlur (this->frame, blurred, ksz, 2.0);
+    }
+
     //! Find a value for each pixel of image @frame within the box defined by @pp and
     //! return this in a vector of floats, without conversion
     std::vector<float> getBoxedPixelVals (const std::vector<cv::Point> pp) {
         cv::Point pts[4] = {pp[0],pp[1],pp[2],pp[3]};
-        cv::Mat mask = Mat::zeros(this->frame.rows, this->frame.cols, CV_8UC3);
+        cv::Mat mask = Mat::zeros(this->frame_bgoff.rows, this->frame_bgoff.cols, CV_8UC3);
         cv::fillConvexPoly (mask, pts, 4, cv::Scalar(255,255,255));
         cv::Mat maskGray;
         cv::cvtColor (mask, maskGray, cv::COLOR_BGR2GRAY);
         std::vector<cv::Point2i> maskpositives;
         cv::findNonZero (maskGray, maskpositives);
         cv::Mat result, resultGray;
-        this->frame.copyTo (result, mask);
+        this->frame_bgoff.copyTo (result, mask);
         cv::cvtColor (result, resultGray, cv::COLOR_BGR2GRAY);
         std::vector<cv::Point2i> positives;
         cv::findNonZero (resultGray, positives);
@@ -1146,12 +1220,17 @@ private:
 
                 this->boxes_raw[i] = this->getBoxedPixelVals (this->boxes[i]);
 
+                this->estimateBackgroundLuminance();
+
                 for (size_t j=0; j<this->boxes_raw[i].size(); j++) {
                     // Signal conversion is simple for monochrome pixel values:
                     // x - x_0:
+                    //std::cout << "boxes_raw[i="<<i<<"][j="<<j<<"]="<<this->boxes_raw[i][j];
                     float signal = this->boxes_raw[i][j] - this->luminosity_cutoff;
+                    //std::cout << ", signal=" << signal << std::endl;
                     // m * (x - x_0):
                     signal *= this->luminosity_factor;
+                    //std::cout << "signal*luminosity_factor=" << signal << std::endl;
                     // Any signal <0 is 0.
                     this->means[i] += (double)(signal > 0.0f ? signal : 0.0f);
                 }
