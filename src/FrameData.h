@@ -232,7 +232,7 @@ public:
                 //std::cout << "frame_bgoff: (" << (int)this->frame_bgoff.at<cv::Vec3i>(r,c)[0]
                 //          << ", " <<  (int)this->frame_bgoff.at<cv::Vec3i>(r,c)[0]
                 //          << ", " <<  (int)this->frame_bgoff.at<cv::Vec3i>(r,c)[0] << ")\n";
-                int offsval = (int)this->frame_bgoff.at<cv::Vec3i>(r,c)[0];
+                int offsval = (int)this->frame_bgoff.at<cv::Vec3b>(r,c)[0];
                 minval = val < minval ? val : minval;
                 maxval = val > maxval ? val : maxval;
                 minblur = blurval < minblur ? blurval : minblur;
