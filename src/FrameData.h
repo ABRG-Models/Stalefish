@@ -1084,6 +1084,7 @@ private:
         cv::findNonZero (maskGray, maskpositives);
 
         cv::Mat result, resultFloat, resultGray;
+        // Fixme: Can probably copy frameF to result, which is already in floating point format.
         frame.copyTo (result, mask); // Note: 'result' will be in BGR format
         cv::cvtColor (result, resultGray, cv::COLOR_BGR2GRAY);
         result.convertTo (resultFloat, CV_32FC3);
