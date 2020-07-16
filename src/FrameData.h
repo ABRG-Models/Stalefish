@@ -148,11 +148,13 @@ public:
 
     //! A bit set containing flags
     std::bitset<8> flags;
-    //! The image data, required when sampling the image in one of the boxes.
+    //! The image data, required when sampling the image in one of the boxes. CV_8UC3
     cv::Mat frame;
-    //! A blurred copy of the image data
+    //! A copy of the image data in float format (in range 0 to 1, rather than 0 to 255). CV_32FC3
+    cv::Mat frameF;
+    //! A blurred copy of the image data. CV_32FC3.
     cv::Mat blurred;
-    //! The frame, with the blurred background offset
+    //! The frame, with the blurred background offset. CV_32FC3.
     cv::Mat frame_bgoff;
     //! The frame image filename from which frame was loaded. Stored so it can be
     //! recorded when writing out.
@@ -188,6 +190,8 @@ public:
         this->previous = -1;
         this->parentStack = (std::vector<FrameData>*)0;
         this->frame = fr.clone();
+        // Scale and convert frame to float format
+        this->frame.convertTo (this->frameF, CV_32FC3, 1/255.0);
         this->axiscoefs.resize (2, 0.0);
         this->axis.resize (2);
         // NB: Init these before the next three resize() calls
@@ -198,58 +202,30 @@ public:
         this->flags.set (ShowUsers);
         this->flags.set (ShowBoxes);
 
-        // Make a blurred copy of the frame, for estimating lighting background
-        this->blurred = Mat::zeros (this->frame.rows, this->frame.cols, CV_8UC3);
+        // Make a blurred copy of the floating point format frame, for estimating lighting background
+        this->blurred = Mat::zeros (this->frameF.rows, this->frameF.cols, CV_32FC3);
         cv::Size ksz;
-        ksz.width = this->frame.cols/3;
+        ksz.width = this->frameF.cols/3;
         ksz.width += (ksz.width%2 == 1) ? 0 : 1; // ensure ksz.width is odd
-        ksz.height = this->frame.rows/3;
+        ksz.height = this->frameF.rows/3;
         ksz.height += (ksz.height%2 == 1) ? 0 : 1;
-        double sigma = (double)this->frame.cols/6.0;
-        cv::GaussianBlur (this->frame, this->blurred, ksz, sigma);
+        double sigma = (double)this->frameF.cols/6.0;
+        cv::GaussianBlur (this->frameF, this->blurred, ksz, sigma);
 
         // Now subtract the blur from the original
-        //cv::Mat constMat;
-        //constMat = Mat::ones (this->frame.rows, this->frame.cols, CV_8UC3);
-        //constMat *= 176;
-        //cv::Mat tmp1;
-        //cv::subtract (constMat, this->blurred, tmp1, cv::noArray(), CV_8UC3); // CV_32SC3
-        //cv::add (this->frame, tmp1, this->frame_bgoff, cv::noArray(), CV_8UC3);
-
-        this->frame_bgoff = this->frame + (255-this->blurred);
-
-        // What's max of this->frame?
-        int minval = 100000;
-        int maxval = -100000;
-        int minblur = 100000;
-        int maxblur = -100000;
-        int minoffs = 100000;
-        int maxoffs = -100000;
-        for (int r = 0; r < this->frame.rows; ++r) {
-            for (int c = 0; c < this->frame.cols; ++c) {
-                int val = (int)this->frame.at<cv::Vec3b>(r,c)[0];
-                int blurval = (int)this->blurred.at<cv::Vec3b>(r,c)[0];
-                //std::cout << "frame_bgoff: (" << (int)this->frame_bgoff.at<cv::Vec3i>(r,c)[0]
-                //          << ", " <<  (int)this->frame_bgoff.at<cv::Vec3i>(r,c)[0]
-                //          << ", " <<  (int)this->frame_bgoff.at<cv::Vec3i>(r,c)[0] << ")\n";
-                int offsval = (int)this->frame_bgoff.at<cv::Vec3b>(r,c)[0];
-                minval = val < minval ? val : minval;
-                maxval = val > maxval ? val : maxval;
-                minblur = blurval < minblur ? blurval : minblur;
-                maxblur = blurval > maxblur ? blurval : maxblur;
-                minoffs = offsval < minoffs ? offsval : minoffs;
-                maxoffs = offsval > maxoffs ? offsval : maxoffs;
-            }
-        }
-        std::cout << "minval: " << minval << " and maxval: " << maxval << std::endl;
-        std::cout << "minblurval: " << minblur << " and maxblurval: " << maxblur << std::endl;
-        std::cout << "minoffsval: " << minoffs << " and maxoffsval: " << maxoffs << std::endl;
-        //cv::Vec3i vi = {minoffs, minoffs, minoffs};
-        //std::cout << "add..." << std::endl;
-        //cv::add (vi, this->frame_bgoff, this->frame_bgoff, cv::noArray(), CV_32SC3);
-        //std::cout << "convertTo..." << std::endl;
-        //this->frame_bgoff.convertTo (this->frame_bgoff, CV_8UC3);
-    };
+        cv::Mat tmp1;
+        // An offset so that we don't lose very small amounts of signal above the
+        // background when we subtract the blurred version of the image. To become a
+        // parameter for the user to modify at application level.
+        float _offset = 225.0f;
+        cv::subtract (_offset/255.0f, this->blurred, tmp1, cv::noArray(), CV_32FC3);
+        // show max mins (For debugging)
+        this->showMaxMin (this->blurred, "this->blurred");
+        this->showMaxMin (tmp1, "tmp1 (const-blurred)");
+        // Add tmp1 to this->frameF to get frame_bgoff.
+        cv::add (this->frameF, tmp1, this->frame_bgoff, cv::noArray(), CV_32FC3);
+        this->showMaxMin (this->frame_bgoff, "frame_bgoff");
+    }
 
     //! Set the number of bins and update the size of the various containers
     void setBins (unsigned int num) {
@@ -266,6 +242,21 @@ public:
         this->pointsOuter.resize (this->nFit);
         this->tangents.resize (this->nFit);
         this->normals.resize (this->nFit);
+    }
+
+    //! Show the max and the min of a
+    void showMaxMin (const cv::Mat& m, const std::string& matlabel = "(unknown)") {
+        float minm = 100.0f;
+        float maxm = -100.0f;
+        for (int r = 0; r < m.rows; ++r) {
+            for (int c = 0; c < m.cols; ++c) {
+                //std::cout << "Frame("<<r<<","<<c<<") = " << m.at< cv::Vec<float, 3> >(r,c) << "\n";
+                float val = (float)m.at< cv::Vec<float, 3> >(r,c)[0];
+                minm = val < minm ? val : minm;
+                maxm = val > maxm ? val : maxm;
+            }
+        }
+        std::cout << "The matrix " << matlabel << "  has min/max: " << minm << "/" << maxm << std::endl;
     }
 
     cv::Mat* getBlur() {
@@ -1055,14 +1046,19 @@ private:
     //! return this in a vector of floats, without conversion
     std::vector<float> getBoxedPixelVals (const std::vector<cv::Point> pp) {
         cv::Point pts[4] = {pp[0],pp[1],pp[2],pp[3]};
-        cv::Mat mask = Mat::zeros(this->frame_bgoff.rows, this->frame_bgoff.cols, CV_8UC3);
+
+        // Convert frame_bgoff to uchar, multiplying by 255 on the way:
+        cv::Mat frame_bgoffU;
+        this->frame_bgoff.convertTo (frame_bgoffU, CV_8UC3, 255.0);
+
+        cv::Mat mask = Mat::zeros(frame_bgoffU.rows, frame_bgoffU.cols, CV_8UC3);
         cv::fillConvexPoly (mask, pts, 4, cv::Scalar(255,255,255));
         cv::Mat maskGray;
         cv::cvtColor (mask, maskGray, cv::COLOR_BGR2GRAY);
         std::vector<cv::Point2i> maskpositives;
         cv::findNonZero (maskGray, maskpositives);
         cv::Mat result, resultGray;
-        this->frame_bgoff.copyTo (result, mask);
+        frame_bgoffU.copyTo (result, mask);
         cv::cvtColor (result, resultGray, cv::COLOR_BGR2GRAY);
         std::vector<cv::Point2i> positives;
         cv::findNonZero (resultGray, positives);
