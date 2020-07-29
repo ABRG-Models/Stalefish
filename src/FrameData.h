@@ -736,6 +736,11 @@ public:
             ss.fill('0');
             ss << i;
             df.add_contained_vals (ss.str().c_str(), this->FLE[i]);
+            // Add the centroid (though not under /class/, as this is for the user)
+            cv::Point cntroid = morph::MathAlgo::centroid (this->FLE[i]);
+            std::stringstream cntss;
+            cntss << frameName + "/freehand" << std::to_string(i) << "_centroid";
+            df.add_contained_vals (cntss.str().c_str(), cntroid);
         }
 
         dname = frameName + "/class/pp_idx";
