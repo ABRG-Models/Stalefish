@@ -70,7 +70,7 @@ public:
     int polyOrder;
     //! A rotation is applied to the points before calling polyfit, after which fitted
     //! points are rotated back again.
-    double theta;
+    double theta = 0.0;
     //! Min and max value used as input to polyfit
     double minX, maxX;
     //! The parameters of a polyfit, as returned by polyfit()
@@ -736,11 +736,6 @@ public:
             ss.fill('0');
             ss << i;
             df.add_contained_vals (ss.str().c_str(), this->FLE[i]);
-            // Add the centroid (though not under /class/, as this is for the user)
-            cv::Point cntroid = morph::MathAlgo::centroid (this->FLE[i]);
-            std::stringstream cntss;
-            cntss << frameName + "/freehand" << std::to_string(i) << "_centroid";
-            df.add_contained_vals (cntss.str().c_str(), cntroid);
         }
 
         dname = frameName + "/class/pp_idx";
@@ -800,6 +795,23 @@ public:
 
         dname = frameName + "/freehand_means";
         df.add_contained_vals (dname.c_str(), this->FL_means);
+
+        // Add the centroid of the freehand regions (in the y-z or 'in-slice' plane)
+        for (size_t i = 0; i<fle_size; ++i) {
+            cv::Point cntroid = morph::MathAlgo::centroid (this->FLE[i]);
+            std::stringstream cntss;
+            cntss << frameName + "/freehand" << std::to_string(i) << "_centroid";
+
+            // Offset and scale cntroid suitably (from screen pixels to mm in the slice
+            // plane), before saving
+            std::cout << "centroid in screen pix: " << cntroid << std::endl;
+            cv::Point2d coff = this->offsetPoint (cntroid);
+            std::cout << "centroid in scaled pix: " << coff << std::endl;
+            cv::Point2d coffrot = this->rotate (this->theta, coff);
+            std::cout << "centroid in scaled pix, rotated: " << coffrot << std::endl;
+
+            df.add_contained_vals (cntss.str().c_str(), coffrot);
+        }
 
         // Need to get from fitted to y and z. Note that fitted is in (integer) pixels...
         // vector<cv::Point> fitted;
@@ -1251,7 +1263,7 @@ private:
         }
     }
 
-    //! Update the fit, scale and rotate by @_theta. Used by rotateFitOptimally()
+    //! Update the fit, scale and rotate by \a _theta. Used by rotateFitOptimally()
     void updateFit (double _theta) {
         if (this->ct == CurveType::Poly) {
             this->updateFitPoly();
@@ -1347,9 +1359,24 @@ private:
         }
     }
 
+    //! Move the point \a pt in 'screen pixels', offsetting by the centroid of the
+    //! fitted Bezier curve (if applicable) and scaled by this->pixels_per_mm.
+    cv::Point2d offsetPoint (const cv::Point& pt)
+    {
+        // Apply offset and scale
+        cv::Point2d fd;
+        fd.x = (double)pt.x;
+        fd.y = (double)pt.y;
+        if (this->pixels_per_mm == 0) {
+            std::cerr << "WARNING: pixels_per_mm is 0, will get divide by zero..." << std::endl;
+        }
+        cv::Point2d rtn = (fd - this->fit_centroid) / this->pixels_per_mm;
+        return rtn;
+    }
+
     //! Compute a sum of squared distances between the points in this fit and the
     //! points in the previous fit
-    double computeSosWithPrev (double theta_) {
+    double computeSosWithPrev (double _theta) {
 
         if (this->previous < 0) {
             return std::numeric_limits<double>::max();
@@ -1360,7 +1387,7 @@ private:
             return std::numeric_limits<double>::max();
         }
 
-        this->rotate (theta_);
+        this->rotate (_theta);
 
         double sos = 0.0;
         for (int i = 0; i < this->nFit; ++i) {
@@ -1371,14 +1398,14 @@ private:
             //std::cout << "sos += " << d_ << ", ";
             sos += d_;
         }
-        //std::cout << "\nFor rotation angle " << theta_ << " returning sos=" << sos << std::endl;
+        //std::cout << "\nFor rotation angle " << _theta << " returning sos=" << sos << std::endl;
         return sos;
     }
 
     //! Rotate the points in this->fitted_offset by theta about the origin and store
     //! the result in this->fitted_rotated
-    void rotate (double theta) {
-        if (theta == 0.0) {
+    void rotate (double _theta) {
+        if (_theta == 0.0) {
             for (int i = 0; i < this->nFit; ++i) {
                 this->fitted_rotated[i] = this->fitted_offset[i];
             }
@@ -1388,11 +1415,30 @@ private:
         for (int i = 0; i < this->nFit; ++i) {
             double xi = this->fitted_offset[i].x;
             double yi = this->fitted_offset[i].y;
-            double sin_theta = sin (theta);
-            double cos_theta = cos (theta);
+            double sin_theta = sin (_theta);
+            double cos_theta = cos (_theta);
             this->fitted_rotated[i].x = xi * cos_theta - yi * sin_theta;
             this->fitted_rotated[i].y = xi * sin_theta + yi * cos_theta;
         }
+    }
+
+    //! Rotate the point \a pt by theta about the origin, returning rotated point
+    cv::Point2d rotate (double _theta, cv::Point2d pt)
+    {
+        cv::Point2d rtn = pt;
+
+        if (_theta == 0.0) {
+            return rtn;
+        }
+
+        double xi = pt.x;
+        double yi = pt.y;
+        double sin_theta = sin (_theta);
+        double cos_theta = cos (_theta);
+        rtn.x = xi * cos_theta - yi * sin_theta;
+        rtn.y = xi * sin_theta + yi * cos_theta;
+
+        return rtn;
     }
 
     //! Rotate the fit until we get the best one.
