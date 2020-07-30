@@ -89,7 +89,7 @@ public:
      */
     void addFrame (cv::Mat& frameImg, const std::string& frameImgFilename, const float& slice_x) {
         //std::cout << "********** DM::addFrame ***********" << std::endl;
-        FrameData fd(frameImg, this->bgBlurScreenProportion);
+        FrameData fd(frameImg, this->bgBlurScreenProportion, this->bgBlurSubtractionOffset);
         fd.ct = this->default_mode;
         fd.filename = frameImgFilename;
         fd.setParentStack (&this->vFrameData);
@@ -265,6 +265,9 @@ public:
     //! luminance is the framewidth in pixels multiplied by this number.
     double bgBlurScreenProportion = 0.1667;
 
+    //! A subtraction offset used when subtracting blurred background signal from image
+    float bgBlurSubtractionOffset = 255.0;
+
     //! Application setup
     void setup (const std::string& paramsfile) {
 
@@ -289,7 +292,7 @@ public:
 
         // Set parameters for background offsetting.
         this->bgBlurScreenProportion = conf.getDouble ("bg_blur_screen_proportion", 0.1667);
-        std::cout << "bgBlurScreenProportion = " <<  this->bgBlurScreenProportion << std::endl;
+        this->bgBlurSubtractionOffset = conf.getDouble ("bg_blur_subtraction_offset", 255.0f);
 
         // Alternatives for default_mode_str: polynomial or freehand
         std::string default_mode_str = conf.getString ("mode", "bezier");

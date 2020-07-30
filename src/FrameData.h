@@ -156,6 +156,8 @@ public:
     cv::Mat blurred;
     //! Sets the width of the blurring Gaussian's sigma
     double bgBlurScreenProportion = 0.1667;
+    //! An offset used when subtracting blurred BG from image.
+    float bgBlurSubtractionOffset = 255.0f;
     //! The frame, with the blurred background offset. CV_32FC3.
     cv::Mat frame_bgoff;
     //! The frame image filename from which frame was loaded. Stored so it can be
@@ -183,11 +185,15 @@ public:
     //@}
 
 public:
-    FrameData() {
+    FrameData()
+    {
         throw std::runtime_error ("Default constructor is not allowed");
     }
     //! Constructor initializes default values
-    FrameData (const cv::Mat& fr, const double _bgBlurScreenProportion) {
+    FrameData (const cv::Mat& fr,
+               const double _bgBlurScreenProportion,
+               const float _bgBlurSubtractionOffset)
+    {
         // init previous to null.
         this->previous = -1;
         this->parentStack = (std::vector<FrameData>*)0;
@@ -222,8 +228,12 @@ public:
         // An offset so that we don't lose very small amounts of signal above the
         // background when we subtract the blurred version of the image. To become a
         // parameter for the user to modify at application level.
-        float _offset = 225.0f;
-        cv::subtract (_offset/255.0f, this->blurred, tmp1, cv::noArray(), CV_32FC3);
+        if (_bgBlurSubtractionOffset < 0.0f || _bgBlurSubtractionOffset > 255.0f) {
+            throw std::runtime_error ("The bg blur subtraction offset should be in range [0,255]");
+        }
+        this->bgBlurSubtractionOffset = _bgBlurSubtractionOffset;
+        cv::subtract (this->bgBlurSubtractionOffset/255.0f, this->blurred,
+                      tmp1, cv::noArray(), CV_32FC3);
         // show max mins (For debugging)
         this->showMaxMin (this->blurred, "this->blurred");
         this->showMaxMin (tmp1, "tmp1 (const-blurred)");
