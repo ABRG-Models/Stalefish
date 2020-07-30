@@ -828,6 +828,12 @@ public:
             df.add_contained_vals (cntss.str().c_str(), coffrot);
         }
 
+        // Write the BG blurring parameters
+        dname = frameName + "/bg_blur_screen_proportion";
+        df.add_val (dname.c_str(), this->bgBlurScreenProportion);
+        dname = frameName + "/bg_blur_subtraction_offset";
+        df.add_val (dname.c_str(), this->bgBlurSubtractionOffset);
+
         // Need to get from fitted to y and z. Note that fitted is in (integer) pixels...
         // vector<cv::Point> fitted;
         //
