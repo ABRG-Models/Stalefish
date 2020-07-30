@@ -1,16 +1,26 @@
 {
-    // The thickness of a brain slice, assuming they'll all be the same.
+    "desc_thickness" : "The thickness of a brain slice, assuming they'll all be the same.",
+
     "thickness" : 0.05,
 
-    // How many pixels in the image corresponds to 1 mm? True in horz(y) and vert(z) directions equally?
+    "desc_pixels_per_mm" : "How many pixels in the image corresponds to 1 mm? Assumed to apply equally to horz(y) and vert(z) directions.",
+
     "pixels_per_mm" : 233,
 
-    // The brain slices in the y-z plane, where y points to the
-    // anterior, z points dorsally (and so x is the lateral dimension).
+    "desc_bg_blur" : "bg_blur_screen_proportion is multiplied by the width of the image in pixels to get a sigma for the Gaussian which is used to blur the image to subtract the background.",
+
+    "bg_blur_screen_proportion" : 0.1667,
+
+    "desc_bg_offset" : "...",
+
+    "bg_offset" : 236,
+
+    "desc_slices" : "The brain slices in the y-z plane, where y points to the anterior, z points dorsally (and so x is the lateral dimension).",
+
     "slices": [
         { "filename" : "data/testimg1.tif", "x" : 0.0   },
         { "filename" : "data/testimg2.tif", "x" : 0.05  },
         { "filename" : "data/testimg3.tif", "x" : 0.1   },
         { "filename" : "data/testimg4.tif", "x" : 0.15  }
-    ] // end
+    ]
 }

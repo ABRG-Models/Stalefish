@@ -89,7 +89,7 @@ public:
      */
     void addFrame (cv::Mat& frameImg, const std::string& frameImgFilename, const float& slice_x) {
         //std::cout << "********** DM::addFrame ***********" << std::endl;
-        FrameData fd(frameImg);
+        FrameData fd(frameImg, this->bgBlurScreenProportion);
         fd.ct = this->default_mode;
         fd.filename = frameImgFilename;
         fd.setParentStack (&this->vFrameData);
@@ -253,11 +253,17 @@ public:
     //! How many pixels in the image is 1mm?
     float pixels_per_mm = 100.0f;
 
-    //! Set to true to read in an old data format project, which is then written out in new format.
+    //! Set to true to read in an old data format project, which is then written out in
+    //! new format.
     bool readOldFormat = false;
 
-    //! Which drawing mode should the application start in? Bezier by default. JSON can be used to modify.
+    //! Which drawing mode should the application start in? Bezier by default. JSON can
+    //! be used to modify.
     CurveType default_mode = CurveType::Bezier;
+
+    //! The sigma for the Gaussian used to blur the image to get the overall background
+    //! luminance is the framewidth in pixels multiplied by this number.
+    double bgBlurScreenProportion = 0.1667;
 
     //! Application setup
     void setup (const std::string& paramsfile) {
@@ -272,7 +278,8 @@ public:
 
         this->conf.init (paramsfile);
         if (!this->conf.ready) {
-            std::cerr << "Error setting up JSON config: " << this->conf.emsg << ", exiting." << std::endl;
+            std::cerr << "Error setting up JSON config: "
+                      << this->conf.emsg << ", exiting." << std::endl;
             exit (1);
         }
 
@@ -280,7 +287,12 @@ public:
         this->pixels_per_mm = conf.getFloat ("pixels_per_mm", 100.0f);
         this->thickness = conf.getFloat ("thickness", 0.05f);
 
-        std::string default_mode_str = conf.getString ("mode", "bezier"); // or polynomial or freehand
+        // Set parameters for background offsetting.
+        this->bgBlurScreenProportion = conf.getDouble ("bg_blur_screen_proportion", 0.1667);
+        std::cout << "bgBlurScreenProportion = " <<  this->bgBlurScreenProportion << std::endl;
+
+        // Alternatives for default_mode_str: polynomial or freehand
+        std::string default_mode_str = conf.getString ("mode", "bezier");
         if (default_mode_str == "polynomial") {
             this->default_mode = CurveType::Poly;
         } else if (default_mode_str == "freehand") {
@@ -320,19 +332,22 @@ public:
             std::cout << "imread " << fn << std::endl;
             cv::Mat frame = cv::imread (fn.c_str(), cv::IMREAD_COLOR);
             if (frame.empty()) {
-                std::cout <<  "Could not open or find the image '" << fn << "', exiting." << std::endl;
+                std::cout <<  "Could not open or find the image '"
+                          << fn << "', exiting." << std::endl;
                 exit (1);
             }
 
-            // scaling routine //
-            float scaleFactor = conf.getFloat("scaleFactor", 1.0f); // pull scale factor from config json
+            // scaling routine (pull scale factor from config json)
+            float scaleFactor = conf.getFloat("scaleFactor", 1.0f);
 
             if (scaleFactor != 1.0f) {
                 std::cout << "rescaling frame to scaleFactor: " << scaleFactor << std::endl;
 
-                cv::Size scaledSize = cv::Size(round(frame.cols * scaleFactor), round(frame.rows * scaleFactor));
+                cv::Size scaledSize = cv::Size(round(frame.cols * scaleFactor),
+                                               round(frame.rows * scaleFactor));
                 cv::Mat scaledFrame = cv::Mat(scaledSize, frame.type());
-                cv::resize (frame, scaledFrame, scaledSize, scaleFactor, scaleFactor, cv::INTER_LINEAR);
+                cv::resize (frame, scaledFrame, scaledSize,
+                            scaleFactor, scaleFactor, cv::INTER_LINEAR);
 
                 frame.release(); // free original frame since we have resized it
 

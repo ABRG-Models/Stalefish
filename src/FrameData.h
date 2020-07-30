@@ -154,6 +154,8 @@ public:
     cv::Mat frameF;
     //! A blurred copy of the image data. CV_32FC3.
     cv::Mat blurred;
+    //! Sets the width of the blurring Gaussian's sigma
+    double bgBlurScreenProportion = 0.1667;
     //! The frame, with the blurred background offset. CV_32FC3.
     cv::Mat frame_bgoff;
     //! The frame image filename from which frame was loaded. Stored so it can be
@@ -185,7 +187,7 @@ public:
         throw std::runtime_error ("Default constructor is not allowed");
     }
     //! Constructor initializes default values
-    FrameData (const cv::Mat& fr) {
+    FrameData (const cv::Mat& fr, const double _bgBlurScreenProportion) {
         // init previous to null.
         this->previous = -1;
         this->parentStack = (std::vector<FrameData>*)0;
@@ -203,13 +205,16 @@ public:
         this->flags.set (ShowBoxes);
 
         // Make a blurred copy of the floating point format frame, for estimating lighting background
+        this->bgBlurScreenProportion = _bgBlurScreenProportion;
         this->blurred = Mat::zeros (this->frameF.rows, this->frameF.cols, CV_32FC3);
         cv::Size ksz;
-        ksz.width = this->frameF.cols/3;
+        std::cout << "FrameData constructor: bgBlurScreenProportion = "
+                  << this->bgBlurScreenProportion << std::endl;
+        ksz.width = this->frameF.cols * 2.0 * this->bgBlurScreenProportion;
         ksz.width += (ksz.width%2 == 1) ? 0 : 1; // ensure ksz.width is odd
         ksz.height = this->frameF.rows/3;
         ksz.height += (ksz.height%2 == 1) ? 0 : 1;
-        double sigma = (double)this->frameF.cols/6.0;
+        double sigma = (double)this->frameF.cols * this->bgBlurScreenProportion;
         cv::GaussianBlur (this->frameF, this->blurred, ksz, sigma);
 
         // Now subtract the blur from the original
