@@ -480,8 +480,7 @@ public:
             rectangle (*pImg, cf->FL[ii], cf->FL[ii], SF_GREEN, 1);
         }
 
-#if 0
-        // DEBUG Inside/outside boundary:
+#ifdef DEBUG_INSIDE_OUTSIDE_BOUNDARY
         for (size_t ii=0; ii<cf->inside_FL.size(); ii++) {
             rectangle (*pImg, cf->inside_FL[ii], cf->inside_FL[ii], SF_RED, 1);
         }
@@ -490,8 +489,7 @@ public:
         }
 #endif
 
-#if 0
-        // show extents
+#ifdef DEBUG_EXTENTS
         line (*pImg, cf->extents_FL[0], cf->extents_FL[0]+cv::Point(0,3), SF_BLACK, 1);
         line (*pImg, cf->extents_FL[0], cf->extents_FL[0]+cv::Point(3,0), SF_BLACK, 1);
         line (*pImg, cf->extents_FL[1], cf->extents_FL[1]+cv::Point(0,-3), SF_BLACK, 1);
@@ -499,7 +497,7 @@ public:
 #endif
     }
 
-    //! Input mode for drawing numbered alignment marks
+    //! Input mode for drawing the numbered alignment marks
     void draw_landmarks (const cv::Point& pt)
     {
         DM* _this = DM::i();

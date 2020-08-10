@@ -754,7 +754,7 @@ public:
         //df.read_val (dname.c_str(), this->pixels_per_mm);
     }
 
-    //! Write the data out to an HdfData file @df.
+    //! Write the data out to an HdfData file \a df.
     void write (morph::HdfData& df)
     {
         // Update box means. not const
@@ -1139,8 +1139,8 @@ private:
         cv::GaussianBlur (this->frame, blurred, ksz, 2.0);
     }
 
-    //! Find a value for each pixel of image @frame within the box defined by @pp and
-    //! return this in a vector of floats, without conversion
+    //! Find a value for each pixel of image \a frame within the box defined by \a pp
+    //! and return this in a vector of floats, without conversion
     std::vector<float> getBoxedPixelVals (const std::vector<cv::Point> pp)
     {
         cv::Point pts[4] = {pp[0],pp[1],pp[2],pp[3]};
@@ -1201,7 +1201,7 @@ private:
         return boxedPixelVals;
     }
 
-    //! Get the raw pixel values from the region, using the values from the
+    //! Get the raw pixel values from the region
     std::vector<float> getRegionPixelVals (const std::vector<cv::Point>& region)
     {
         throw std::runtime_error ("FIXME - get same data as getBoxedPixelVals. Also display value");
@@ -1263,7 +1263,6 @@ private:
     //! member as they're only computed to be written out to file.
     void computeBoxMeans()
     {
-        std::cout << "Called" << std::endl;
         this->boxes_raw.resize (this->boxes.size());
         this->boxes_raw_bgr.resize (this->boxes.size());
         this->means.resize (this->boxes.size());
@@ -1282,7 +1281,7 @@ private:
 
                 float ellip_maj_sq = ellip_axes[0] * ellip_axes[0];
                 float ellip_min_sq = ellip_axes[1] * ellip_axes[1];
-                std::cout << "box " << i << " has " << this->boxes_raw_bgr[i].size() << " pixels" << std::endl;
+                // std::cout << "box " << i << " has " << this->boxes_raw_bgr[i].size() << " pixels" << std::endl;
                 for (size_t j=0; j<this->boxes_raw_bgr[i].size(); j++) {
                     // Perform colour transform here, so that we get a transformed blue value
                     float b = boxes_raw_bgr[i][j][0];
