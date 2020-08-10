@@ -717,6 +717,10 @@ public:
             //std::cout << "FLE[i] now has size " << this->FLE[i].size() << "\n";
         }
 
+        // Landmark points
+        dname = frameName + "/class/LM";
+        df.read_contained_vals (dname.c_str(), this->LM);
+
         dname = frameName + "/class/nBinsTarg";
         df.read_val (dname.c_str(), this->nBinsTarg);
         this->setBins (this->nBinsTarg);
@@ -782,6 +786,10 @@ public:
             ss << i;
             df.add_contained_vals (ss.str().c_str(), this->FLE[i]);
         }
+
+        // The landmark points
+        dname = frameName + "/class/LM";
+        df.add_contained_vals (dname.c_str(), this->LM);
 
         dname = frameName + "/class/pp_idx";
         df.add_val (dname.c_str(), this->pp_idx);
