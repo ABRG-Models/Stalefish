@@ -37,7 +37,7 @@ enum class ColourModel {
     AllenDevMouse
 };
 
-enum Flag {
+enum FrameFlag {
     ShowBoxes, // Show the yellow boxes?
     ShowUsers, // Show the user points?
     ShowCtrls, // Show the ctrl points of the fits?
@@ -719,6 +719,7 @@ public:
 
         dname = frameName + "/class/nBinsTarg";
         df.read_val (dname.c_str(), this->nBinsTarg);
+        this->setBins (this->nBinsTarg);
         dname = frameName + "/class/binA";
         df.read_val (dname.c_str(), this->binA);
         dname = frameName + "/class/binB";
@@ -957,7 +958,7 @@ public:
         }
         df.add_contained_vals (dname.c_str(), linear_distances);
 
-        std::cout << "write() completed." << std::endl;
+        std::cout << "write() completed for one frame." << std::endl;
     }
 
     //! Mirror the image and mark in the flags that it was mirrored
