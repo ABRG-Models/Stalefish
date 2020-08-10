@@ -288,34 +288,17 @@ public:
         std::cout << "The matrix " << matlabel << "  has min/max: " << minm << "/" << maxm << std::endl;
     }
 
-    cv::Mat* getBlur()
-    {
-        return &this->blurred;
-    }
-    cv::Mat* getFrameOffs()
-    {
-        return &this->frame_bgoff;
-    }
+    //! Getter for the blurred image
+    cv::Mat* getBlur() { return &this->blurred; }
+    cv::Mat* getFrameOffs() { return &this->frame_bgoff; }
 
     //! Getter for nBins
-    int getNBins()
-    {
-        return this->nBins;
-    }
-    int getNBinsTarg()
-    {
-        return this->nBinsTarg;
-    }
+    int getNBins() { return this->nBins; }
+    int getNBinsTarg() { return this->nBinsTarg; }
 
     //! Setter for previous
-    void setPrevious (int prev)
-    {
-        this->previous = prev;
-    }
-    void setParentStack (std::vector<FrameData>* parentSt)
-    {
-        this->parentStack = parentSt;
-    }
+    void setPrevious (int prev) { this->previous = prev; }
+    void setParentStack (std::vector<FrameData>* parentSt) { this->parentStack = parentSt; }
 
     //! Get information about the fit
     std::string getFitInfo() const
@@ -1028,10 +1011,7 @@ public:
     }
 
     //! Re-compute the boxes from the curve (taking ints)
-    void refreshBoxes (const int lenA, const int lenB)
-    {
-        this->refreshBoxes ((double)lenA, (double)lenB);
-    }
+    void refreshBoxes (const int lenA, const int lenB) { this->refreshBoxes ((double)lenA, (double)lenB); }
 
     //! Re-compute the boxes from the curve (double version)
     void refreshBoxes (const double lenA, const double lenB)
@@ -1089,41 +1069,17 @@ public:
 
     // Toggle controls
 
-    void toggleShowBoxes()
-    {
-        this->flags[ShowBoxes] = this->flags.test(ShowBoxes) ? false : true;
-    }
-    void setShowBoxes (bool t)
-    {
-        this->flags[ShowBoxes] = t;
-    }
+    void toggleShowBoxes() { this->flags[ShowBoxes] = this->flags.test(ShowBoxes) ? false : true; }
+    void setShowBoxes (bool t) { this->flags[ShowBoxes] = t; }
 
-    void toggleShowFits()
-    {
-        this->flags[ShowFits] = this->flags.test(ShowFits) ? false : true;
-    }
-    void setShowFits (bool t)
-    {
-        this->flags[ShowFits] = t;
-    }
+    void toggleShowFits() { this->flags[ShowFits] = this->flags.test(ShowFits) ? false : true; }
+    void setShowFits (bool t) { this->flags[ShowFits] = t; }
 
-    void toggleShowUsers()
-    {
-        this->flags[ShowUsers] = this->flags.test(ShowUsers) ? false : true;
-    }
-    void setShowUsers (bool t)
-    {
-        this->flags[ShowUsers] = t;
-    }
+    void toggleShowUsers() { this->flags[ShowUsers] = this->flags.test(ShowUsers) ? false : true; }
+    void setShowUsers (bool t) { this->flags[ShowUsers] = t; }
 
-    void toggleShowCtrls()
-    {
-        this->flags[ShowCtrls] = this->flags.test(ShowCtrls) ? false : true;
-    }
-    void setShowCtrls (bool t)
-    {
-        this->flags[ShowCtrls] = t;
-    }
+    void toggleShowCtrls() { this->flags[ShowCtrls] = this->flags.test(ShowCtrls) ? false : true; }
+    void setShowCtrls (bool t) { this->flags[ShowCtrls] = t; }
 
 private:
 
