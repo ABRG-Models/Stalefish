@@ -101,7 +101,7 @@ int main (int argc, char** argv)
         // Polyfit mode only - increment order
         case ('p'):
         {
-            if (DM::i()->gcf()->ct == CurveType::Bezier) {
+            if (DM::i()->gcf()->ct == InputMode::Bezier) {
                 break;
             }
             DM::i()->gcf()->polyOrder++;
@@ -120,7 +120,7 @@ int main (int argc, char** argv)
         case ('o'):
         {
             // Change fitting mode
-            DM::i()->gcf()->toggleCurveType();
+            DM::i()->gcf()->toggleInputMode();
             DM::i()->gcf()->updateFit();
             DM::i()->gcf()->refreshBoxes (-DM::i()->gcf()->binA, DM::i()->gcf()->binB);
             break;

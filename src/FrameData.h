@@ -21,10 +21,14 @@
 #include <morph/MathConst.h>
 #include <morph/Winder.h>
 
-enum class CurveType {
-    Poly,     // Variable order polynomial
-    Bezier,   // Cubic Bezier
-    Freehand  // A freehand drawn loop enclosing a region
+// This is no longer really "curve type" but rather "input mode". So in Bezier mode, you
+// add points for the curve fitting; in freehand mode you draw a loop, and in align
+// mode, you give landmarks for slice alignment.
+enum class InputMode {
+    Poly,      // Variable order polynomial (note: the existence of this mode is ignored)
+    Bezier,    // Cubic Bezier
+    Freehand,  // A freehand drawn loop enclosing a region // This will go - Freehand loops to be visible over curve.
+    Landmark   // User provides alignment landmark locations on each slice
 };
 
 // What sort of colour model is in use?
@@ -44,7 +48,9 @@ enum Flag {
 
 /*!
  * A class to hold a cortical section image, user-supplied cortex edge points and the
- * resulting fit (either polynomial or Bezier curved).
+ * resulting fit (either polynomial or Bezier curved). Also stores information about
+ * freehand drawn loops (whose content mean luminance can be saved out) and
+ * user-supplied landmarks, allowing for the alignment of multiple brain slices.
  */
 class FrameData
 {
@@ -62,10 +68,10 @@ private:
     //! Public attributes
 public:
     //! What curve type?
-    CurveType ct = CurveType::Bezier;
+    InputMode ct = InputMode::Bezier;
 
-    //! Polynomial fit specific attributes
-    //@{
+    // Polynomial fit specific attributes
+
     //! Order of the polynomial fit
     int polyOrder;
     //! A rotation is applied to the points before calling polyfit, after which fitted
@@ -75,23 +81,25 @@ public:
     double minX, maxX;
     //! The parameters of a polyfit, as returned by polyfit()
     std::vector<double> pf;
-    //@}
 
-    //! Bezier curve attributes
-    //@{
+    // Bezier curve attributes
+
     //! A Bezier curve path to fit the cortex.
     morph::BezCurvePath<double> bcp;
-    //@}
 
-    //! Attributes which pertain either to polynomial or Bezier curves
-    //@{
-    //! The vector of user-supplied points from which to make a curve fit. Also use as
-    //! a container for the points in a freehand drawn loop?
+    // Attributes which pertain either to polynomial or Bezier curves
+
+    //! The vector of user-supplied points from which to make a curve fit.
     std::vector<cv::Point> P;
     //! A vector of vectors of points for multi-section Bezier curves
     std::vector<std::vector<cv::Point>> PP;
     //! Index into PP
     int pp_idx = 0;
+
+    // Landmark attributes
+
+    //! The landmark points for this frame.
+    std::vector<cv::Point> LM;
 
     //! The means computed for the boxes. This is now "mean_signal" really, as the pixel values
     //! (monochrome or colour) are now converted with the colour space parameters into a signal.
@@ -172,17 +180,21 @@ public:
     double pixels_per_mm = 100.0;
     //! The index of the frame
     int idx;
-    //@}
-    //! Colour space parameters.
-    //@{
+
+    // Colour space parameters.
+
     //! What kind of colour model is in use?
     ColourModel cmodel = ColourModel::Greyscale;
-    std::array<float, 9> colour_rot;   //! Colour space rotation to apply to [b g r] colour vectors
-    std::array<float, 3> colour_trans; //! Colour space pre-translation. [x y z] is [b g r]
-    std::array<float, 2> ellip_axes;   //! red-green ellipse for "elliptical tube of expressing colours
-    float luminosity_factor;      //! The slope of the linear luminosity vs signal fit.
-    float luminosity_cutoff;      //! at what luminosity does the signal cut off to zero?
-    //@}
+    //! Colour space rotation to apply to [b g r] colour vectors
+    std::array<float, 9> colour_rot;
+    //! Colour space pre-translation. [x y z] is [b g r]
+    std::array<float, 3> colour_trans;
+    //! red-green ellipse for "elliptical tube of expressing colours
+    std::array<float, 2> ellip_axes;
+    //! The slope of the linear luminosity vs signal fit.
+    float luminosity_factor;
+    //! at what luminosity does the signal cut off to zero?
+    float luminosity_cutoff;
 
 public:
     FrameData()
@@ -212,7 +224,7 @@ public:
 
         // Make a blurred copy of the floating point format frame, for estimating lighting background
         this->bgBlurScreenProportion = _bgBlurScreenProportion;
-        this->blurred = Mat::zeros (this->frameF.rows, this->frameF.cols, CV_32FC3);
+        this->blurred = cv::Mat::zeros (this->frameF.rows, this->frameF.cols, CV_32FC3);
         cv::Size ksz;
         std::cout << "FrameData constructor: bgBlurScreenProportion = "
                   << this->bgBlurScreenProportion << std::endl;
@@ -243,7 +255,8 @@ public:
     }
 
     //! Set the number of bins and update the size of the various containers
-    void setBins (unsigned int num) {
+    void setBins (unsigned int num)
+    {
         if (num > 5000) {
             throw std::runtime_error ("Too many bins...");
         }
@@ -260,7 +273,8 @@ public:
     }
 
     //! Show the max and the min of a
-    void showMaxMin (const cv::Mat& m, const std::string& matlabel = "(unknown)") {
+    void showMaxMin (const cv::Mat& m, const std::string& matlabel = "(unknown)")
+    {
         float minm = 100.0f;
         float maxm = -100.0f;
         for (int r = 0; r < m.rows; ++r) {
@@ -274,35 +288,43 @@ public:
         std::cout << "The matrix " << matlabel << "  has min/max: " << minm << "/" << maxm << std::endl;
     }
 
-    cv::Mat* getBlur() {
+    cv::Mat* getBlur()
+    {
         return &this->blurred;
     }
-    cv::Mat* getFrameOffs() {
+    cv::Mat* getFrameOffs()
+    {
         return &this->frame_bgoff;
     }
 
     //! Getter for nBins
-    int getNBins() {
+    int getNBins()
+    {
         return this->nBins;
     }
-    int getNBinsTarg() {
+    int getNBinsTarg()
+    {
         return this->nBinsTarg;
     }
 
     //! Setter for previous
-    void setPrevious (int prev) {
+    void setPrevious (int prev)
+    {
         this->previous = prev;
     }
-    void setParentStack (std::vector<FrameData>* parentSt) {
+    void setParentStack (std::vector<FrameData>* parentSt)
+    {
         this->parentStack = parentSt;
     }
 
     //! Get information about the fit
-    std::string getFitInfo() const {
+    std::string getFitInfo() const
+    {
         std::stringstream ss;
-        if (this->ct == CurveType::Poly) {
+        if (this->ct == InputMode::Poly) {
             ss << "Poly order: " << this->polyOrder << ", Bins: " << this->nBins;
-        } else if (this->ct == CurveType::Bezier) {
+
+        } else /*if (this->ct == InputMode::Bezier)*/ {
             std::stringstream bb;
             bool first = true;
             for (auto cv : this->bcp.curves) {
@@ -314,11 +336,17 @@ public:
                 }
             }
             ss << "Bezier order: " << bb.str() << ", Bins: " << this->nBins;
-        } else if (this->ct == CurveType::Freehand) {
+        }
+
+        if (this->ct == InputMode::Poly || this->ct == InputMode::Bezier) {
+            ss << ". Curve mode";
+        } else if (this->ct == InputMode::Freehand) {
             // Get any fit info for a freehand loop (e.g. is it contiguous; how many pixels)
-            ss << "Freehand";
+            ss << ". Freehand mode";
+        } else if (this->ct == InputMode::Landmark) {
+            ss << ". Landmark mode";
         } else {
-            ss << "unknown";
+            ss << ". unknown mode";
         }
         return ss.str();
     }
@@ -329,8 +357,8 @@ public:
     //! endSquare. Fill in all pixels which are crossed by the line. Do this with a
     //! recursive algorithm, as it's easy and we're very unlikely to exceed the
     //! recursion limit.
-    void fillFL (cv::Point& firstSquare, const cv::Point& endSquare) {
-
+    void fillFL (cv::Point& firstSquare, const cv::Point& endSquare)
+    {
         // Finished when the last element of FL is pt.
         if (!this->FL.empty() && this->FL.back() == endSquare) {
             return;
@@ -458,7 +486,8 @@ public:
 
     //! Find rectangular region enclosing loop, return as two coordinates of top left
     //! (minimum x and y, with y going down) and bottom right (max x and y) corners
-    std::array<cv::Point, 2> getExtents (const std::vector<cv::Point>& loop) {
+    std::array<cv::Point, 2> getExtents (const std::vector<cv::Point>& loop)
+    {
         std::array<cv::Point, 2> extents;
         extents[0] =  {10000000, 10000000};   // MIN values for x and y
         extents[1] = {-10000000,-10000000}; // MAX values for x and y
@@ -483,8 +512,8 @@ public:
     bool loopFinished = false;
 
     //! Find all pixels enclosed by the pixels in this->FL which define a loop
-    std::vector<cv::Point> getEnclosedByFL() {
-
+    std::vector<cv::Point> getEnclosedByFL()
+    {
         // FIXME: Prefer not to have to uniquify here:
         auto last = std::unique(this->FL.begin(), this->FL.end());
         this->FL.erase(last, this->FL.end());
@@ -518,8 +547,8 @@ public:
 
     //! Add a pixel that was under the mouse pointer to the freehand points FL. Also
     //! add the pixels between the last pixel in FL and endSquare.
-    void addToFL (cv::Point& pt) {
-
+    void addToFL (cv::Point& pt)
+    {
         // If FL empty then task is simple:
         if (this->FL.empty()) {
              this->FL.push_back (pt);
@@ -575,16 +604,20 @@ public:
     }
 
     //! Remove the last freehand drawn region or the last point, depending on mode
-    void removeLastThing() {
-        if (this->ct == CurveType::Freehand) {
+    void removeLastThing()
+    {
+        if (this->ct == InputMode::Freehand) {
             this->removeLastRegion();
+        } else if (this->ct == InputMode::Landmark) {
+            this->removeLastLandmark();
         } else {
             this->removeLastPoint();
         }
     }
 
     //! Remove the last freehand drawn region
-    void removeLastRegion() {
+    void removeLastRegion()
+    {
         // If there's a half-finished boundary, get rid of that first:
         if (!this->FL.empty()) {
             this->FL.clear();
@@ -597,7 +630,8 @@ public:
     }
 
     //! Remove the last user point
-    void removeLastPoint() {
+    void removeLastPoint()
+    {
         if (this->PP.empty() && this->P.size() == 1) {
             // Normal behaviour, just remove point from P
             this->P.pop_back();
@@ -613,7 +647,7 @@ public:
 
         } else {
             // P is empty, go to previous curve and remove a point from that
-            if (this->ct == CurveType::Bezier && this->pp_idx>0) {
+            if (this->ct == InputMode::Bezier && this->pp_idx>0) {
                 this->P = this->PP[--this->pp_idx];
                 this->PP.pop_back();
                 this->P.pop_back();
@@ -621,9 +655,18 @@ public:
         }
     }
 
+    //! Remove the last landmark coordinate
+    void removeLastLandmark()
+    {
+        if (!this->LM.empty()) {
+            this->LM.pop_back();
+        }
+    }
+
     //! In Bezier mode, store the current set of user points (P) into PP and clear P.
-    void nextCurve() {
-        if (this->ct == CurveType::Poly) {
+    void nextCurve()
+    {
+        if (this->ct == InputMode::Poly) {
             // no op.
             return;
         }
@@ -638,12 +681,15 @@ public:
     }
 
     //! Read important data from file
-    void read (morph::HdfData& df, bool oldformat=false) {
+    void read (morph::HdfData& df, bool oldformat=false)
+    {
         // Note this file assumes idx has been set for the frame.
         std::string frameName = this->getFrameName();
+
         if (oldformat == true) {
-            std::cout << "INFO/WARNING: read() is reading old format frame names\n";
-            frameName = this->getOldFrameName();
+            throw std::runtime_error ("Note: there is currently no old format conversion code.");
+            // NB: This code is left as a place holder in case we need to read in an old
+            // format and save in a new format.
         }
 
         std::string dname = frameName + "/class/polyOrder";
@@ -709,8 +755,8 @@ public:
     }
 
     //! Write the data out to an HdfData file @df.
-    void write (morph::HdfData& df) {
-
+    void write (morph::HdfData& df)
+    {
         // Update box means. not const
         this->computeBoxMeans();
 
@@ -777,6 +823,11 @@ public:
         df.add_val (dname.c_str(), this->pixels_per_mm);
         dname = frameName + "/class/idx";
         df.add_val (dname.c_str(), this->idx);
+        // Write the BG blurring parameters
+        dname = frameName + "/class/bg_blur_screen_proportion";
+        df.add_val (dname.c_str(), this->bgBlurScreenProportion);
+        dname = frameName + "/class/bg_blur_subtraction_offset";
+        df.add_val (dname.c_str(), this->bgBlurSubtractionOffset);
 
         /*
          * The rest of the methods write out data that WON'T be read by the
@@ -827,12 +878,6 @@ public:
 
             df.add_contained_vals (cntss.str().c_str(), coffrot);
         }
-
-        // Write the BG blurring parameters
-        dname = frameName + "/bg_blur_screen_proportion";
-        df.add_val (dname.c_str(), this->bgBlurScreenProportion);
-        dname = frameName + "/bg_blur_subtraction_offset";
-        df.add_val (dname.c_str(), this->bgBlurSubtractionOffset);
 
         // Need to get from fitted to y and z. Note that fitted is in (integer) pixels...
         // vector<cv::Point> fitted;
@@ -933,42 +978,47 @@ public:
     }
 
     //! Mirror the image and mark in the flags that it was mirrored
-    void mirror() {
+    void mirror()
+    {
         this->mirror_image_only();
         this->flags.flip (Mirrored);
     }
     //! Carry out the actual mirroring operation on its own, leaving flags unchanged
-    void mirror_image_only() {
+    void mirror_image_only()
+    {
         cv::Mat mirrored (this->frame.rows, this->frame.cols, this->frame.type());
         cv::flip (this->frame, mirrored, 1);
         this->frame = mirrored;
     }
 
     //! Flip the image & mark as such in flags
-    void flip() {
+    void flip()
+    {
         this->flip_image_only();
         this->flags.flip (Flipped);
     }
     //! Flip the image without marking as flipped in flags.
-    void flip_image_only() {
+    void flip_image_only()
+    {
         cv::Mat flipped (this->frame.rows, this->frame.cols, this->frame.type());
         cv::flip (this->frame, flipped, 1);
         this->frame = flipped;
     }
 
     //! Recompute the fit
-    void updateFit() {
-        if (this->ct == CurveType::Poly) {
+    void updateFit()
+    {
+        if (this->ct == InputMode::Poly) {
             this->updateFitPoly();
-        } else if (this->ct == CurveType::Bezier) {
+        } else if (this->ct == InputMode::Bezier) {
             this->updateFitBezier();
-        } else if (this->ct == CurveType::Freehand) {
+        } else if (this->ct == InputMode::Freehand) {
             // What to do? Find all the pixels inside?
         } else {
             return;
         }
 
-        if (this->ct == CurveType::Poly || this->ct == CurveType::Bezier) {
+        if (this->ct == InputMode::Poly || this->ct == InputMode::Bezier) {
             // Scale
             this->offsetScaleFit();
             // Rotate
@@ -978,21 +1028,23 @@ public:
     }
 
     //! Re-compute the boxes from the curve (taking ints)
-    void refreshBoxes (const int lenA, const int lenB) {
+    void refreshBoxes (const int lenA, const int lenB)
+    {
         this->refreshBoxes ((double)lenA, (double)lenB);
     }
 
     //! Re-compute the boxes from the curve (double version)
-    void refreshBoxes (const double lenA, const double lenB) {
+    void refreshBoxes (const double lenA, const double lenB)
+    {
 
         // Don't refresh boxes for Freehand mode
-        if (this->ct == CurveType::Freehand) {
+        if (this->ct == InputMode::Freehand) {
             // Or perhaps hide stuff? Delete points in P? or leave the points in P,
             // and have a separate store of the points in a freehand loop.
             return;
         }
 
-        if (this->ct == CurveType::Poly) {
+        if (this->ct == InputMode::Poly) {
             this->pointsInner = PolyFit::rotate (PolyFit::tracePolyOrth (this->pf, this->minX, this->maxX,
                                                                          this->nFit, lenA),
                                                  this->theta);
@@ -1019,61 +1071,68 @@ public:
         }
     }
 
-    //! Toggle between polynomial, Bezier curve fitting and Freehand loop drawing
-    void toggleCurveType() {
-        if (this->ct == CurveType::Poly) {
-            this->ct = CurveType::Bezier;
-        } else if (this->ct == CurveType::Bezier) {
-            this->ct = CurveType::Freehand;
-        } else if (this->ct == CurveType::Freehand) {
-            this->ct = CurveType::Poly;
+    //! Toggle between curve fitting, freehand loop drawing or alignment mark (landmark) input.
+    void toggleInputMode()
+    {
+        // Note: InputMode::Poly is ignored now
+        if (this->ct == InputMode::Landmark) {
+            this->ct = InputMode::Bezier;
+        } else if (this->ct == InputMode::Bezier) {
+            this->ct = InputMode::Freehand;
+        } else if (this->ct == InputMode::Freehand) {
+            this->ct = InputMode::Landmark;
         } else {
             // Shouldn't get here...
-            this->ct = CurveType::Bezier;
+            this->ct = InputMode::Bezier;
         }
     }
 
-    //! Toggle controls
-    //@{
-    void toggleShowBoxes() {
+    // Toggle controls
+
+    void toggleShowBoxes()
+    {
         this->flags[ShowBoxes] = this->flags.test(ShowBoxes) ? false : true;
     }
-    void setShowBoxes (bool t) {
+    void setShowBoxes (bool t)
+    {
         this->flags[ShowBoxes] = t;
     }
 
-    void toggleShowFits() {
+    void toggleShowFits()
+    {
         this->flags[ShowFits] = this->flags.test(ShowFits) ? false : true;
     }
-    void setShowFits (bool t) {
+    void setShowFits (bool t)
+    {
         this->flags[ShowFits] = t;
     }
 
-    void toggleShowUsers() {
+    void toggleShowUsers()
+    {
         this->flags[ShowUsers] = this->flags.test(ShowUsers) ? false : true;
     }
-    void setShowUsers (bool t) {
+    void setShowUsers (bool t)
+    {
         this->flags[ShowUsers] = t;
     }
 
-    void toggleShowCtrls() {
+    void toggleShowCtrls()
+    {
         this->flags[ShowCtrls] = this->flags.test(ShowCtrls) ? false : true;
     }
-    void setShowCtrls (bool t) {
+    void setShowCtrls (bool t)
+    {
         this->flags[ShowCtrls] = t;
     }
-    //@}
 
 private:
-    /*!
-     * Private methods
-     */
 
     //! Blur the image and use the blurred result to estimate the overall background
     //! luminance, which may vary due to the arrangement of lighting when the brain
     //! slices were imaged.
-    void estimateBackgroundLuminance() {
-        cv::Mat blurred = Mat::zeros (this->frame.rows, this->frame.cols, CV_8UC3);
+    void estimateBackgroundLuminance()
+    {
+        cv::Mat blurred = cv::Mat::zeros (this->frame.rows, this->frame.cols, CV_8UC3);
         cv::Size ksz;
         ksz.width = 21;
         ksz.height = 21;
@@ -1082,14 +1141,15 @@ private:
 
     //! Find a value for each pixel of image @frame within the box defined by @pp and
     //! return this in a vector of floats, without conversion
-    std::vector<float> getBoxedPixelVals (const std::vector<cv::Point> pp) {
+    std::vector<float> getBoxedPixelVals (const std::vector<cv::Point> pp)
+    {
         cv::Point pts[4] = {pp[0],pp[1],pp[2],pp[3]};
 
         // Convert frame_bgoff to uchar, multiplying by 255 on the way:
         cv::Mat frame_bgoffU;
         this->frame_bgoff.convertTo (frame_bgoffU, CV_8UC3, 255.0);
 
-        cv::Mat mask = Mat::zeros(frame_bgoffU.rows, frame_bgoffU.cols, CV_8UC3);
+        cv::Mat mask = cv::Mat::zeros(frame_bgoffU.rows, frame_bgoffU.cols, CV_8UC3);
         cv::fillConvexPoly (mask, pts, 4, cv::Scalar(255,255,255));
         cv::Mat maskGray;
         cv::cvtColor (mask, maskGray, cv::COLOR_BGR2GRAY);
@@ -1111,9 +1171,10 @@ private:
     }
 
     //! In a box, obtain colour values as BGR float triplets
-    std::vector<std::array<float, 3>> getBoxedPixelColour (const std::vector<Point> pp) {
+    std::vector<std::array<float, 3>> getBoxedPixelColour (const std::vector<cv::Point> pp)
+    {
         cv::Point pts[4] = {pp[0],pp[1],pp[2],pp[3]};
-        cv::Mat mask = Mat::zeros(frame.rows, frame.cols, CV_8UC3);
+        cv::Mat mask = cv::Mat::zeros(frame.rows, frame.cols, CV_8UC3);
         cv::fillConvexPoly (mask, pts, 4, cv::Scalar(255,255,255));
         //
         cv::Mat maskGray;
@@ -1140,7 +1201,10 @@ private:
         return boxedPixelVals;
     }
 
-    std::vector<float> getRegionPixelVals (const std::vector<cv::Point>& region) {
+    //! Get the raw pixel values from the region, using the values from the
+    std::vector<float> getRegionPixelVals (const std::vector<cv::Point>& region)
+    {
+        throw std::runtime_error ("FIXME - get same data as getBoxedPixelVals. Also display value");
         cv::Mat mask = cv::Mat::zeros(this->frame.rows, this->frame.cols, CV_8UC3);
         std::cout << "mask rows: " << mask.rows << ", mask cols: " << mask.cols << std::endl;
         for (auto px : region) {
@@ -1148,6 +1212,7 @@ private:
             int _row = px.y;
             mask.at<cv::Scalar>(_col, _row) = cv::Scalar(255,255,255);
         }
+
         // From here, same as getBoxedPixelVals
         cv::Mat result, resultGray;
         this->frame.copyTo (result, mask);
@@ -1162,7 +1227,10 @@ private:
         return regionPixelVals;
     }
 
-    void computeFreehandMeans() {
+    //! For each freehand drawn loop, compute the mean luminance within the loop,
+    //! storing in this->FL_means
+    void computeFreehandMeans()
+    {
         // Loop through FLE. For each set of points, output the points as a list and
         // also compute the mean.
         this->FL_means.resize (this->FLE.size());
@@ -1193,7 +1261,8 @@ private:
 
     //! Compute the mean values for the bins. Not const. But means don't need to be a
     //! member as they're only computed to be written out to file.
-    void computeBoxMeans() {
+    void computeBoxMeans()
+    {
         std::cout << "Called" << std::endl;
         this->boxes_raw.resize (this->boxes.size());
         this->boxes_raw_bgr.resize (this->boxes.size());
@@ -1276,8 +1345,9 @@ private:
     }
 
     //! Update the fit, but don't rotate. Used by rotateFitOptimally()
-    void updateFit_norotate() {
-        if (this->ct == CurveType::Poly) {
+    void updateFit_norotate()
+    {
+        if (this->ct == InputMode::Poly) {
             this->updateFitPoly();
         } else {
             this->updateFitBezier();
@@ -1285,8 +1355,9 @@ private:
     }
 
     //! Update the fit, scale and rotate by \a _theta. Used by rotateFitOptimally()
-    void updateFit (double _theta) {
-        if (this->ct == CurveType::Poly) {
+    void updateFit (double _theta)
+    {
+        if (this->ct == InputMode::Poly) {
             this->updateFitPoly();
         } else {
             this->updateFitBezier();
@@ -1298,8 +1369,8 @@ private:
     }
 
     //! Recompute the Bezier fit
-    void updateFitBezier() {
-
+    void updateFitBezier()
+    {
         if (this->PP.empty() && this->P.size() < 2) {
             std::cout << "Too few points to fit" << std::endl;
             return;
@@ -1359,14 +1430,15 @@ private:
         std::vector<morph::BezCoord<double>> norms = this->bcp.getNormals();
         //Point2d fitsum;
         for (int i = 0; i < this->nFit; ++i) {
-            this->fitted[i] = Point(coords[i].x(),coords[i].y());
+            this->fitted[i] = cv::Point(coords[i].x(),coords[i].y());
             //fitsum += Point2d(coords[i].x(),coords[i].y());
             this->tangents[i] = cv::Point2d(tans[i].x(),tans[i].y());
             this->normals[i] = cv::Point2d(norms[i].x(),norms[i].y());
         }
     }
 
-    void offsetScaleFit() {
+    void offsetScaleFit()
+    {
         cv::Point2d fitsum;
         for (int i = 0; i < this->nFit; ++i) {
             fitsum += cv::Point2d(this->fitted[i].x, this->fitted[i].y);
@@ -1397,8 +1469,8 @@ private:
 
     //! Compute a sum of squared distances between the points in this fit and the
     //! points in the previous fit
-    double computeSosWithPrev (double _theta) {
-
+    double computeSosWithPrev (double _theta)
+    {
         if (this->previous < 0) {
             return std::numeric_limits<double>::max();
         }
@@ -1425,7 +1497,8 @@ private:
 
     //! Rotate the points in this->fitted_offset by theta about the origin and store
     //! the result in this->fitted_rotated
-    void rotate (double _theta) {
+    void rotate (double _theta)
+    {
         if (_theta == 0.0) {
             for (int i = 0; i < this->nFit; ++i) {
                 this->fitted_rotated[i] = this->fitted_offset[i];
@@ -1463,8 +1536,8 @@ private:
     }
 
     //! Rotate the fit until we get the best one.
-    void rotateFitOptimally() {
-
+    void rotateFitOptimally()
+    {
         // If there's no previous frame, then fitted_rotated should be same as fitted_offset
         if (this->previous < 0) {
             std::cout << "No previous frame, so just copying fitted_offset to fitted_rotated..." << std::endl;
@@ -1542,7 +1615,8 @@ private:
     }
 
     //! Recompute the polynomial fit
-    void updateFitPoly() {
+    void updateFitPoly()
+    {
         this->axiscoefs = PolyFit::polyfit (this->P, 1);
         this->axis = PolyFit::tracePoly (this->axiscoefs, 0, this->frame.cols, 2);
         this->theta = atan (this->axiscoefs[1]);
@@ -1560,25 +1634,14 @@ private:
                                         this->theta);
     }
 
-
     //! Common code to generate the frame name
-    std::string getFrameName() const {
+    std::string getFrameName() const
+    {
         std::stringstream ss;
         ss << "/Frame";
         ss.width(3);
         ss.fill('0');
         ss << (1+this->idx); // Count from 1 in the data file
-        return ss.str();
-    }
-
-    //! Old frame format, counting from 0
-    std::string getOldFrameName() const {
-        std::stringstream ss;
-        ss << "/Frame";
-        ss.width(3);
-        ss.fill('0');
-        ss << this->idx;
-        std::cout << "GET OLD FRAME NAME: " << ss.str() << std::endl;
         return ss.str();
     }
 

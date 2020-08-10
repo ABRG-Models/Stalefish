@@ -11,15 +11,15 @@
 #include "FrameData.h"
 
 // OpenCV functions mostly expect colours in Blue-Green-Red order
-#define SF_BLUE Scalar(255,0,0,10)
-#define SF_GREEN Scalar(0,255,0,10)
-#define SF_RED Scalar(0,0,255,10)
-#define SF_YELLOW Scalar(0,255,255,10)
-#define SF_BLACK Scalar(0,0,0)
-#define SF_WHITE Scalar(255,255,255)
-#define SF_C1 Scalar(238,121,159) // mediumpurple2
-#define SF_C2 Scalar(238,58,178) // darkorchid2
-#define SF_TRANS Scalar(255,0,0,100)
+#define SF_BLUE     cv::Scalar(255,0,0,10)
+#define SF_GREEN    cv::Scalar(0,255,0,10)
+#define SF_RED      cv::Scalar(0,0,255,10)
+#define SF_YELLOW   cv::Scalar(0,255,255,10)
+#define SF_BLACK    cv::Scalar(0,0,0)
+#define SF_WHITE    cv::Scalar(255,255,255)
+#define SF_C1       cv::Scalar(238,121,159) // mediumpurple2
+#define SF_C2       cv::Scalar(238,58,178) // darkorchid2
+#define SF_TRANS    cv::Scalar(255,0,0,100)
 
 //! OpenCV sliders can't be negative, so we have an offset.
 #define BIN_A_OFFSET 200
@@ -57,7 +57,8 @@ private:
 
     // Called by next/previousFrame. Take binA, binB from the frame and change the
     // sliders. Update the fit and refresh boxes.
-    void refreshFrame (void) {
+    void refreshFrame (void)
+    {
         this->binA = this->gcf()->binA+BIN_A_OFFSET;
         this->binB = this->gcf()->binB;
         this->nBinsTarg = this->gcf()->nBinsTarg;
@@ -69,7 +70,8 @@ private:
 public:
 
     //! The instance public function. Short on purpose
-    static DM* i (void) {
+    static DM* i (void)
+    {
         if (DM::pInstance == 0) {
             DM::pInstance = new DM;
             DM::i()->init();
@@ -78,17 +80,15 @@ public:
     }
 
     //! Initialize by clearing out vFrameData.
-    void init (void) {
-        this->vFrameData.clear();
-    }
+    void init (void) { this->vFrameData.clear(); }
 
     /*!
-     * Add frame @frameImg to vFrameData, setting the metadata attributes
-     * @frameImgFilename (The filename for the image), @slice_x (position in the x
-     * dimension) and @ppm (pixels per mm; the scale).
+     * Add frame \a frameImg to vFrameData, setting the metadata attributes
+     * \a frameImgFilename (The filename for the image), \a slice_x (position in the x
+     * dimension) and \a ppm (pixels per mm; the scale).
      */
-    void addFrame (cv::Mat& frameImg, const std::string& frameImgFilename, const float& slice_x) {
-        //std::cout << "********** DM::addFrame ***********" << std::endl;
+    void addFrame (cv::Mat& frameImg, const std::string& frameImgFilename, const float& slice_x)
+    {
         FrameData fd(frameImg, this->bgBlurScreenProportion, this->bgBlurSubtractionOffset);
         fd.ct = this->default_mode;
         fd.filename = frameImgFilename;
@@ -96,13 +96,13 @@ public:
         // Increment layer index. Best might be to use JSON info for layer positions as
         // they are unlikely always to be in perfect increments.
         if (this->vFrameData.empty()) {
+            // First frame; not setting previous
             fd.idx = 0;
-            //std::cout << "First frame; not setting previous" << std::endl;
         } else {
+            // Subsequent frame; setting previous
             fd.idx = this->vFrameData.back().idx + 1;
             // Set pointer to previous so slices can be aligned during FrameData::write or updateFit
             fd.setPrevious (this->vFrameData.back().idx);
-            //std::cout << "Subsequent frame; setting previous to " << (&this->vFrameData[this->vFrameData.back().idx]) << std::endl;
         }
         fd.layer_x = slice_x;
         fd.pixels_per_mm = (double)this->pixels_per_mm;
@@ -118,9 +118,6 @@ public:
         fd.luminosity_factor = this->luminosity_factor;
         fd.luminosity_cutoff = this->luminosity_cutoff;
 
-        //std::cout << "Before read, binA=" << fd.binA << std::endl;
-        //std::cout << "             binB=" << fd.binB << std::endl;
-
         // Read, opportunistically
         try {
             morph::HdfData d(this->datafile, true); // true for read
@@ -128,24 +125,20 @@ public:
             if (fd.flags.test (Mirrored)) {
                 fd.mirror_image_only();
             }
-            //std::cout << "DM::addFrame: Calling FrameData::updateFit()" << std::endl;
             fd.updateFit();
         } catch (...) {
             // No problem, just carry on
         }
-        //std::cout << "After read,  binA=" << fd.binA << std::endl;
-        //std::cout << "             binB=" << fd.binB << std::endl;
 
         this->vFrameData.push_back (fd);
     }
 
     //! Return the size of vFrameData
-    unsigned int getNumFrames (void) const {
-        return this->vFrameData.size();
-    }
+    unsigned int getNumFrames (void) const { return this->vFrameData.size(); }
 
     //! Copy the current frame's bin parameters (binA, binB, nBinsTarg) to all the other frames.
-    void updateAllBins (void) {
+    void updateAllBins (void)
+    {
         int nfr = DM::i()->getNumFrames();
         int idx = DM::i()->gcf()->idx;
         for (int f = 0; f < nfr; ++f) {
@@ -161,7 +154,8 @@ public:
     }
 
     //! Update all fits - i.e. for every frame in the stack
-    void updateAllFits (void) {
+    void updateAllFits (void)
+    {
         int nfr = DM::i()->getNumFrames();
         for (int f = 0; f < nfr; ++f) {
             this->vFrameData[f].setShowFits (true);
@@ -172,7 +166,8 @@ public:
     }
 
     //! Call before write to ensure boxes are all created from the current fits.
-    void refreshAllBoxes (void) {
+    void refreshAllBoxes (void)
+    {
         int nfr = DM::i()->getNumFrames();
         for (int f = 0; f < nfr; ++f) {
             this->vFrameData[f].refreshBoxes (-this->vFrameData[f].binA, this->vFrameData[f].binB);
@@ -180,7 +175,8 @@ public:
     }
 
     //! get current frame. Short name on purpose.
-    FrameData* gcf (void) {
+    FrameData* gcf (void)
+    {
         if (!this->vFrameData.empty()) {
             return &(this->vFrameData[this->I]);
         }
@@ -188,35 +184,31 @@ public:
     }
 
     //! Get the current frame number, counting from 1 like a human.
-    int getFrameNum (void) const {
-        return 1+this->I;
-    }
+    int getFrameNum (void) const { return 1+this->I; }
 
     // Get a pointer to the persistent Mat img member attribute
-    cv::Mat* getImg (void) {
-        return &(this->img);
-    }
+    cv::Mat* getImg (void) { return &(this->img); }
 
     //! Make the next frame current (or cycle back to the first)
-    void nextFrame (void) {
+    void nextFrame (void)
+    {
         ++this->I %= this->vFrameData.size();
         this->refreshFrame();
     }
 
     //! Back up a frame
-    void previousFrame (void) {
+    void previousFrame (void)
+    {
         this->I = --this->I < 0 ? this->vFrameData.size()-1 : this->I;
         this->refreshFrame();
     }
 
     //! Clone the current frame into Mat img
-    void cloneFrame (void) {
-        this->img = this->vFrameData[this->I].frame.clone();
-    }
+    void cloneFrame (void) { this->img = this->vFrameData[this->I].frame.clone(); }
 
     //! Write frames to HdfData
-    void writeFrames (void) {
-
+    void writeFrames (void)
+    {
         // Call updateAllFits() before writing only to ensure that all the boxes have
         // been refreshed. Seems these are not read out of the .h5 file. Bit of a hack, this.
         this->refreshAllBoxes();
@@ -232,9 +224,7 @@ public:
     }
 
     //! Toogle showHelp
-    void toggleHelp (void) {
-        this->showHelp = !this->showHelp;
-    }
+    void toggleHelp (void) { this->showHelp = !this->showHelp;  }
 
     //! The application window name
     const std::string winName = "StaleFish";
@@ -253,13 +243,12 @@ public:
     //! How many pixels in the image is 1mm?
     float pixels_per_mm = 100.0f;
 
-    //! Set to true to read in an old data format project, which is then written out in
-    //! new format.
+    //! Set true to read in old data format, to be written out in new format.
     bool readOldFormat = false;
 
     //! Which drawing mode should the application start in? Bezier by default. JSON can
     //! be used to modify.
-    CurveType default_mode = CurveType::Bezier;
+    InputMode default_mode = InputMode::Bezier;
 
     //! The sigma for the Gaussian used to blur the image to get the overall background
     //! luminance is the framewidth in pixels multiplied by this number.
@@ -269,8 +258,8 @@ public:
     float bgBlurSubtractionOffset = 255.0;
 
     //! Application setup
-    void setup (const std::string& paramsfile) {
-
+    void setup (const std::string& paramsfile)
+    {
         // Set the HDF5 data file path based on the .json file path
         std::string::size_type jsonpos = paramsfile.find(".json");
         if (jsonpos == std::string::npos) {
@@ -294,15 +283,18 @@ public:
         this->bgBlurScreenProportion = conf.getDouble ("bg_blur_screen_proportion", 0.1667);
         this->bgBlurSubtractionOffset = conf.getDouble ("bg_blur_subtraction_offset", 255.0f);
 
+#if 0
         // Alternatives for default_mode_str: polynomial or freehand
         std::string default_mode_str = conf.getString ("mode", "bezier");
         if (default_mode_str == "polynomial") {
-            this->default_mode = CurveType::Poly;
+            this->default_mode = InputMode::Poly;
         } else if (default_mode_str == "freehand") {
-            this->default_mode = CurveType::Freehand;
+            this->default_mode = InputMode::Freehand;
         } else {
-            this->default_mode = CurveType::Bezier;
+            this->default_mode = InputMode::Bezier;
         }
+#endif
+        this->default_mode = InputMode::Bezier;
 
         // The colour space information, if relevant (Allen ISH images)
         // colourmodel - if exists, a string
@@ -381,19 +373,21 @@ public:
     }
 
     //! In Bezier or Polynomial modes, draw curves and users points
-    void draw_curves (const cv::Point& pt) {
-
+    void draw_curves (const cv::Point& pt)
+    {
         DM* _this = DM::i();
         cv::Mat* pImg = _this->getImg();
         FrameData* cf = _this->gcf();
 
         // red circle under the cursor
-        circle (*pImg, pt, 5, SF_RED, 1);
+        if (cf->ct == InputMode::Bezier) {
+            circle (*pImg, pt, 5, SF_RED, 1);
+        }
 
         if (cf->flags.test(ShowUsers) == true) {
             // First the lines in the preceding PP point-sets:
             for (size_t j=0; j<cf->PP.size(); j++) {
-                Scalar linecol = j%2 ? SF_RED : SF_BLUE;
+                cv::Scalar linecol = j%2 ? SF_RED : SF_BLUE;
                 for (size_t ii=0; ii<cf->PP[j].size(); ii++) {
                     circle (*pImg, cf->PP[j][ii], 5, linecol, -1);
                     if (ii) { line (*pImg, cf->PP[j][ii-1], cf->PP[j][ii], linecol, 2); }
@@ -444,7 +438,7 @@ public:
                 line (*pImg, cf->fitted[ii-1], cf->fitted[ii], SF_GREEN, 2);
             }
             // Axis line, relevant for polynomial fits only
-            if (cf->ct == CurveType::Poly) {
+            if (cf->ct == InputMode::Poly) {
                 line (*pImg, cf->axis[0], cf->axis[1], SF_RED, 1);
             }
         }
@@ -457,12 +451,17 @@ public:
         }
     }
 
-    //! Draw freehand loops when in CurveType::Freehand mode
-    void draw_freehand (const cv::Point& pt) {
-
+    //! Draw freehand loops when in InputMode::Freehand mode
+    void draw_freehand (const cv::Point& pt)
+    {
         DM* _this = DM::i();
         cv::Mat* pImg = _this->getImg();
         FrameData* cf = _this->gcf();
+
+        // blue? circle under the cursor
+        if (cf->ct == InputMode::Freehand) {
+            circle (*pImg, pt, 3, SF_BLUE, 1);
+        }
 
         // Draw the existing regions
         double alpha = 0.3;
@@ -500,11 +499,32 @@ public:
 #endif
     }
 
-    /*!
-     * UI methods. Could possibly un-static these.
-     */
-    static void onmouse (int event, int x, int y, int flags, void* param) {
+    //! Input mode for drawing numbered alignment marks
+    void draw_landmarks (const cv::Point& pt)
+    {
+        DM* _this = DM::i();
+        cv::Mat* pImg = _this->getImg();
+        FrameData* cf = _this->gcf();
 
+        // circle under the cursor
+        if (cf->ct == InputMode::Landmark) {
+            circle (*pImg, pt, 7, SF_BLACK, 1);
+        }
+
+        // Draw circles for the landmarks, with a number next to each one.
+        cv::Point toffset(8,5); // a text offset
+        for (size_t ii=0; ii<cf->LM.size(); ii++) {
+            circle (*pImg, cf->LM[ii], 5, SF_BLACK, -1);
+            std::stringstream ss;
+            ss << (1+ii);
+            cv::Point tpt(cf->LM[ii]);
+            putText (*pImg, ss.str(), tpt+toffset, cv::FONT_HERSHEY_SIMPLEX, 0.8, SF_BLACK, 1, cv::LINE_AA);
+        }
+    }
+
+    //! Actions to take on a mouse user-interface event
+    static void onmouse (int event, int x, int y, int flags, void* param)
+    {
         // Make copies of pointers to neaten up the code, below
         DM* _this = DM::i();
         cv::Mat* pImg = _this->getImg();
@@ -521,19 +541,21 @@ public:
 
         // If the button is down, add it
         if (event == cv::EVENT_LBUTTONDOWN) {
-            if (cf->ct == CurveType::Bezier || cf->ct == CurveType::Poly) {
+            if (cf->ct == InputMode::Bezier || cf->ct == InputMode::Poly) {
                 cf->P.push_back (pt);
                 cf->setShowUsers(true);
-            } else if (cf->ct == CurveType::Freehand) {
+            } else if (cf->ct == InputMode::Freehand) {
                 //_this->lbutton_down = true;
                 cf->addToFL (pt);
+            } else if (cf->ct == InputMode::Landmark) {
+                cf->LM.push_back (pt);
             }
         } else if (event == cv::EVENT_LBUTTONUP) {
             cf->loopFinished = false;
 
         } else if (event == cv::EVENT_MOUSEMOVE
                    && (flags & cv::EVENT_FLAG_LBUTTON) == cv::EVENT_FLAG_LBUTTON
-                   && cf->ct == CurveType::Freehand
+                   && cf->ct == InputMode::Freehand
                    && cf->loopFinished == false) {
             // Now button is down, want to add any pixel that the mouse moves over
             cf->addToFL (pt);
@@ -541,14 +563,12 @@ public:
 
         _this->cloneFrame();
 
-        // Code for drawing stuff when we're in a curve-fitting mode
-        if (cf->ct == CurveType::Bezier || cf->ct == CurveType::Poly) {
-            _this->draw_curves (pt);
-        } else if (cf->ct == CurveType::Freehand) {
-            _this->draw_freehand (pt);
-        } else {
-            std::cerr << "WARNING: unknown curve type in current frame (this should not occur)" << std::endl;
-        }
+        // Code for drawing stuff when we're in a curve-fitting mode. Draw both curves
+        // *and* freehand loops on the screen, always. However, we will need to know
+        // what *input* mode we're in, to draw curve points or freehand loops.
+        _this->draw_curves (pt);
+        _this->draw_freehand (pt);
+        _this->draw_landmarks (pt);
 
         std::stringstream ss;
         int xh = 30;
@@ -583,7 +603,7 @@ public:
             putText (*pImg, std::string("f:   Update the fit"),
                      cv::Point(xh,yh), cv::FONT_HERSHEY_SIMPLEX, 0.8, SF_BLACK, 1, cv::LINE_AA);
             yh += yinc;
-            putText (*pImg, std::string("F:   Update ALL fits"),
+            putText (*pImg, std::string("F:   Update fit (all frames)"),
                      cv::Point(xh,yh), cv::FONT_HERSHEY_SIMPLEX, 0.8, SF_BLACK, 1, cv::LINE_AA);
             yh += yinc;
             putText (*pImg, std::string("B:   Copy current bin params to all frames"),
@@ -594,7 +614,7 @@ public:
             putText (*pImg, hh.str(),
                      cv::Point(xh,yh), cv::FONT_HERSHEY_SIMPLEX, 0.8, SF_BLACK, 1, cv::LINE_AA);
             yh += yinc;
-            putText (*pImg, std::string("o:   Fit mode (Bezier, polynomial or freehand)"),
+            putText (*pImg, std::string("o:   Draw mode (Curve/freehand/landmark)"),
                      cv::Point(xh,yh), cv::FONT_HERSHEY_SIMPLEX, 0.8, SF_BLACK, 1, cv::LINE_AA);
             yh += yinc;
             putText (*pImg, std::string("p:   In polynomial mode, change order"),
@@ -619,7 +639,8 @@ public:
     }
 
     //! On any trackbar changing, refresh the boxes
-    static void ontrackbar_boxes (int val, void*) {
+    static void ontrackbar_boxes (int val, void*)
+    {
         DM* _this = DM::i();
         FrameData* cf = _this->gcf();
         cf->binA = _this->binA-BIN_A_OFFSET;
@@ -630,7 +651,8 @@ public:
     }
 
     //! On trackbar change, refresh the size of the boxes
-    static void ontrackbar_nbins (int val, void*) {
+    static void ontrackbar_nbins (int val, void*)
+    {
         FrameData* cf = DM::i()->gcf();
         cf->nBinsTarg = DM::i()->nBinsTarg;
         if (cf->nBinsTarg < 2) {
@@ -643,7 +665,8 @@ public:
         DM::onmouse (cv::EVENT_MOUSEMOVE, -1, -1, 0, NULL);
     }
 
-    static void createTrackbars (void) {
+    static void createTrackbars (void)
+    {
         // Set up trackbars. Have to do this for each frame
         std::string tbBinA = "Box A";
         std::string tbBinB = "Box B";
@@ -659,7 +682,8 @@ public:
         cv::setTrackbarPos (tbNBins, _this->winName, _this->nBinsTarg);
     }
 
-    static void updateTrackbars (void) {
+    static void updateTrackbars (void)
+    {
         std::string tbBinA = "Box A";
         std::string tbBinB = "Box B";
         std::string tbNBins = "Num bins";
