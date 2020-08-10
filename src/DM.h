@@ -224,12 +224,23 @@ public:
     }
 
     //! Toogle showHelp
-    void toggleHelp (void) { this->showHelp = !this->showHelp;  }
+    void toggleHelp() { this->showHelp = !this->showHelp;  }
+
 
     //! The application window name
     const std::string winName = "StaleFish";
+    //! The Gaussian blur window
     const std::string blurWin = "blurWin";
+    //! If true, display the window with the Gaussian blur
+    bool showBlurWin = false;
+    //! The offset signal window (this has the blurred background subtracted)
     const std::string offsWin = "offsWin";
+    //! If true, display the window with the offset signal
+    bool showOffsWin = true;
+    //! Toggle for the blur window
+    void toggleBlurWindow() { this->showBlurWin = this->showBlurWin ? false : true; }
+    //! Toggle for the offset (signal) window
+    void toggleOffsWindow() { this->showOffsWin = this->showOffsWin ? false : true; }
     //! Saved/last cursor position
     int x = 0;
     int y = 0;
@@ -355,10 +366,6 @@ public:
 
         //cv::namedWindow (this->winName, cv::WINDOW_AUTOSIZE);
         cv::namedWindow (this->winName, cv::WINDOW_NORMAL|cv::WINDOW_FREERATIO);
-        cv::namedWindow (this->blurWin, cv::WINDOW_NORMAL|cv::WINDOW_FREERATIO);
-        cv::setWindowTitle (this->blurWin, "Gaussian blur");
-        cv::namedWindow (this->offsWin, cv::WINDOW_NORMAL|cv::WINDOW_FREERATIO);
-        cv::setWindowTitle (this->offsWin, "mRNA signal");
         // Make sure there's an image in DM to start with
         this->cloneFrame();
         cv::setMouseCallback (this->winName, DM::onmouse, this->getImg());
@@ -627,13 +634,36 @@ public:
             putText (*pImg, std::string("m:   Mirror this frame"),
                      cv::Point(xh,yh), cv::FONT_HERSHEY_SIMPLEX, 0.8, SF_BLACK, 1, cv::LINE_AA);
             yh += yinc;
+            putText (*pImg, std::string("r:   Toggle blur window"),
+                     cv::Point(xh,yh), cv::FONT_HERSHEY_SIMPLEX, 0.8, SF_BLACK, 1, cv::LINE_AA);
+            yh += yinc;
+            putText (*pImg, std::string("e:   Toggle signal window"),
+                     cv::Point(xh,yh), cv::FONT_HERSHEY_SIMPLEX, 0.8, SF_BLACK, 1, cv::LINE_AA);
+            yh += yinc;
             putText (*pImg, std::string("x:   Exit the program"),
                      cv::Point(xh,yh), cv::FONT_HERSHEY_SIMPLEX, 0.8, SF_BLACK, 1, cv::LINE_AA);
         }
 
+        // Always show the main window
         imshow (_this->winName, *pImg);
-        imshow (_this->blurWin, *cf->getBlur());
-        imshow (_this->offsWin, *cf->getFrameOffs());
+
+        // Optionally show blurry window...
+        if (_this->showBlurWin == true) {
+            cv::namedWindow (_this->blurWin, cv::WINDOW_NORMAL|cv::WINDOW_FREERATIO);
+            cv::setWindowTitle (_this->blurWin, "Gaussian blur");
+            imshow (_this->blurWin, *cf->getBlur());
+        } else {
+            cv::destroyWindow (_this->blurWin);
+        }
+
+        // ...and the offset window
+        if (_this->showOffsWin == true) {
+            cv::namedWindow (_this->offsWin, cv::WINDOW_NORMAL|cv::WINDOW_FREERATIO);
+            cv::setWindowTitle (_this->offsWin, "mRNA signal");
+            imshow (_this->offsWin, *cf->getFrameOffs());
+        } else {
+            cv::destroyWindow (_this->offsWin);
+        }
     }
 
     //! On any trackbar changing, refresh the boxes

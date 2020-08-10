@@ -141,6 +141,16 @@ int main (int argc, char** argv)
             DM::i()->gcf()->nextCurve();
             break;
         }
+        case ('r'):
+        {
+            DM::i()->toggleBlurWindow();
+            break;
+        }
+        case ('e'):
+        {
+            DM::i()->toggleOffsWindow();
+            break;
+        }
         case ('x'):
         {
             return 0;
