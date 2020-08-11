@@ -229,11 +229,11 @@ public:
     //! The application window name
     const std::string winName = "StaleFish";
     //! The Gaussian blur window
-    const std::string blurWin = "blurWin";
+    std::string blurWin = "";
     //! If true, display the window with the Gaussian blur
     bool showBlurWin = false;
     //! The offset signal window (this has the blurred background subtracted)
-    const std::string offsWin = "offsWin";
+    std::string offsWin = "";
     //! If true, display the window with the offset signal
     bool showOffsWin = true;
     //! Toggle for the blur window
@@ -295,17 +295,6 @@ public:
         this->bgBlurScreenProportion = conf.getDouble ("bg_blur_screen_proportion", 0.1667);
         this->bgBlurSubtractionOffset = conf.getDouble ("bg_blur_subtraction_offset", 255.0f);
 
-#if 0
-        // Alternatives for default_mode_str: polynomial or freehand
-        std::string default_mode_str = conf.getString ("mode", "bezier");
-        if (default_mode_str == "polynomial") {
-            this->default_mode = InputMode::Poly;
-        } else if (default_mode_str == "freehand") {
-            this->default_mode = InputMode::Freehand;
-        } else {
-            this->default_mode = InputMode::Bezier;
-        }
-#endif
         this->default_mode = InputMode::Bezier;
 
         // The colour space information, if relevant (Allen ISH images)
@@ -443,10 +432,6 @@ public:
             for (size_t ii=1; ii<cf->fitted.size(); ii++) {
                 line (*pImg, cf->fitted[ii-1], cf->fitted[ii], SF_GREEN, 2);
             }
-            // Axis line, relevant for polynomial fits only
-            if (cf->ct == InputMode::Poly) {
-                line (*pImg, cf->axis[0], cf->axis[1], SF_RED, 1);
-            }
         }
 
         if (cf->flags.test(ShowBoxes) == true) {
@@ -545,7 +530,7 @@ public:
 
         // If the button is down, add it
         if (event == cv::EVENT_LBUTTONDOWN) {
-            if (cf->ct == InputMode::Bezier || cf->ct == InputMode::Poly) {
+            if (cf->ct == InputMode::Bezier) {
                 cf->P.push_back (pt);
                 cf->setShowUsers(true);
             } else if (cf->ct == InputMode::Freehand) {
@@ -621,9 +606,6 @@ public:
             putText (*pImg, std::string("o:   Draw mode (Curve/freehand/landmark)"),
                      cv::Point(xh,yh), cv::FONT_HERSHEY_SIMPLEX, 0.8, SF_BLACK, 1, cv::LINE_AA);
             yh += yinc;
-            putText (*pImg, std::string("p:   In polynomial mode, change order"),
-                     cv::Point(xh,yh), cv::FONT_HERSHEY_SIMPLEX, 0.8, SF_BLACK, 1, cv::LINE_AA);
-            yh += yinc;
             putText (*pImg, std::string("n:   Next frame"),
                      cv::Point(xh,yh), cv::FONT_HERSHEY_SIMPLEX, 0.8, SF_BLACK, 1, cv::LINE_AA);
             yh += yinc;
@@ -649,20 +631,32 @@ public:
 
         // Optionally show blurry window...
         if (_this->showBlurWin == true) {
-            cv::namedWindow (_this->blurWin, cv::WINDOW_NORMAL|cv::WINDOW_FREERATIO);
-            cv::setWindowTitle (_this->blurWin, "Gaussian blur");
-            imshow (_this->blurWin, *cf->getBlur());
+            if (_this->blurWin == "") {
+                _this->blurWin = "blurWin";
+                cv::namedWindow (_this->blurWin, cv::WINDOW_NORMAL|cv::WINDOW_FREERATIO);
+                cv::setWindowTitle (_this->blurWin, "Gaussian blur");
+                imshow (_this->blurWin, *cf->getBlur());
+            } // else nothing to do, window is already showing (unless user closed it!)
         } else {
-            cv::destroyWindow (_this->blurWin);
+            if (_this->blurWin == "blurWin") {
+                cv::destroyWindow (_this->blurWin);
+                _this->blurWin = "";
+            } // else nothing to do
         }
 
         // ...and the offset window
         if (_this->showOffsWin == true) {
-            cv::namedWindow (_this->offsWin, cv::WINDOW_NORMAL|cv::WINDOW_FREERATIO);
-            cv::setWindowTitle (_this->offsWin, "mRNA signal");
-            imshow (_this->offsWin, *cf->getFrameOffs());
+            if (_this->offsWin == "") {
+                _this->offsWin = "offsWin";
+                cv::namedWindow (_this->offsWin, cv::WINDOW_NORMAL|cv::WINDOW_FREERATIO);
+                cv::setWindowTitle (_this->offsWin, "mRNA signal");
+                imshow (_this->offsWin, *cf->getFrameOffs());
+            }
         } else {
-            cv::destroyWindow (_this->offsWin);
+            if (_this->offsWin == "offsWin") {
+                cv::destroyWindow (_this->offsWin);
+                _this->offsWin = "";
+            }
         }
     }
 

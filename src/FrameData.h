@@ -11,7 +11,6 @@
 #include <utility>
 #include <bitset>
 #include <limits>
-#include "tools.h"
 #include <morph/BezCurvePath.h>
 #include <morph/BezCurve.h>
 #include <morph/BezCoord.h>
@@ -21,12 +20,11 @@
 #include <morph/MathConst.h>
 #include <morph/Winder.h>
 
-// This is no longer really "curve type" but rather "input mode". So in Bezier mode, you
-// add points for the curve fitting; in freehand mode you draw a loop, and in align
-// mode, you give landmarks for slice alignment.
+// This is the "input mode". So in Bezier mode, you add points for the curve fitting; in
+// freehand mode you draw a loop, and in Landmark mode, you give landmarks for slice
+// alignment.
 enum class InputMode {
-    Poly,      // Variable order polynomial (note: the existence of this mode is ignored)
-    Bezier,    // Cubic Bezier
+    Bezier,    // Cubic Bezier: "curve drawing mode"
     Freehand,  // A freehand drawn loop enclosing a region // This will go - Freehand loops to be visible over curve.
     Landmark   // User provides alignment landmark locations on each slice
 };
@@ -67,20 +65,8 @@ private:
 
     //! Public attributes
 public:
-    //! What curve type?
+    //! What input mode is default?
     InputMode ct = InputMode::Bezier;
-
-    // Polynomial fit specific attributes
-
-    //! Order of the polynomial fit
-    int polyOrder;
-    //! A rotation is applied to the points before calling polyfit, after which fitted
-    //! points are rotated back again.
-    double theta = 0.0;
-    //! Min and max value used as input to polyfit
-    double minX, maxX;
-    //! The parameters of a polyfit, as returned by polyfit()
-    std::vector<double> pf;
 
     // Bezier curve attributes
 
@@ -100,6 +86,10 @@ public:
 
     //! The landmark points for this frame.
     std::vector<cv::Point> LM;
+    //! The rotation of this slice, with respect to the previous slice. Used by slice alignment algorithms.
+    double slice_theta = 0.0;
+    //! The slice's translation, with respect to the previous slice. Again for alignment.
+    cv::Point slice_translation;
 
     //! The means computed for the boxes. This is now "mean_signal" really, as the pixel values
     //! (monochrome or colour) are now converted with the colour space parameters into a signal.
@@ -216,7 +206,6 @@ public:
         this->axis.resize (2);
         // NB: Init these before the next three resize() calls
         this->setBins (100);
-        this->polyOrder = 3;
         // Init flags
         this->flags.set (ShowFits);
         this->flags.set (ShowUsers);
@@ -304,10 +293,8 @@ public:
     std::string getFitInfo() const
     {
         std::stringstream ss;
-        if (this->ct == InputMode::Poly) {
-            ss << "Poly order: " << this->polyOrder << ", Bins: " << this->nBins;
 
-        } else /*if (this->ct == InputMode::Bezier)*/ {
+        if (this->ct == InputMode::Bezier) {
             std::stringstream bb;
             bool first = true;
             for (auto cv : this->bcp.curves) {
@@ -321,7 +308,7 @@ public:
             ss << "Bezier order: " << bb.str() << ", Bins: " << this->nBins;
         }
 
-        if (this->ct == InputMode::Poly || this->ct == InputMode::Bezier) {
+        if (this->ct == InputMode::Bezier) {
             ss << ". Curve mode";
         } else if (this->ct == InputMode::Freehand) {
             // Get any fit info for a freehand loop (e.g. is it contiguous; how many pixels)
@@ -649,10 +636,6 @@ public:
     //! In Bezier mode, store the current set of user points (P) into PP and clear P.
     void nextCurve()
     {
-        if (this->ct == InputMode::Poly) {
-            // no op.
-            return;
-        }
         // Don't add unless at least 3 points to fit:
         if (this->P.size() < 3) {
             return;
@@ -675,11 +658,7 @@ public:
             // format and save in a new format.
         }
 
-        std::string dname = frameName + "/class/polyOrder";
-
-        df.read_val (dname.c_str(), this->polyOrder);
-
-        dname = frameName + "/class/P";
+        std::string dname = frameName + "/class/P";
         df.read_contained_vals (dname.c_str(), this->P);
 
         dname = frameName + "/class/PP_n";
@@ -755,9 +734,7 @@ public:
 
         // Write out essential information to re-load state of the application and the
         // user's work saving points etc.
-        std::string dname = frameName + "/class/polyOrder";
-        df.add_val (dname.c_str(), this->polyOrder);
-        dname = frameName + "/class/P";
+        std::string dname = frameName + "/class/P";
         df.add_contained_vals (dname.c_str(), this->P);
 
         dname = frameName + "/class/PP_n";
@@ -865,7 +842,7 @@ public:
             std::cout << "centroid in screen pix: " << cntroid << std::endl;
             cv::Point2d coff = this->offsetPoint (cntroid);
             std::cout << "centroid in scaled pix: " << coff << std::endl;
-            cv::Point2d coffrot = this->rotate (this->theta, coff);
+            cv::Point2d coffrot = this->rotate (this->slice_theta, coff);
             std::cout << "centroid in scaled pix, rotated: " << coffrot << std::endl;
 
             df.add_contained_vals (cntss.str().c_str(), coffrot);
@@ -1000,9 +977,7 @@ public:
     //! Recompute the fit
     void updateFit()
     {
-        if (this->ct == InputMode::Poly) {
-            this->updateFitPoly();
-        } else if (this->ct == InputMode::Bezier) {
+        if (this->ct == InputMode::Bezier) {
             this->updateFitBezier();
         } else if (this->ct == InputMode::Freehand) {
             // What to do? Find all the pixels inside?
@@ -1010,7 +985,7 @@ public:
             return;
         }
 
-        if (this->ct == InputMode::Poly || this->ct == InputMode::Bezier) {
+        if (this->ct == InputMode::Bezier) {
             // Scale
             this->offsetScaleFit();
             // Rotate
@@ -1033,21 +1008,13 @@ public:
             return;
         }
 
-        if (this->ct == InputMode::Poly) {
-            this->pointsInner = PolyFit::rotate (PolyFit::tracePolyOrth (this->pf, this->minX, this->maxX,
-                                                                         this->nFit, lenA),
-                                                 this->theta);
-            this->pointsOuter = PolyFit::rotate (PolyFit::tracePolyOrth (this->pf, this->minX, this->maxX,
-                                                                         this->nFit, lenB),
-                                                 this->theta);
-        } else {
-            for (int i=0; i<this->nFit; i++) {
-                cv::Point2d normLenA = this->normals[i]*lenA;
-                cv::Point2d normLenB = this->normals[i]*lenB;
-                this->pointsInner[i] = this->fitted[i] + cv::Point2i((int)normLenA.x, (int)normLenA.y);
-                this->pointsOuter[i] = this->fitted[i] + cv::Point2i((int)normLenB.x, (int)normLenB.y);
-            }
+        for (int i=0; i<this->nFit; i++) {
+            cv::Point2d normLenA = this->normals[i]*lenA;
+            cv::Point2d normLenB = this->normals[i]*lenB;
+            this->pointsInner[i] = this->fitted[i] + cv::Point2i((int)normLenA.x, (int)normLenA.y);
+            this->pointsOuter[i] = this->fitted[i] + cv::Point2i((int)normLenB.x, (int)normLenB.y);
         }
+
         // Make the boxes from pointsInner and pointsOuter
         this->boxes.resize (this->nBins);
         for (int i=0; i<this->nBins; i++) {
@@ -1063,7 +1030,6 @@ public:
     //! Toggle between curve fitting, freehand loop drawing or alignment mark (landmark) input.
     void toggleInputMode()
     {
-        // Note: InputMode::Poly is ignored now
         if (this->ct == InputMode::Landmark) {
             this->ct = InputMode::Bezier;
         } else if (this->ct == InputMode::Bezier) {
@@ -1311,21 +1277,13 @@ private:
     //! Update the fit, but don't rotate. Used by rotateFitOptimally()
     void updateFit_norotate()
     {
-        if (this->ct == InputMode::Poly) {
-            this->updateFitPoly();
-        } else {
-            this->updateFitBezier();
-        }
+        this->updateFitBezier();
     }
 
     //! Update the fit, scale and rotate by \a _theta. Used by rotateFitOptimally()
     void updateFit (double _theta)
     {
-        if (this->ct == InputMode::Poly) {
-            this->updateFitPoly();
-        } else {
-            this->updateFitBezier();
-        }
+        this->updateFitBezier();
         // Scale
         this->offsetScaleFit();
         // Rotate
@@ -1564,38 +1522,19 @@ private:
         double min_sos = simp.best_value();
 
         std::cout << "Best sos value: " << min_sos << " and best theta: " << vP[0] << std::endl;
+        this->slice_theta = vP[0];
 
         if (nBinsTmp != nBinsSave) {
             // Need to reset bins and update the fit again, but this time rotating by vP[0]
             std::cout << "reset bins to nBinsSave = " << nBinsSave << std::endl;
             this->setBins (nBinsSave);
-            std::cout << "Update fit with rotation " << vP[0] << std::endl;
-            this->updateFit (vP[0]);
+            std::cout << "Update fit with rotation " << this->slice_theta << std::endl;
+            this->updateFit (this->slice_theta);
         } else {
             // There was no need to change bin; rotate by the best theta, vP[0]
-            std::cout << "Update unchanged fit with rotation " << vP[0] << std::endl;
-            this->rotate (vP[0]);
+            std::cout << "Update unchanged fit with rotation " << this->slice_theta << std::endl;
+            this->rotate (this->slice_theta);
         }
-    }
-
-    //! Recompute the polynomial fit
-    void updateFitPoly()
-    {
-        this->axiscoefs = PolyFit::polyfit (this->P, 1);
-        this->axis = PolyFit::tracePoly (this->axiscoefs, 0, this->frame.cols, 2);
-        this->theta = atan (this->axiscoefs[1]);
-        std::vector<cv::Point> rotated = PolyFit::rotate (this->P, -this->theta);
-
-        this->maxX = -1e9;
-        this->minX = +1e9;
-        for (size_t i=0; i<rotated.size(); i++) {
-            if (rotated[i].x > this->maxX) { this->maxX = rotated[i].x; }
-            if (rotated[i].x < this->minX) { this->minX = rotated[i].x; }
-        }
-        this->pf = PolyFit::polyfit (rotated, this->polyOrder);
-
-        this->fitted = PolyFit::rotate (PolyFit::tracePoly (this->pf, this->minX, this->maxX, this->nFit),
-                                        this->theta);
     }
 
     //! Common code to generate the frame name

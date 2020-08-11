@@ -110,18 +110,6 @@ int main (int argc, char** argv)
             DM::i()->previousFrame();
             break;
         }
-        // Polyfit mode only - increment order
-        case ('p'):
-        {
-            if (DM::i()->gcf()->ct == InputMode::Bezier) {
-                break;
-            }
-            DM::i()->gcf()->polyOrder++;
-            DM::i()->gcf()->polyOrder %= 10;
-            DM::i()->gcf()->updateFit();
-            DM::i()->gcf()->refreshBoxes (-DM::i()->gcf()->binA, DM::i()->gcf()->binB);
-            break;
-        }
         case ('m'):
         {
             // Mirror

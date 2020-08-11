@@ -9,6 +9,28 @@
 #include <vector>
 #include <cmath>
 
+#if 0
+    //! Recompute the polynomial fit
+    void updateFitPoly()
+    {
+        this->axiscoefs = PolyFit::polyfit (this->P, 1);
+        this->axis = PolyFit::tracePoly (this->axiscoefs, 0, this->frame.cols, 2);
+        this->theta = atan (this->axiscoefs[1]);
+        std::vector<cv::Point> rotated = PolyFit::rotate (this->P, -this->theta);
+
+        this->maxX = -1e9;
+        this->minX = +1e9;
+        for (size_t i=0; i<rotated.size(); i++) {
+            if (rotated[i].x > this->maxX) { this->maxX = rotated[i].x; }
+            if (rotated[i].x < this->minX) { this->minX = rotated[i].x; }
+        }
+        this->pf = PolyFit::polyfit (rotated, this->polyOrder);
+
+        this->fitted = PolyFit::rotate (PolyFit::tracePoly (this->pf, this->minX, this->maxX, this->nFit),
+                                        this->theta);
+    }
+#endif
+
 //! A set of functions for polynomial fitting
 class PolyFit
 {
