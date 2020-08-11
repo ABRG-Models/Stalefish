@@ -69,7 +69,7 @@ private:
 
 public:
 
-    //! The instance public function. Short on purpose
+    //! The instance public function. Uses the very short name 'i' to keep code tidy.
     static DM* i (void)
     {
         if (DM::pInstance == 0) {
@@ -226,7 +226,6 @@ public:
     //! Toogle showHelp
     void toggleHelp() { this->showHelp = !this->showHelp;  }
 
-
     //! The application window name
     const std::string winName = "StaleFish";
     //! The Gaussian blur window
@@ -241,6 +240,8 @@ public:
     void toggleBlurWindow() { this->showBlurWin = this->showBlurWin ? false : true; }
     //! Toggle for the offset (signal) window
     void toggleOffsWindow() { this->showOffsWin = this->showOffsWin ? false : true; }
+    //! Are we on the first window drawing call?
+    bool firstCall = true;
     //! Saved/last cursor position
     int x = 0;
     int y = 0;
@@ -349,8 +350,8 @@ public:
             if (scaleFactor != 1.0f) {
                 std::cout << "rescaling frame to scaleFactor: " << scaleFactor << std::endl;
 
-                cv::Size scaledSize = cv::Size(round(frame.cols * scaleFactor),
-                                               round(frame.rows * scaleFactor));
+                cv::Size scaledSize = cv::Size(std::round(frame.cols * scaleFactor),
+                                               std::round(frame.rows * scaleFactor));
                 cv::Mat scaledFrame = cv::Mat(scaledSize, frame.type());
                 cv::resize (frame, scaledFrame, scaledSize,
                             scaleFactor, scaleFactor, cv::INTER_LINEAR);
@@ -364,7 +365,6 @@ public:
             }
         }
 
-        //cv::namedWindow (this->winName, cv::WINDOW_AUTOSIZE);
         cv::namedWindow (this->winName, cv::WINDOW_NORMAL|cv::WINDOW_FREERATIO);
         // Make sure there's an image in DM to start with
         this->cloneFrame();
@@ -375,7 +375,6 @@ public:
         this->binB = this->gcf()->binB;
         this->nBinsTarg = this->gcf()->nBinsTarg;
         DM::createTrackbars();
-        //this->gcf()->updateFit();
         this->gcf()->refreshBoxes (-(this->binA-BIN_A_OFFSET), this->binB);
     }
 
@@ -646,6 +645,7 @@ public:
 
         // Always show the main window
         imshow (_this->winName, *pImg);
+        _this->firstCall = false;
 
         // Optionally show blurry window...
         if (_this->showBlurWin == true) {

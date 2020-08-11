@@ -35,8 +35,20 @@ int main (int argc, char** argv)
     DM::i()->setup (paramsfile);
 
     while (1) {
+#if 0
+        // For some reason, cv::WND_PROP_VISIBLE is *always* -1, so this code doesn't work.
+        std::cout << "cv::WND_PROP_VISIBLE for \"" << DM::i()->winName << "\" = "
+                  << cv::getWindowProperty(DM::i()->winName, cv::WND_PROP_VISIBLE) << std::endl;
+        if (DM::i()->firstCall == false && cv::getWindowProperty(DM::i()->winName, cv::WND_PROP_VISIBLE) == -1.0) {
+            // Time to exit
+            std::cout << "Would be time to exit now..." << std::endl;
+        } // else carry on
+# define WAIT_TIME 30 // ms
+#else
+# define WAIT_TIME 0 // wait infinitely
+#endif
         DM::onmouse (cv::EVENT_MOUSEMOVE, -1, -1, 0, NULL);
-        char k = waitKey(0);
+        char k = waitKey (WAIT_TIME);
         switch(k) {
         // 1 to 4 - select what is shown
         case ('1'):
