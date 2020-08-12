@@ -72,9 +72,6 @@ public:
 
     //! A Bezier curve path to fit the cortex.
     morph::BezCurvePath<double> bcp;
-
-    // Attributes which pertain either to polynomial or Bezier curves
-
     //! The vector of user-supplied points from which to make a curve fit.
     std::vector<cv::Point> P;
     //! A vector of vectors of points for multi-section Bezier curves
@@ -86,10 +83,6 @@ public:
 
     //! The landmark points for this frame.
     std::vector<cv::Point> LM;
-    //! The rotation of this slice, with respect to the previous slice. Used by slice alignment algorithms.
-    double slice_theta = 0.0;
-    //! The slice's translation, with respect to the previous slice. Again for alignment.
-    cv::Point slice_translation;
 
     //! The means computed for the boxes. This is now "mean_signal" really, as the pixel values
     //! (monochrome or colour) are now converted with the colour space parameters into a signal.
@@ -111,6 +104,8 @@ public:
     cv::Point2d fit_centroid;
     //! This holds offset and scaled fitted points: (fitted - fit_centroid) * pixels_per_mm
     std::vector<cv::Point2d> fitted_offset;
+    //! The rotation of this slice, with respect to the previous slice. Used by slice alignment algorithms.
+    double slice_theta = 0.0;
     //! This holds the fitted_offset points after they have been rotated to be in line
     //! with fitted_rotated points in the 'previous' frame. 'in line' means the
     //! smallest sum-of-square distances between the two fitted_rotated sets. Depends
@@ -133,7 +128,7 @@ public:
 
     //! A vector of user-supplied points for the Freehand drawn loop
     std::vector<cv::Point> FL;
-    std::array<cv::Point, 2> extents_FL; // Extnents of the loop FL
+    std::array<cv::Point, 2> extents_FL; // Extents of the loop FL
     //! vector of vectors containing the points enclosed by the path FL
     std::vector<std::vector<cv::Point>> FLE;
 
@@ -182,15 +177,12 @@ public:
     //! red-green ellipse for "elliptical tube of expressing colours
     std::array<float, 2> ellip_axes;
     //! The slope of the linear luminosity vs signal fit.
-    float luminosity_factor;
+    float luminosity_factor = -0.00392f; // -1/255
     //! at what luminosity does the signal cut off to zero?
-    float luminosity_cutoff;
+    float luminosity_cutoff = 255.0f;
 
 public:
-    FrameData()
-    {
-        throw std::runtime_error ("Default constructor is not allowed");
-    }
+    FrameData() { throw std::runtime_error ("Default constructor is not allowed"); }
     //! Constructor initializes default values
     FrameData (const cv::Mat& fr,
                const double _bgBlurScreenProportion,
@@ -293,10 +285,11 @@ public:
     std::string getFitInfo() const
     {
         std::stringstream ss;
-
-        if (this->ct == InputMode::Bezier) {
-            std::stringstream bb;
-            bool first = true;
+        std::stringstream bb;
+        bool first = true;
+        if (this->bcp.curves.empty()) {
+            bb << "none";
+        } else {
             for (auto cv : this->bcp.curves) {
                 if (first) {
                     bb << cv.getOrder();
@@ -305,8 +298,8 @@ public:
                     bb << "/" << cv.getOrder();
                 }
             }
-            ss << "Bezier order: " << bb.str() << ", Bins: " << this->nBins;
         }
+        ss << "Bezier order: " << bb.str() << ", Bins: " << this->nBins;
 
         if (this->ct == InputMode::Bezier) {
             ss << ". Curve mode";
@@ -540,6 +533,7 @@ public:
             this->FLE.push_back (inside);
             this->FL.clear();
             this->loopFinished = true;
+            this->computeFreehandMeans();
 
         } else { // The new point pt is NOT in FL already
 
@@ -564,6 +558,8 @@ public:
                 this->FLE.push_back (inside);
                 this->FL.clear();
                 this->loopFinished = true;
+                // Now loop is finished, compute the means, so they can be displayed in UI
+                this->computeFreehandMeans();
 
             } else {
                 // Can't close the loop; just add to it
@@ -1132,29 +1128,27 @@ private:
         return boxedPixelVals;
     }
 
-    //! Get the raw pixel values from the region
+    //! Get the pixel values from the region from the *background offset* frame -
+    //! frame_bgoff (the 'mRNA signal' window)
     std::vector<float> getRegionPixelVals (const std::vector<cv::Point>& region)
     {
-        throw std::runtime_error ("FIXME - get same data as getBoxedPixelVals. Also display value");
-        cv::Mat mask = cv::Mat::zeros(this->frame.rows, this->frame.cols, CV_8UC3);
-        std::cout << "mask rows: " << mask.rows << ", mask cols: " << mask.cols << std::endl;
+        // Convert frame_bgoff (which is CV_32FC3) to uchar, multiplying by 255 on the way:
+        cv::Mat frame_bgoffU;
+        this->frame_bgoff.convertTo (frame_bgoffU, CV_8UC3, 255.0);
+
+        // A return container
+        std::vector<float> regionPixelVals (region.size(), 0.0f);
+
+        // Now just get the values from frame_bgoffU at the x and y values specified in region
+        size_t i = 0;
         for (auto px : region) {
             int _col = px.x;
             int _row = px.y;
-            mask.at<cv::Scalar>(_col, _row) = cv::Scalar(255,255,255);
+            cv::Vec<unsigned char, 3> pixelval = frame_bgoffU.at<cv::Vec<unsigned char, 3>>(_row, _col);
+            //std::cout << "frame_bgoffU value at "  << _col << "," << _row << " is " << pixelval << std::endl;
+            regionPixelVals[i++] = static_cast<float>(pixelval[0]);
         }
 
-        // From here, same as getBoxedPixelVals
-        cv::Mat result, resultGray;
-        this->frame.copyTo (result, mask);
-        cv::cvtColor (result, resultGray, cv::COLOR_BGR2GRAY);
-        std::vector<cv::Point2i> positives;
-        cv::findNonZero (resultGray, positives);
-        std::vector<float> regionPixelVals (positives.size());
-        for (size_t j=0; j<positives.size(); j++) {
-            cv::Scalar pixel = resultGray.at<uchar>(positives[j]);
-            regionPixelVals[j] = (float)pixel.val[0];
-        }
         return regionPixelVals;
     }
 
@@ -1172,15 +1166,17 @@ private:
             this->FL_means[i] = 0.0;
 
             if (this->cmodel == ColourModel::AllenDevMouse) {
-                throw std::runtime_error ("AllenDevMouse ColourModel is not implemented for freehand regions right now");
+                throw std::runtime_error ("AllenDevMouse ColourModel is not implemented for freehand regions");
 
             } else { // Default is ColourModel::Greyscale
                 this->FL_raw[i] = this->getRegionPixelVals (this->FLE[i]);
                 for (size_t j=0; j<this->FL_raw[i].size(); j++) {
                     // Signal conversion: x - x_0:
+                    std::cout << "FL_raw at (x,y) = (" << i << "," << j << ") is " << this->FL_raw[i][j] << std::endl;
                     float signal = this->FL_raw[i][j] - this->luminosity_cutoff;
                     // m * (x - x_0):
                     signal *= this->luminosity_factor;
+                    std::cout << "Signal at (loopnum,pixnum) = (" << i << "," << j << ") is " << signal << std::endl;
                     // Any signal <0 is 0.
                     this->FL_means[i] += (double)(signal > 0.0f ? signal : 0.0f);
                 }
@@ -1293,7 +1289,7 @@ private:
     //! Recompute the Bezier fit
     void updateFitBezier()
     {
-        if (this->PP.empty() && this->P.size() < 2) {
+        if (this->PP.empty()) {
             std::cout << "Too few points to fit" << std::endl;
             return;
         }
@@ -1325,6 +1321,7 @@ private:
             }
         }
 
+#if 0 // Prefer to treat the points in P as "draft points" now.
         if (this->P.size()>2) {
             std::vector<std::pair<double,double>> user_points;
             user_points.clear();
@@ -1344,16 +1341,15 @@ private:
                 this->bcp.addCurve (bc);
             }
         }
-
+#endif
         // Update this->fitted
         this->bcp.computePoints (static_cast<unsigned int>(this->nFit));
         std::vector<morph::BezCoord<double>> coords = this->bcp.getPoints();
         std::vector<morph::BezCoord<double>> tans = this->bcp.getTangents();
         std::vector<morph::BezCoord<double>> norms = this->bcp.getNormals();
-        //Point2d fitsum;
+        // Point2d fitsum;
         for (int i = 0; i < this->nFit; ++i) {
             this->fitted[i] = cv::Point(coords[i].x(),coords[i].y());
-            //fitsum += Point2d(coords[i].x(),coords[i].y());
             this->tangents[i] = cv::Point2d(tans[i].x(),tans[i].y());
             this->normals[i] = cv::Point2d(norms[i].x(),norms[i].y());
         }

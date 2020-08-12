@@ -315,8 +315,8 @@ public:
         this->ellip_axes[0] = ea[0].asFloat();
         this->ellip_axes[1] = ea[1].asFloat();
         // luminosity linear fit parameters
-        this->luminosity_cutoff = conf.getFloat ("luminosity_cutoff", 255.0);
-        this->luminosity_factor = conf.getFloat ("luminosity_factor", -0.00392); // -1/255
+        this->luminosity_cutoff = conf.getFloat ("luminosity_cutoff", 255.0f);
+        this->luminosity_factor = conf.getFloat ("luminosity_factor", -0.00392f); // -1/255
 
         // Loop over slices, creating a FrameData object for each.
         const Json::Value slices = conf.getArray ("slices");
@@ -412,7 +412,8 @@ public:
             }
         }
 
-        if (cf->flags.test(ShowUsers) == true) {
+        // This is the set of green user points that will be the next Bezier curve section
+        if (cf->ct == InputMode::Bezier && cf->flags.test(ShowUsers) == true) {
             // Then draw the current point set:
             if (cf->PP.empty() || (!cf->PP.empty() && cf->P.size() > 1)) {
                 for (size_t ii=0; ii<cf->P.size(); ii++) {
@@ -457,13 +458,26 @@ public:
         // Draw the existing regions
         double alpha = 0.3;
         for (size_t j=0; j<cf->FLE.size(); j++) {
+            int xmean = 0;
+            int ymean = 0;
             for (size_t ii=0; ii<cf->FLE[j].size(); ii++) {
                 // This fills area with transparent blue. First get region from *pImg
-                cv::Mat roi = (*pImg)(cv::Rect(cf->FLE[j][ii].x, cf->FLE[j][ii].y, 1, 1));
+                cv::Point cur = cf->FLE[j][ii];
+                cv::Mat roi = (*pImg)(cv::Rect(cur.x, cur.y, 1, 1));
+                // Compute mean x,y? for text position?
+                xmean += cur.x;
+                ymean += cur.y;
                 // Create a colour
                 cv::Mat color(roi.size(), CV_8UC3, SF_BLUE);
                 cv::addWeighted (color, alpha, roi, 1.0 - alpha , 0.0, roi);
             }
+            xmean /= cf->FLE[j].size();
+            ymean /= cf->FLE[j].size();
+            // Add text for FL_means
+            std::stringstream flm;
+            flm << cf->FL_means[j];
+            cv::Point tpt(xmean, ymean); // Could use extents_FL here.
+            putText (*pImg, flm.str(), tpt, cv::FONT_HERSHEY_SIMPLEX, 0.5, SF_BLACK, 1, cv::LINE_AA);
         }
 
         // Draw the current point set in green:
@@ -534,7 +548,6 @@ public:
                 cf->P.push_back (pt);
                 cf->setShowUsers(true);
             } else if (cf->ct == InputMode::Freehand) {
-                //_this->lbutton_down = true;
                 cf->addToFL (pt);
             } else if (cf->ct == InputMode::Landmark) {
                 cf->LM.push_back (pt);
