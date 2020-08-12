@@ -153,6 +153,8 @@ public:
     float bgBlurSubtractionOffset = 255.0f;
     //! The frame, with the blurred background offset. CV_32FC3.
     cv::Mat frame_bgoff;
+    //! CV_8UC3 version of FrameData::frame_bgoff
+    cv::Mat frame_bgoffU;
     //! The frame image filename from which frame was loaded. Stored so it can be
     //! recorded when writing out.
     std::string filename;
@@ -233,6 +235,8 @@ public:
         // Add tmp1 to this->frameF to get frame_bgoff.
         cv::add (this->frameF, tmp1, this->frame_bgoff, cv::noArray(), CV_32FC3);
         this->showMaxMin (this->frame_bgoff, "frame_bgoff");
+        // frame_bgoff is for number crunching. For viewing, it's better to use a CV_8UC3 version:
+        this->frame_bgoff.convertTo (this->frame_bgoffU, CV_8UC3, 255.0); // Note frame_bgoffU has no alpha channel.
     }
 
     //! Set the number of bins and update the size of the various containers
@@ -271,7 +275,7 @@ public:
 
     //! Getter for the blurred image
     cv::Mat* getBlur() { return &this->blurred; }
-    cv::Mat* getFrameOffs() { return &this->frame_bgoff; }
+    cv::Mat* getFrameOffs() { return &this->frame_bgoffU; }
 
     //! Getter for nBins
     int getNBins() { return this->nBins; }
@@ -1054,6 +1058,7 @@ public:
 
 private:
 
+#if 0
     //! Blur the image and use the blurred result to estimate the overall background
     //! luminance, which may vary due to the arrangement of lighting when the brain
     //! slices were imaged.
@@ -1065,33 +1070,61 @@ private:
         ksz.height = 21;
         cv::GaussianBlur (this->frame, blurred, ksz, 2.0);
     }
+#endif
 
-    //! Find a value for each pixel of image \a frame within the box defined by \a pp
-    //! and return this in a vector of floats, without conversion
+    //! Get the pixel values from the region from the *background offset* frame -
+    //! FrameData::frame_bgoff (the 'mRNA signal' window)
+    std::vector<float> getRegionPixelVals (const std::vector<cv::Point>& region)
+    {
+        // A return container
+        std::vector<float> regionPixelVals (region.size(), 0.0f);
+
+        // Now just get the values from frame_bgoffU at the x and y values specified in region
+        size_t i = 0;
+        for (auto px : region) {
+            int _col = px.x;
+            int _row = px.y;
+#if 0
+            cv::Vec<unsigned char, 3> pixelval = this->frame_bgoffU.at<cv::Vec<unsigned char, 3>>(_row, _col);
+#else
+            std::cout << "this->frame-bgoff channels, depth, etc: "
+                      << this->frame_bgoff.channels() << ", " << this->frame_bgoff.depth()
+                      << ", " << this->frame_bgoff.elemSize() << std::endl;
+
+            cv::Vec<float, 3> pixelval = this->frame_bgoff.at<cv::Vec<float, 3>>(_row, _col);
+#endif
+
+            //std::cout << "frame_bgoffU value at "  << _col << "," << _row << " is " << pixelval << std::endl;
+            regionPixelVals[i++] = static_cast<float>(pixelval[0]) * 255.0f; // Result between 0 and approx 255
+        }
+
+        return regionPixelVals;
+    }
+
+    //! Find a grayscale value for each pixel of image in FrameData::frame_bgoff within
+    //! the box defined by \a pp and return this in a vector of floats, without
+    //! conversion
     std::vector<float> getBoxedPixelVals (const std::vector<cv::Point> pp)
     {
+        std::cout << "getBoxedPixelVals (const std::vector<cv::Point> pp) called\n";
+
         cv::Point pts[4] = {pp[0],pp[1],pp[2],pp[3]};
 
-        // Convert frame_bgoff to uchar, multiplying by 255 on the way:
-        cv::Mat frame_bgoffU;
-        this->frame_bgoff.convertTo (frame_bgoffU, CV_8UC3, 255.0);
-
-        cv::Mat mask = cv::Mat::zeros(frame_bgoffU.rows, frame_bgoffU.cols, CV_8UC3);
+        cv::Mat mask = cv::Mat::zeros(this->frame_bgoffU.rows, this->frame_bgoffU.cols, CV_8UC3);
         cv::fillConvexPoly (mask, pts, 4, cv::Scalar(255,255,255));
         cv::Mat maskGray;
         cv::cvtColor (mask, maskGray, cv::COLOR_BGR2GRAY);
         std::vector<cv::Point2i> maskpositives;
         cv::findNonZero (maskGray, maskpositives);
         cv::Mat result, resultGray;
-        frame_bgoffU.copyTo (result, mask);
+        this->frame_bgoffU.copyTo (result, mask);
         cv::cvtColor (result, resultGray, cv::COLOR_BGR2GRAY);
-        std::vector<cv::Point2i> positives;
-        cv::findNonZero (resultGray, positives);
         // As long as we make boxedPixelVals the size of the non-zeros in mask, the
         // numbers will work out!
         std::vector<float> boxedPixelVals (maskpositives.size());
         for (size_t j=0; j<maskpositives.size(); j++) {
             cv::Scalar pixel = resultGray.at<uchar>(maskpositives[j]);
+            std::cout << "At location " << maskpositives[j] << ", box pixel value is " << pixel << std::endl;
             boxedPixelVals[j] = (float)pixel.val[0];
         }
         return boxedPixelVals;
@@ -1128,28 +1161,25 @@ private:
         return boxedPixelVals;
     }
 
-    //! Get the pixel values from the region from the *background offset* frame -
-    //! frame_bgoff (the 'mRNA signal' window)
-    std::vector<float> getRegionPixelVals (const std::vector<cv::Point>& region)
+    //! Convert pixel values into a signal with a value between 0 and 1 using
+    //! FrameData::luminosity_cutoff and FrameData::luminosity_factor.
+    double applySignalConversion (const std::vector<float>& vf)
     {
-        // Convert frame_bgoff (which is CV_32FC3) to uchar, multiplying by 255 on the way:
-        cv::Mat frame_bgoffU;
-        this->frame_bgoff.convertTo (frame_bgoffU, CV_8UC3, 255.0);
-
-        // A return container
-        std::vector<float> regionPixelVals (region.size(), 0.0f);
-
-        // Now just get the values from frame_bgoffU at the x and y values specified in region
-        size_t i = 0;
-        for (auto px : region) {
-            int _col = px.x;
-            int _row = px.y;
-            cv::Vec<unsigned char, 3> pixelval = frame_bgoffU.at<cv::Vec<unsigned char, 3>>(_row, _col);
-            //std::cout << "frame_bgoffU value at "  << _col << "," << _row << " is " << pixelval << std::endl;
-            regionPixelVals[i++] = static_cast<float>(pixelval[0]);
+        double meanSignal = 0.0;
+        for (size_t j=0; j<vf.size(); j++) {
+            // Signal conversion: x - x_0:
+            std::cout << "vf[" << j << "] = " << vf[j];
+            float signal = vf[j] - this->luminosity_cutoff;
+            // m * (x - x_0):
+            signal *= this->luminosity_factor;
+            std::cout << "; signal is " << signal << std::endl;
+            // Any signal <0 is 0.
+            meanSignal += (double)(signal > 0.0f ? signal : 0.0f);
         }
+        // Divide the signal by the number of pixels in the region
+        meanSignal /= (double)vf.size();
 
-        return regionPixelVals;
+        return meanSignal;
     }
 
     //! For each freehand drawn loop, compute the mean luminance within the loop,
@@ -1170,18 +1200,7 @@ private:
 
             } else { // Default is ColourModel::Greyscale
                 this->FL_raw[i] = this->getRegionPixelVals (this->FLE[i]);
-                for (size_t j=0; j<this->FL_raw[i].size(); j++) {
-                    // Signal conversion: x - x_0:
-                    std::cout << "FL_raw at (x,y) = (" << i << "," << j << ") is " << this->FL_raw[i][j] << std::endl;
-                    float signal = this->FL_raw[i][j] - this->luminosity_cutoff;
-                    // m * (x - x_0):
-                    signal *= this->luminosity_factor;
-                    std::cout << "Signal at (loopnum,pixnum) = (" << i << "," << j << ") is " << signal << std::endl;
-                    // Any signal <0 is 0.
-                    this->FL_means[i] += (double)(signal > 0.0f ? signal : 0.0f);
-                }
-                // Divide the signal by the number of pixels in the region
-                this->FL_means[i] /= (double)this->FL_raw[i].size();
+                this->FL_means[i] = this->applySignalConversion (this->FL_raw[i]);
             }
         }
     }
@@ -1247,42 +1266,20 @@ private:
                 this->means[i] /= (double)this->boxes_raw_bgr[i].size();
 
             } else { // Default is ColourModel::Greyscale
-
                 this->boxes_raw[i] = this->getBoxedPixelVals (this->boxes[i]);
-
-                this->estimateBackgroundLuminance();
-
-                for (size_t j=0; j<this->boxes_raw[i].size(); j++) {
-                    // Signal conversion is simple for monochrome pixel values:
-                    // x - x_0:
-                    //std::cout << "boxes_raw[i="<<i<<"][j="<<j<<"]="<<this->boxes_raw[i][j];
-                    float signal = this->boxes_raw[i][j] - this->luminosity_cutoff;
-                    //std::cout << ", signal=" << signal << std::endl;
-                    // m * (x - x_0):
-                    signal *= this->luminosity_factor;
-                    //std::cout << "signal*luminosity_factor=" << signal << std::endl;
-                    // Any signal <0 is 0.
-                    this->means[i] += (double)(signal > 0.0f ? signal : 0.0f);
-                }
-                // Divide the signal by the number of pixels in the box
-                this->means[i] /= (double)this->boxes_raw[i].size();
+                this->means[i] = this->applySignalConversion (this->boxes_raw[i]);
             }
         }
     }
 
     //! Update the fit, but don't rotate. Used by rotateFitOptimally()
-    void updateFit_norotate()
-    {
-        this->updateFitBezier();
-    }
+    void updateFit_norotate() { this->updateFitBezier(); }
 
     //! Update the fit, scale and rotate by \a _theta. Used by rotateFitOptimally()
     void updateFit (double _theta)
     {
         this->updateFitBezier();
-        // Scale
         this->offsetScaleFit();
-        // Rotate
         this->rotate (_theta);
     }
 

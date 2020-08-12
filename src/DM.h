@@ -39,6 +39,8 @@ private:
     int I = 0;
     //! The current image
     cv::Mat img;
+    //! The signal image
+    cv::Mat sImg;
     //! The thickness of each brain slice in mm
     float thickness = 0.05f;
     //! The application configuration
@@ -186,8 +188,10 @@ public:
     //! Get the current frame number, counting from 1 like a human.
     int getFrameNum (void) const { return 1+this->I; }
 
-    // Get a pointer to the persistent Mat img member attribute
+    //! Get a pointer to the persistent Mat img member attribute
     cv::Mat* getImg (void) { return &(this->img); }
+    //! Signal image
+    cv::Mat* getSImg (void) { return &(this->sImg); }
 
     //! Make the next frame current (or cycle back to the first)
     void nextFrame (void)
@@ -204,7 +208,13 @@ public:
     }
 
     //! Clone the current frame into Mat img
-    void cloneFrame (void) { this->img = this->vFrameData[this->I].frame.clone(); }
+    void cloneFrame (void) {
+        this->img = this->vFrameData[this->I].frame.clone();
+        FrameData* cf = this->gcf();
+        if (cf) {
+            this->sImg = cf->frame_bgoffU.clone();
+        }
+    }
 
     //! Write frames to HdfData
     void writeFrames (void)
@@ -373,6 +383,8 @@ public:
         DM* _this = DM::i();
         cv::Mat* pImg = _this->getImg();
         FrameData* cf = _this->gcf();
+        // Signal image comes straight out of the FrameData
+        cv::Mat* sImg = _this->getSImg();
 
         // red circle under the cursor
         if (cf->ct == InputMode::Bezier) {
@@ -432,6 +444,7 @@ public:
         if (cf->flags.test(ShowFits) == true) {
             for (size_t ii=1; ii<cf->fitted.size(); ii++) {
                 line (*pImg, cf->fitted[ii-1], cf->fitted[ii], SF_GREEN, 2);
+                // line (*sImg, cf->fitted[ii-1], cf->fitted[ii], SF_BLACK, 2);
             }
         }
 
@@ -439,8 +452,44 @@ public:
             // The bins; pointsInner to pointsOuter
             for (size_t ii=0; ii<cf->pointsInner.size(); ii++) {
                 line (*pImg, cf->pointsInner[ii], cf->pointsOuter[ii], SF_YELLOW, 1);
+                line (*sImg, cf->pointsInner[ii], cf->pointsOuter[ii], SF_BLACK, 1);
+
+                if (ii > 0) {
+                    line (*pImg, cf->pointsInner[ii-1], cf->pointsInner[ii], SF_YELLOW, 1);
+                    line (*pImg, cf->pointsOuter[ii-1], cf->pointsOuter[ii], SF_YELLOW, 1);
+
+                    line (*sImg, cf->pointsInner[ii-1], cf->pointsInner[ii], SF_BLACK, 1);
+                    line (*sImg, cf->pointsOuter[ii-1], cf->pointsOuter[ii], SF_BLACK, 1);
+                }
             }
         }
+    }
+
+    //! On \a _pImg, draw the region specified in \a vp, using \a colour. Also add text
+    //! showing the mean signal/luminance (\a themean)
+    void draw_region (const std::vector<cv::Point>& vp, cv::Mat* _pImg, const float& themean, const cv::Scalar& colour)
+    {
+        double alpha = 0.3;
+        int xmean = 0;
+        int ymean = 0;
+        for (size_t ii=0; ii<vp.size(); ii++) {
+            // This fills area with transparent blue. First get region from *_pImg
+            cv::Point cur = vp[ii];
+            cv::Mat roi = (*_pImg)(cv::Rect(cur.x, cur.y, 1, 1));
+            // Compute mean x,y? for text position?
+            xmean += cur.x;
+            ymean += cur.y;
+            // Create a colour
+            cv::Mat color(roi.size(), CV_8UC3, colour);
+            cv::addWeighted (color, alpha, roi, 1.0 - alpha , 0.0, roi, CV_8UC3);
+        }
+        xmean /= vp.size();
+        ymean /= vp.size();
+        // Add text for FL_means
+        std::stringstream flm;
+        flm << themean;
+        cv::Point tpt(xmean, ymean); // Could use extents_FL here.
+        putText (*_pImg, flm.str(), tpt, cv::FONT_HERSHEY_SIMPLEX, 0.5, SF_BLACK, 1, cv::LINE_AA);
     }
 
     //! Draw freehand loops when in InputMode::Freehand mode
@@ -448,6 +497,7 @@ public:
     {
         DM* _this = DM::i();
         cv::Mat* pImg = _this->getImg();
+        cv::Mat* sImg = _this->getSImg();
         FrameData* cf = _this->gcf();
 
         // blue? circle under the cursor
@@ -456,33 +506,18 @@ public:
         }
 
         // Draw the existing regions
-        double alpha = 0.3;
         for (size_t j=0; j<cf->FLE.size(); j++) {
-            int xmean = 0;
-            int ymean = 0;
-            for (size_t ii=0; ii<cf->FLE[j].size(); ii++) {
-                // This fills area with transparent blue. First get region from *pImg
-                cv::Point cur = cf->FLE[j][ii];
-                cv::Mat roi = (*pImg)(cv::Rect(cur.x, cur.y, 1, 1));
-                // Compute mean x,y? for text position?
-                xmean += cur.x;
-                ymean += cur.y;
-                // Create a colour
-                cv::Mat color(roi.size(), CV_8UC3, SF_BLUE);
-                cv::addWeighted (color, alpha, roi, 1.0 - alpha , 0.0, roi);
+            if (!cf->FLE[j].empty()) {
+                float themean = cf->FL_means.size() > j ? cf->FL_means[j] : 0.0f;
+                draw_region (cf->FLE[j], pImg, themean, SF_BLUE);
+                draw_region (cf->FLE[j], sImg, themean, SF_BLACK);
             }
-            xmean /= cf->FLE[j].size();
-            ymean /= cf->FLE[j].size();
-            // Add text for FL_means
-            std::stringstream flm;
-            flm << cf->FL_means[j];
-            cv::Point tpt(xmean, ymean); // Could use extents_FL here.
-            putText (*pImg, flm.str(), tpt, cv::FONT_HERSHEY_SIMPLEX, 0.5, SF_BLACK, 1, cv::LINE_AA);
         }
 
         // Draw the current point set in green:
         for (size_t ii=0; ii<cf->FL.size(); ii++) {
             rectangle (*pImg, cf->FL[ii], cf->FL[ii], SF_GREEN, 1);
+            rectangle (*sImg, cf->FL[ii], cf->FL[ii], SF_GREEN, 1);
         }
 
 #ifdef DEBUG_INSIDE_OUTSIDE_BOUNDARY
@@ -531,6 +566,7 @@ public:
         // Make copies of pointers to neaten up the code, below
         DM* _this = DM::i();
         cv::Mat* pImg = _this->getImg();
+        cv::Mat* sImg = _this->getSImg();
         FrameData* cf = _this->gcf();
 
         // What's the cv::Point under the mouse pointer?
@@ -659,12 +695,12 @@ public:
 
         // ...and the offset window
         if (_this->showOffsWin == true) {
-            if (_this->offsWin == "") {
-                _this->offsWin = "offsWin";
-                cv::namedWindow (_this->offsWin, cv::WINDOW_NORMAL|cv::WINDOW_FREERATIO);
-                cv::setWindowTitle (_this->offsWin, "mRNA signal");
-                imshow (_this->offsWin, *cf->getFrameOffs());
-            }
+            //if (_this->offsWin == "") { // Always re-draw offset window, as it has items on itx
+            _this->offsWin = "offsWin";
+            cv::namedWindow (_this->offsWin, cv::WINDOW_NORMAL|cv::WINDOW_FREERATIO);
+            cv::setWindowTitle (_this->offsWin, "mRNA signal");
+            imshow (_this->offsWin, *sImg);
+            //}
         } else {
             if (_this->offsWin == "offsWin") {
                 cv::destroyWindow (_this->offsWin);
