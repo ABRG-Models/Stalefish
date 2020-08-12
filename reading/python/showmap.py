@@ -86,6 +86,7 @@ with h5py.File (filename, 'r') as f:
     elif n == 1:
         F.add_subplot (1,1,1)
 
+    scalemult=5
     if n == 3 or n == 1:
         plt.title('Flattened heat plot')
         for ii in range(0,len(x)): # len(x) is the number of frames.
@@ -102,7 +103,7 @@ with h5py.File (filename, 'r') as f:
                                    [ x_r[jj],  y_b[jj] ],
                                    [ x_r[jj], y_t[jj] ],
                                    [ x_l[jj], y_t[jj] ] ])
-                poly = Polygon (v, facecolor=mpl.cm.Greys(means[ii][jj]), edgecolor='None')
+                poly = Polygon (v, facecolor=mpl.cm.Greys(scalemult*means[ii][jj]), edgecolor='None')
                 plt.gca().add_patch(poly)
 
 
