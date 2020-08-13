@@ -85,15 +85,15 @@ public:
     std::vector<cv::Point> LM;
 
     //! The means computed for the boxes. This is "mean_signal".
-    std::vector<float> means;
+    std::vector<float> box_signal_means;
     //! Mean pixel value in a box.
-    std::vector<unsigned int> pixel_means;
+    std::vector<unsigned int> box_pixel_means;
     //! The raw pixel values for each box as a vector of unsigned ints for each box.
-    std::vector<std::vector<unsigned int>> boxes_raw;
+    std::vector<std::vector<unsigned int>> boxes_pixels;
     //! The signal values for each box as a vector of floats for each box.
     std::vector<std::vector<float>> boxes_signal;
     //! Raw colours of boxes in RGB
-    std::vector<std::vector<std::array<float, 3>>> boxes_raw_bgr;
+    std::vector<std::vector<std::array<float, 3>>> boxes_pixels_bgr;
 
     //! Target number of bins; used by bins slider
     int nBinsTarg;
@@ -136,15 +136,15 @@ public:
     std::vector<std::vector<cv::Point>> FLE;
 
     //! The mean luminance of each freehand loop enclosed region in FLE.
-    std::vector<float> FL_means;
+    std::vector<float> FL_signal_means;
     //! The mean pixel value (0-255) in a freehand loop
     std::vector<unsigned int> FL_pixel_means;
     //! The raw pixel values for each region as a vector of unsigned ints
-    std::vector<std::vector<unsigned int>> FL_raw;
+    std::vector<std::vector<unsigned int>> FL_pixels;
     //! The signal values for each region as a vector of floats
     std::vector<std::vector<float>> FL_signal;
     //! Raw values for each region in colour
-    std::vector<std::vector<std::array<float, 3>>> FL_raw_bgr;
+    std::vector<std::vector<std::array<float, 3>>> FL_pixels_bgr;
 
     //! A bit set containing flags
     std::bitset<8> flags;
@@ -847,41 +847,38 @@ public:
          * FrameData::read method (these would all be re-computed before being
          * re-written in a later run of the program).
          */
-        for (size_t bi = 0; bi < this->boxes_raw.size(); ++bi) {
-            dname = frameName + "/box_raw" + std::to_string(bi);
-            df.add_contained_vals (dname.c_str(), this->boxes_raw[bi]);
-            dname = frameName + "/box" + std::to_string(bi);
+        for (size_t bi = 0; bi < this->boxes_pixels.size(); ++bi) {
+            dname = frameName + "/boxes_pixels" + std::to_string(bi);
+            df.add_contained_vals (dname.c_str(), this->boxes_pixels[bi]);
+            dname = frameName + "/boxes_signal" + std::to_string(bi);
             df.add_contained_vals (dname.c_str(), this->boxes_signal[bi]);
         }
         dname = frameName + "/nboxes";
-        df.add_val (dname.c_str(), static_cast<unsigned int>(this->boxes_raw.size()));
+        df.add_val (dname.c_str(), static_cast<unsigned int>(this->boxes_pixels.size()));
 
-        dname = frameName + "/pixel_means";
-        df.add_contained_vals (dname.c_str(), this->pixel_means);
-
-        dname = frameName + "/means";
-        df.add_contained_vals (dname.c_str(), this->means);
+        dname = frameName + "/box_signal_means";
+        df.add_contained_vals (dname.c_str(), this->box_signal_means);
+        dname = frameName + "/box_pixel_means";
+        df.add_contained_vals (dname.c_str(), this->box_pixel_means);
 
         // Autoscale means and save a copy
         dname = frameName + "/means_autoscaled";
         // this->means is vector<double>
-        std::vector<float> means_autoscaled = morph::MathAlgo::autoscale (this->means, 0.0, 1.0);
+        std::vector<float> means_autoscaled = morph::MathAlgo::autoscale (this->box_signal_means, 0.0, 1.0);
         df.add_contained_vals (dname.c_str(), means_autoscaled);
 
         // Freehand drawn regions - results
-        for (size_t ri = 0; ri < this->FL_raw.size(); ++ri) {
+        for (size_t ri = 0; ri < this->FL_pixels.size(); ++ri) {
             dname = frameName + "/freehand_pixels" + std::to_string(ri);
-            //std::cout << "Writing out: " << dname << std::endl;
-            df.add_contained_vals (dname.c_str(), this->FL_raw[ri]);
+            df.add_contained_vals (dname.c_str(), this->FL_pixels[ri]);
             dname = frameName + "/freehand_signal" + std::to_string(ri);
-            //std::cout << "Writing out: " << dname << std::endl;
             df.add_contained_vals (dname.c_str(), this->FL_signal[ri]);
         }
         dname = frameName + "/nfreehand";
-        df.add_val (dname.c_str(), static_cast<unsigned int>(this->FL_raw.size()));
+        df.add_val (dname.c_str(), static_cast<unsigned int>(this->FL_pixels.size()));
 
-        dname = frameName + "/freehand_means";
-        df.add_contained_vals (dname.c_str(), this->FL_means);
+        dname = frameName + "/freehand_signal_means";
+        df.add_contained_vals (dname.c_str(), this->FL_signal_means);
         dname = frameName + "/freehand_pixel_means";
         df.add_contained_vals (dname.c_str(), this->FL_pixel_means);
 
@@ -1202,29 +1199,29 @@ private:
     }
 
     //! For each freehand drawn loop, compute the mean luminance within the loop,
-    //! storing in this->FL_means
+    //! storing in this->FL_signal_means
     void computeFreehandMeans()
     {
         // Loop through FLE. For each set of points, output the points as a list and
         // also compute the mean.
         this->FL_pixel_means.resize (this->FLE.size());
-        this->FL_means.resize (this->FLE.size());
-        this->FL_raw.resize (this->FLE.size());
+        this->FL_signal_means.resize (this->FLE.size());
+        this->FL_pixels.resize (this->FLE.size());
         this->FL_signal.resize (this->FLE.size());
-        this->FL_raw_bgr.resize (this->FLE.size());
+        this->FL_pixels_bgr.resize (this->FLE.size());
         for (size_t i=0; i<this->FLE.size(); i++) {
             // region is FLE[i]
-            this->FL_means[i] = 0.0;
+            this->FL_signal_means[i] = 0.0;
             this->FL_pixel_means[i] = 0;
 
             if (this->cmodel == ColourModel::AllenDevMouse) {
                 throw std::runtime_error ("AllenDevMouse ColourModel is not implemented for freehand regions");
 
             } else { // Default is ColourModel::Greyscale
-                this->FL_raw[i] = this->getRegionPixelVals (this->FLE[i]);
+                this->FL_pixels[i] = this->getRegionPixelVals (this->FLE[i]);
                 this->FL_signal[i] = this->getRegionSignalVals (this->FLE[i]);
-                morph::MathAlgo::compute_mean_sd<unsigned int> (this->FL_raw[i], FL_pixel_means[i]);
-                morph::MathAlgo::compute_mean_sd<float> (this->FL_signal[i], FL_means[i]);
+                morph::MathAlgo::compute_mean_sd<unsigned int> (this->FL_pixels[i], FL_pixel_means[i]);
+                morph::MathAlgo::compute_mean_sd<float> (this->FL_signal[i], FL_signal_means[i]);
             }
         }
     }
@@ -1233,16 +1230,16 @@ private:
     //! member as they're only computed to be written out to file.
     void computeBoxMeans()
     {
-        this->boxes_raw.resize (this->boxes.size());
+        this->boxes_pixels.resize (this->boxes.size());
         this->boxes_signal.resize (this->boxes.size());
-        this->boxes_raw_bgr.resize (this->boxes.size());
-        this->means.resize (this->boxes.size());
-        this->pixel_means.resize (this->boxes.size());
+        this->boxes_pixels_bgr.resize (this->boxes.size());
+        this->box_signal_means.resize (this->boxes.size());
+        this->box_pixel_means.resize (this->boxes.size());
         for (size_t i=0; i<this->boxes.size(); i++) {
 
             // Zero the means value
-            this->pixel_means[i] = 0;
-            this->means[i] = 0.0;
+            this->box_pixel_means[i] = 0;
+            this->box_signal_means[i] = 0.0;
 
             // if luminance value only/greyscale:
             if (this->cmodel == ColourModel::AllenDevMouse) {
@@ -1250,16 +1247,16 @@ private:
                 // determining if they're on the "expressing" axis. This will include
                 // a translate matrix, a rotation matrix and ellipse parameters,
                 // obtained from the octave script plotcolour.m
-                this->boxes_raw_bgr[i] = this->getBoxedPixelColour (this->boxes[i]);
+                this->boxes_pixels_bgr[i] = this->getBoxedPixelColour (this->boxes[i]);
 
                 float ellip_maj_sq = ellip_axes[0] * ellip_axes[0];
                 float ellip_min_sq = ellip_axes[1] * ellip_axes[1];
-                // std::cout << "box " << i << " has " << this->boxes_raw_bgr[i].size() << " pixels" << std::endl;
-                for (size_t j=0; j<this->boxes_raw_bgr[i].size(); j++) {
+                // std::cout << "box " << i << " has " << this->boxes_pixels_bgr[i].size() << " pixels" << std::endl;
+                for (size_t j=0; j<this->boxes_pixels_bgr[i].size(); j++) {
                     // Perform colour transform here, so that we get a transformed blue value
-                    float b = boxes_raw_bgr[i][j][0];
-                    float g = boxes_raw_bgr[i][j][1];
-                    float r = boxes_raw_bgr[i][j][2];
+                    float b = boxes_pixels_bgr[i][j][0];
+                    float g = boxes_pixels_bgr[i][j][1];
+                    float r = boxes_pixels_bgr[i][j][2];
                     //std::cout << "bgr: " << b << "," << g << "," << r << std::endl;
 
                     // 1. Translate rgb colour. NB: It's this->colour_trans
@@ -1287,16 +1284,16 @@ private:
                     signal *= this->luminosity_factor;
                     // Any signal <0 is 0.
                     // std::cout << "signal value is " << signal << std::endl;
-                    this->means[i] += (double)(signal > 0.0f ? signal : 0.0f);
+                    this->box_signal_means[i] += (double)(signal > 0.0f ? signal : 0.0f);
                 }
                 // Divide the signal by the number of pixels in the box
-                this->means[i] /= (double)this->boxes_raw_bgr[i].size();
+                this->box_signal_means[i] /= (double)this->boxes_pixels_bgr[i].size();
 
             } else { // Default is ColourModel::Greyscale
-                this->boxes_raw[i] = this->getBoxedPixelVals (this->boxes[i]);
+                this->boxes_pixels[i] = this->getBoxedPixelVals (this->boxes[i]);
                 this->boxes_signal[i] = this->getBoxedSignalVals (this->boxes[i]);
-                morph::MathAlgo::compute_mean_sd<unsigned int> (this->boxes_raw[i], this->pixel_means[i]);
-                morph::MathAlgo::compute_mean_sd<float> (this->boxes_signal[i], this->means[i]);
+                morph::MathAlgo::compute_mean_sd<unsigned int> (this->boxes_pixels[i], this->box_pixel_means[i]);
+                morph::MathAlgo::compute_mean_sd<float> (this->boxes_signal[i], this->box_signal_means[i]);
             }
         }
     }

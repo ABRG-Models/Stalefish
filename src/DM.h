@@ -485,7 +485,7 @@ public:
         }
         xmean /= vp.size();
         ymean /= vp.size();
-        // Add text for FL_means
+        // Add text for FL_signal_means
         std::stringstream flm;
         flm << themean;
         cv::Point tpt(xmean, ymean); // Could use extents_FL here.
@@ -508,7 +508,7 @@ public:
         // Draw the existing regions
         for (size_t j=0; j<cf->FLE.size(); j++) {
             if (!cf->FLE[j].empty()) {
-                float themean = cf->FL_means.size() > j ? cf->FL_means[j] : 0.0f;
+                float themean = cf->FL_signal_means.size() > j ? cf->FL_signal_means[j] : 0.0f;
                 float thepixelmean = cf->FL_pixel_means.size() > j ? cf->FL_pixel_means[j] : 0;
                 draw_region (cf->FLE[j], pImg, thepixelmean, SF_BLUE);
                 draw_region (cf->FLE[j], sImg, themean, SF_BLACK);
