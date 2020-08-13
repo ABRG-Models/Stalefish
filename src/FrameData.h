@@ -84,11 +84,14 @@ public:
     //! The landmark points for this frame.
     std::vector<cv::Point> LM;
 
-    //! The means computed for the boxes. This is now "mean_signal" really, as the pixel values
-    //! (monochrome or colour) are now converted with the colour space parameters into a signal.
-    std::vector<double> means;
-    //! The raw values for each box as a vector of floating points numbers for each box.
-    std::vector<std::vector<float>> boxes_raw;
+    //! The means computed for the boxes. This is "mean_signal".
+    std::vector<float> means;
+    //! Mean pixel value in a box.
+    std::vector<unsigned int> pixel_means;
+    //! The raw pixel values for each box as a vector of unsigned ints for each box.
+    std::vector<std::vector<unsigned int>> boxes_raw;
+    //! The signal values for each box as a vector of floats for each box.
+    std::vector<std::vector<float>> boxes_signal;
     //! Raw colours of boxes in RGB
     std::vector<std::vector<std::array<float, 3>>> boxes_raw_bgr;
 
@@ -133,9 +136,13 @@ public:
     std::vector<std::vector<cv::Point>> FLE;
 
     //! The mean luminance of each freehand loop enclosed region in FLE.
-    std::vector<double> FL_means;
-    //! The raw values for each region as a vector of floating points numbers for each one.
-    std::vector<std::vector<float>> FL_raw;
+    std::vector<float> FL_means;
+    //! The mean pixel value (0-255) in a freehand loop
+    std::vector<unsigned int> FL_pixel_means;
+    //! The raw pixel values for each region as a vector of unsigned ints
+    std::vector<std::vector<unsigned int>> FL_raw;
+    //! The signal values for each region as a vector of floats
+    std::vector<std::vector<float>> FL_signal;
     //! Raw values for each region in colour
     std::vector<std::vector<std::array<float, 3>>> FL_raw_bgr;
 
@@ -143,18 +150,29 @@ public:
     std::bitset<8> flags;
     //! The image data, required when sampling the image in one of the boxes. CV_8UC3
     cv::Mat frame;
+    std::pair<int, int> frame_maxmin;
     //! A copy of the image data in float format (in range 0 to 1, rather than 0 to 255). CV_32FC3
     cv::Mat frameF;
     //! A blurred copy of the image data. CV_32FC3.
     cv::Mat blurred;
+    float blurmean  = 0.0f;
+    unsigned int blurmeanU  = 0;
     //! Sets the width of the blurring Gaussian's sigma
     double bgBlurScreenProportion = 0.1667;
     //! An offset used when subtracting blurred BG from image.
     float bgBlurSubtractionOffset = 255.0f;
-    //! The frame, with the blurred background offset. CV_32FC3.
+    //! The frame, with the blurred background offset, including the user-supplied
+    //! bgBlurSubtractionOffset to give values between approx 0 and 1 and in CV_32FC3
+    //! format. From frame_bgoff we calculate the signal.
     cv::Mat frame_bgoff;
-    //! CV_8UC3 version of FrameData::frame_bgoff
+    //! The signal frame, CV_32FC3 format. 1.0f - frame_bgoff.
+    cv::Mat frame_signal;
+    std::pair<float, float> frame_signal_maxmin;
+    //! CV_8UC3 version of FrameData::frame_bgoff, possibly truncated at the ends of the
+    //! ranges, but useful for display?
     cv::Mat frame_bgoffU;
+    cv::Mat frame_signalU;
+
     //! The frame image filename from which frame was loaded. Stored so it can be
     //! recorded when writing out.
     std::string filename;
@@ -179,9 +197,9 @@ public:
     //! red-green ellipse for "elliptical tube of expressing colours
     std::array<float, 2> ellip_axes;
     //! The slope of the linear luminosity vs signal fit.
-    float luminosity_factor = -0.00392f; // -1/255
+    float luminosity_factor = -0.00392f; // -1/255 aka -1.0f
     //! at what luminosity does the signal cut off to zero?
-    float luminosity_cutoff = 255.0f;
+    float luminosity_cutoff = 255.0f; // aka 1.0f
 
 public:
     FrameData() { throw std::runtime_error ("Default constructor is not allowed"); }
@@ -194,8 +212,10 @@ public:
         this->previous = -1;
         this->parentStack = (std::vector<FrameData>*)0;
         this->frame = fr.clone();
+        this->frame_maxmin = this->showMaxMinU (this->frame, "frame (original)");
         // Scale and convert frame to float format
         this->frame.convertTo (this->frameF, CV_32FC3, 1/255.0);
+        this->showMaxMin (this->frameF, "frameF (float)");
         this->axiscoefs.resize (2, 0.0);
         this->axis.resize (2);
         // NB: Init these before the next three resize() calls
@@ -217,26 +237,33 @@ public:
         ksz.height += (ksz.height%2 == 1) ? 0 : 1;
         double sigma = (double)this->frameF.cols * this->bgBlurScreenProportion;
         cv::GaussianBlur (this->frameF, this->blurred, ksz, sigma);
+        std::cout << "Blur mean = " << cv::mean (this->blurred) << std::endl;
+        this->blurmean = cv::mean(this->blurred)[0];
+        this->blurmeanU = static_cast<unsigned int>(this->blurmean * 255.0f);
 
         // Now subtract the blur from the original
-        cv::Mat tmp1;
+        cv::Mat suboffset_minus_blurred;
         // An offset so that we don't lose very small amounts of signal above the
         // background when we subtract the blurred version of the image. To become a
-        // parameter for the user to modify at application level.
+        // parameter for the user to modify at application level. Really? Want this here?
         if (_bgBlurSubtractionOffset < 0.0f || _bgBlurSubtractionOffset > 255.0f) {
             throw std::runtime_error ("The bg blur subtraction offset should be in range [0,255]");
         }
         this->bgBlurSubtractionOffset = _bgBlurSubtractionOffset;
         cv::subtract (this->bgBlurSubtractionOffset/255.0f, this->blurred,
-                      tmp1, cv::noArray(), CV_32FC3);
+                      suboffset_minus_blurred, cv::noArray(), CV_32FC3);
         // show max mins (For debugging)
         this->showMaxMin (this->blurred, "this->blurred");
-        this->showMaxMin (tmp1, "tmp1 (const-blurred)");
-        // Add tmp1 to this->frameF to get frame_bgoff.
-        cv::add (this->frameF, tmp1, this->frame_bgoff, cv::noArray(), CV_32FC3);
+        this->showMaxMin (suboffset_minus_blurred, "suboffset_minus_blurred (const-blurred)");
+        // Add suboffset_minus_blurred to this->frameF to get frame_bgoff.
+        cv::add (this->frameF, suboffset_minus_blurred, this->frame_bgoff, cv::noArray(), CV_32FC3);
         this->showMaxMin (this->frame_bgoff, "frame_bgoff");
-        // frame_bgoff is for number crunching. For viewing, it's better to use a CV_8UC3 version:
-        this->frame_bgoff.convertTo (this->frame_bgoffU, CV_8UC3, 255.0); // Note frame_bgoffU has no alpha channel.
+        // Invert frame_bgoff to create the signal frame
+        cv::subtract (1.0f, this->frame_bgoff, this->frame_signal, cv::noArray(), CV_32FC3);
+        this->frame_signal_maxmin = this->showMaxMin (this->frame_signal, "frame_signal");
+        // frame_bgoff is for number crunching. For viewing, it's better to use a CV_8UC3 version (?):
+        this->frame_bgoff.convertTo (this->frame_bgoffU, CV_8UC3, 255.0);
+        this->frame_signal.convertTo (this->frame_signalU, CV_8UC3, 255.0);
     }
 
     //! Set the number of bins and update the size of the various containers
@@ -258,7 +285,7 @@ public:
     }
 
     //! Show the max and the min of a
-    void showMaxMin (const cv::Mat& m, const std::string& matlabel = "(unknown)")
+    std::pair<float, float> showMaxMin (const cv::Mat& m, const std::string& matlabel = "(unknown)")
     {
         float minm = 100.0f;
         float maxm = -100.0f;
@@ -271,11 +298,28 @@ public:
             }
         }
         std::cout << "The matrix " << matlabel << "  has min/max: " << minm << "/" << maxm << std::endl;
+        return std::make_pair(maxm, minm);
+    }
+    //! Show the max and the min of a, which should be in U8 format
+    std::pair<int, int> showMaxMinU (const cv::Mat& m, const std::string& matlabel = "(unknown)")
+    {
+        int minm = 256;
+        int maxm = -256;
+        for (int r = 0; r < m.rows; ++r) {
+            for (int c = 0; c < m.cols; ++c) {
+                //std::cout << "Frame("<<r<<","<<c<<") = " << m.at< cv::Vec<float, 3> >(r,c) << "\n";
+                int val = (int)m.at< cv::Vec<unsigned char, 3> >(r,c)[0];
+                minm = val < minm ? val : minm;
+                maxm = val > maxm ? val : maxm;
+            }
+        }
+        std::cout << "The matrix " << matlabel << "  has min/max: " << minm << "/" << maxm << std::endl;
+        return std::make_pair(maxm, minm);
     }
 
     //! Getter for the blurred image
     cv::Mat* getBlur() { return &this->blurred; }
-    cv::Mat* getFrameOffs() { return &this->frame_bgoffU; }
+    //cv::Mat* getFrameOffs() { return &this->frame_signal; }
 
     //! Getter for nBins
     int getNBins() { return this->nBins; }
@@ -804,11 +848,16 @@ public:
          * re-written in a later run of the program).
          */
         for (size_t bi = 0; bi < this->boxes_raw.size(); ++bi) {
-            dname = frameName + "/box" + std::to_string(bi);
+            dname = frameName + "/box_raw" + std::to_string(bi);
             df.add_contained_vals (dname.c_str(), this->boxes_raw[bi]);
+            dname = frameName + "/box" + std::to_string(bi);
+            df.add_contained_vals (dname.c_str(), this->boxes_signal[bi]);
         }
         dname = frameName + "/nboxes";
         df.add_val (dname.c_str(), static_cast<unsigned int>(this->boxes_raw.size()));
+
+        dname = frameName + "/pixel_means";
+        df.add_contained_vals (dname.c_str(), this->pixel_means);
 
         dname = frameName + "/means";
         df.add_contained_vals (dname.c_str(), this->means);
@@ -816,20 +865,25 @@ public:
         // Autoscale means and save a copy
         dname = frameName + "/means_autoscaled";
         // this->means is vector<double>
-        std::vector<double> means_autoscaled = morph::MathAlgo::autoscale (this->means, 0.0, 1.0);
+        std::vector<float> means_autoscaled = morph::MathAlgo::autoscale (this->means, 0.0, 1.0);
         df.add_contained_vals (dname.c_str(), means_autoscaled);
 
         // Freehand drawn regions - results
         for (size_t ri = 0; ri < this->FL_raw.size(); ++ri) {
-            dname = frameName + "/freehand" + std::to_string(ri);
+            dname = frameName + "/freehand_pixels" + std::to_string(ri);
             //std::cout << "Writing out: " << dname << std::endl;
             df.add_contained_vals (dname.c_str(), this->FL_raw[ri]);
+            dname = frameName + "/freehand_signal" + std::to_string(ri);
+            //std::cout << "Writing out: " << dname << std::endl;
+            df.add_contained_vals (dname.c_str(), this->FL_signal[ri]);
         }
         dname = frameName + "/nfreehand";
         df.add_val (dname.c_str(), static_cast<unsigned int>(this->FL_raw.size()));
 
         dname = frameName + "/freehand_means";
         df.add_contained_vals (dname.c_str(), this->FL_means);
+        dname = frameName + "/freehand_pixel_means";
+        df.add_contained_vals (dname.c_str(), this->FL_pixel_means);
 
         // Add the centroid of the freehand regions (in the y-z or 'in-slice' plane)
         for (size_t i = 0; i<fle_size; ++i) {
@@ -1000,7 +1054,6 @@ public:
     //! Re-compute the boxes from the curve (double version)
     void refreshBoxes (const double lenA, const double lenB)
     {
-
         // Don't refresh boxes for Freehand mode
         if (this->ct == InputMode::Freehand) {
             // Or perhaps hide stuff? Delete points in P? or leave the points in P,
@@ -1058,76 +1111,63 @@ public:
 
 private:
 
-#if 0
-    //! Blur the image and use the blurred result to estimate the overall background
-    //! luminance, which may vary due to the arrangement of lighting when the brain
-    //! slices were imaged.
-    void estimateBackgroundLuminance()
+    //! Get the signal values from the region from the mRNA signal window (frame_signal).
+    std::vector<float> getRegionSignalVals (const std::vector<cv::Point>& region)
     {
-        cv::Mat blurred = cv::Mat::zeros (this->frame.rows, this->frame.cols, CV_8UC3);
-        cv::Size ksz;
-        ksz.width = 21;
-        ksz.height = 21;
-        cv::GaussianBlur (this->frame, blurred, ksz, 2.0);
+        std::vector<float> regionSignalVals (region.size(), 0.0f);
+        size_t i = 0;
+        for (auto px : region) {
+            cv::Vec<float, 3> val = this->frame_signal.at<cv::Vec<float, 3>>(px.y, px.x);
+            regionSignalVals[i++] = static_cast<float>(val[0]);
+        }
+        return regionSignalVals;
     }
-#endif
 
-    //! Get the pixel values from the region from the *background offset* frame -
-    //! FrameData::frame_bgoff (the 'mRNA signal' window)
-    std::vector<float> getRegionPixelVals (const std::vector<cv::Point>& region)
+    //! Get the pixel values from the region from the original image window (frame).
+    std::vector<unsigned int> getRegionPixelVals (const std::vector<cv::Point>& region)
     {
-        // A return container
-        std::vector<float> regionPixelVals (region.size(), 0.0f);
-
-        // Now just get the values from frame_bgoffU at the x and y values specified in region
+        std::vector<unsigned int> regionPixelVals (region.size(), 0);
         size_t i = 0;
         for (auto px : region) {
             int _col = px.x;
             int _row = px.y;
-#if 0
-            cv::Vec<unsigned char, 3> pixelval = this->frame_bgoffU.at<cv::Vec<unsigned char, 3>>(_row, _col);
-#else
-            std::cout << "this->frame-bgoff channels, depth, etc: "
-                      << this->frame_bgoff.channels() << ", " << this->frame_bgoff.depth()
-                      << ", " << this->frame_bgoff.elemSize() << std::endl;
-
-            cv::Vec<float, 3> pixelval = this->frame_bgoff.at<cv::Vec<float, 3>>(_row, _col);
-#endif
-
-            //std::cout << "frame_bgoffU value at "  << _col << "," << _row << " is " << pixelval << std::endl;
-            regionPixelVals[i++] = static_cast<float>(pixelval[0]) * 255.0f; // Result between 0 and approx 255
+            cv::Vec<unsigned char, 3> pixelval = this->frame.at<cv::Vec<unsigned char, 3>>(_row, _col);
+            regionPixelVals[i++] = static_cast<unsigned int>(pixelval[0]); // Result between 0 and 255
         }
-
         return regionPixelVals;
+    }
+
+    std::vector<cv::Point> getBoxRegion (const std::vector<cv::Point> pp)
+    {
+        // Four cv::Points define a rectangle. Convert from vector to an array of Points
+        cv::Point pts[4] = {pp[0],pp[1],pp[2],pp[3]};
+        // Create a mask of (initially) zeros.
+        cv::Mat mask = cv::Mat::zeros(this->frame.rows, this->frame.cols, CV_8UC3);
+        // Set the box defined by pts to ones.
+        cv::fillConvexPoly (mask, pts, 4, cv::Scalar(255,255,255));
+        // Make a grayscale version of mask.
+        cv::Mat maskGray;
+        cv::cvtColor (mask, maskGray, cv::COLOR_BGR2GRAY);
+        // Find the nonzero locations in maskGray.
+        std::vector<cv::Point> maskpositives;
+        cv::findNonZero (maskGray, maskpositives);
+        return maskpositives;
+    }
+
+    //! Get the raw pixel values in the box defined by pp.
+    std::vector<unsigned int> getBoxedPixelVals (const std::vector<cv::Point> pp)
+    {
+        std::vector<cv::Point> maskpositives = this->getBoxRegion (pp);
+        return this->getRegionPixelVals (maskpositives);
     }
 
     //! Find a grayscale value for each pixel of image in FrameData::frame_bgoff within
     //! the box defined by \a pp and return this in a vector of floats, without
     //! conversion
-    std::vector<float> getBoxedPixelVals (const std::vector<cv::Point> pp)
+    std::vector<float> getBoxedSignalVals (const std::vector<cv::Point> pp)
     {
-        std::cout << "getBoxedPixelVals (const std::vector<cv::Point> pp) called\n";
-
-        cv::Point pts[4] = {pp[0],pp[1],pp[2],pp[3]};
-
-        cv::Mat mask = cv::Mat::zeros(this->frame_bgoffU.rows, this->frame_bgoffU.cols, CV_8UC3);
-        cv::fillConvexPoly (mask, pts, 4, cv::Scalar(255,255,255));
-        cv::Mat maskGray;
-        cv::cvtColor (mask, maskGray, cv::COLOR_BGR2GRAY);
-        std::vector<cv::Point2i> maskpositives;
-        cv::findNonZero (maskGray, maskpositives);
-        cv::Mat result, resultGray;
-        this->frame_bgoffU.copyTo (result, mask);
-        cv::cvtColor (result, resultGray, cv::COLOR_BGR2GRAY);
-        // As long as we make boxedPixelVals the size of the non-zeros in mask, the
-        // numbers will work out!
-        std::vector<float> boxedPixelVals (maskpositives.size());
-        for (size_t j=0; j<maskpositives.size(); j++) {
-            cv::Scalar pixel = resultGray.at<uchar>(maskpositives[j]);
-            std::cout << "At location " << maskpositives[j] << ", box pixel value is " << pixel << std::endl;
-            boxedPixelVals[j] = (float)pixel.val[0];
-        }
-        return boxedPixelVals;
+        std::vector<cv::Point> maskpositives = this->getBoxRegion (pp);
+        return this->getRegionSignalVals (maskpositives);
     }
 
     //! In a box, obtain colour values as BGR float triplets
@@ -1161,46 +1201,30 @@ private:
         return boxedPixelVals;
     }
 
-    //! Convert pixel values into a signal with a value between 0 and 1 using
-    //! FrameData::luminosity_cutoff and FrameData::luminosity_factor.
-    double applySignalConversion (const std::vector<float>& vf)
-    {
-        double meanSignal = 0.0;
-        for (size_t j=0; j<vf.size(); j++) {
-            // Signal conversion: x - x_0:
-            std::cout << "vf[" << j << "] = " << vf[j];
-            float signal = vf[j] - this->luminosity_cutoff;
-            // m * (x - x_0):
-            signal *= this->luminosity_factor;
-            std::cout << "; signal is " << signal << std::endl;
-            // Any signal <0 is 0.
-            meanSignal += (double)(signal > 0.0f ? signal : 0.0f);
-        }
-        // Divide the signal by the number of pixels in the region
-        meanSignal /= (double)vf.size();
-
-        return meanSignal;
-    }
-
     //! For each freehand drawn loop, compute the mean luminance within the loop,
     //! storing in this->FL_means
     void computeFreehandMeans()
     {
         // Loop through FLE. For each set of points, output the points as a list and
         // also compute the mean.
+        this->FL_pixel_means.resize (this->FLE.size());
         this->FL_means.resize (this->FLE.size());
         this->FL_raw.resize (this->FLE.size());
+        this->FL_signal.resize (this->FLE.size());
         this->FL_raw_bgr.resize (this->FLE.size());
         for (size_t i=0; i<this->FLE.size(); i++) {
             // region is FLE[i]
             this->FL_means[i] = 0.0;
+            this->FL_pixel_means[i] = 0;
 
             if (this->cmodel == ColourModel::AllenDevMouse) {
                 throw std::runtime_error ("AllenDevMouse ColourModel is not implemented for freehand regions");
 
             } else { // Default is ColourModel::Greyscale
                 this->FL_raw[i] = this->getRegionPixelVals (this->FLE[i]);
-                this->FL_means[i] = this->applySignalConversion (this->FL_raw[i]);
+                this->FL_signal[i] = this->getRegionSignalVals (this->FLE[i]);
+                morph::MathAlgo::compute_mean_sd<unsigned int> (this->FL_raw[i], FL_pixel_means[i]);
+                morph::MathAlgo::compute_mean_sd<float> (this->FL_signal[i], FL_means[i]);
             }
         }
     }
@@ -1210,11 +1234,14 @@ private:
     void computeBoxMeans()
     {
         this->boxes_raw.resize (this->boxes.size());
+        this->boxes_signal.resize (this->boxes.size());
         this->boxes_raw_bgr.resize (this->boxes.size());
         this->means.resize (this->boxes.size());
+        this->pixel_means.resize (this->boxes.size());
         for (size_t i=0; i<this->boxes.size(); i++) {
 
             // Zero the means value
+            this->pixel_means[i] = 0;
             this->means[i] = 0.0;
 
             // if luminance value only/greyscale:
@@ -1267,7 +1294,9 @@ private:
 
             } else { // Default is ColourModel::Greyscale
                 this->boxes_raw[i] = this->getBoxedPixelVals (this->boxes[i]);
-                this->means[i] = this->applySignalConversion (this->boxes_raw[i]);
+                this->boxes_signal[i] = this->getBoxedSignalVals (this->boxes[i]);
+                morph::MathAlgo::compute_mean_sd<unsigned int> (this->boxes_raw[i], this->pixel_means[i]);
+                morph::MathAlgo::compute_mean_sd<float> (this->boxes_signal[i], this->means[i]);
             }
         }
     }

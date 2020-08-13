@@ -212,7 +212,7 @@ public:
         this->img = this->vFrameData[this->I].frame.clone();
         FrameData* cf = this->gcf();
         if (cf) {
-            this->sImg = cf->frame_bgoffU.clone();
+            this->sImg = cf->frame_signalU.clone(); // Don't get an alpha channel with frame_signal, unlike frame_bgoffU
         }
     }
 
@@ -397,7 +397,7 @@ public:
                 cv::Scalar linecol = j%2 ? SF_RED : SF_BLUE;
                 for (size_t ii=0; ii<cf->PP[j].size(); ii++) {
                     circle (*pImg, cf->PP[j][ii], 5, linecol, -1);
-                    if (ii) { line (*pImg, cf->PP[j][ii-1], cf->PP[j][ii], linecol, 2); }
+                    if (ii) { line (*pImg, cf->PP[j][ii-1], cf->PP[j][ii], linecol, 2, cv::LINE_AA); }
                 }
             }
         }
@@ -415,10 +415,10 @@ public:
                 }
                 cv::Point ps(ctrls[0].first, ctrls[0].second);
                 cv::Point pe(ctrls[1].first, ctrls[1].second);
-                line (*pImg, ps, pe, SF_GREEN, 1);
+                line (*pImg, ps, pe, SF_GREEN, 1, cv::LINE_AA);
                 cv::Point ps2(ctrls[ctrls.size()-2].first, ctrls[ctrls.size()-2].second);
                 cv::Point pe2(ctrls[ctrls.size()-1].first, ctrls[ctrls.size()-1].second);
-                line (*pImg, ps2, pe2, SF_GREEN, 1);
+                line (*pImg, ps2, pe2, SF_GREEN, 1, cv::LINE_AA);
 
                 j++;
             }
@@ -430,36 +430,36 @@ public:
             if (cf->PP.empty() || (!cf->PP.empty() && cf->P.size() > 1)) {
                 for (size_t ii=0; ii<cf->P.size(); ii++) {
                     circle (*pImg, cf->P[ii], 5, SF_GREEN, -1);
-                    if (ii) { line (*pImg, cf->P[ii-1], cf->P[ii], SF_GREEN, 1); }
+                    if (ii) { line (*pImg, cf->P[ii-1], cf->P[ii], SF_GREEN, 1, cv::LINE_AA); }
                 }
             }
             // also draw a thin line to the cursor position
             if ((cf->PP.empty() && cf->P.size() > 0)
                 || (!cf->PP.empty() && cf->P.size() > 1)) {
-                line (*pImg, cf->P[cf->P.size()-1], pt, SF_GREEN, 1);
+                line (*pImg, cf->P[cf->P.size()-1], pt, SF_GREEN, 1, cv::LINE_AA);
             }
         }
 
         // This is the fit line
         if (cf->flags.test(ShowFits) == true) {
             for (size_t ii=1; ii<cf->fitted.size(); ii++) {
-                line (*pImg, cf->fitted[ii-1], cf->fitted[ii], SF_GREEN, 2);
-                // line (*sImg, cf->fitted[ii-1], cf->fitted[ii], SF_BLACK, 2);
+                line (*pImg, cf->fitted[ii-1], cf->fitted[ii], SF_GREEN, 2, cv::LINE_AA);
+                // line (*sImg, cf->fitted[ii-1], cf->fitted[ii], SF_BLACK, 2, cv::LINE_AA);
             }
         }
 
         if (cf->flags.test(ShowBoxes) == true) {
             // The bins; pointsInner to pointsOuter
             for (size_t ii=0; ii<cf->pointsInner.size(); ii++) {
-                line (*pImg, cf->pointsInner[ii], cf->pointsOuter[ii], SF_YELLOW, 1);
-                line (*sImg, cf->pointsInner[ii], cf->pointsOuter[ii], SF_BLACK, 1);
+                line (*pImg, cf->pointsInner[ii], cf->pointsOuter[ii], SF_YELLOW, 1, cv::LINE_AA);
+                line (*sImg, cf->pointsInner[ii], cf->pointsOuter[ii], SF_BLACK, 1, cv::LINE_AA);
 
                 if (ii > 0) {
-                    line (*pImg, cf->pointsInner[ii-1], cf->pointsInner[ii], SF_YELLOW, 1);
-                    line (*pImg, cf->pointsOuter[ii-1], cf->pointsOuter[ii], SF_YELLOW, 1);
+                    line (*pImg, cf->pointsInner[ii-1], cf->pointsInner[ii], SF_YELLOW, 1, cv::LINE_AA);
+                    line (*pImg, cf->pointsOuter[ii-1], cf->pointsOuter[ii], SF_YELLOW, 1, cv::LINE_AA);
 
-                    line (*sImg, cf->pointsInner[ii-1], cf->pointsInner[ii], SF_BLACK, 1);
-                    line (*sImg, cf->pointsOuter[ii-1], cf->pointsOuter[ii], SF_BLACK, 1);
+                    line (*sImg, cf->pointsInner[ii-1], cf->pointsInner[ii], SF_BLACK, 1, cv::LINE_AA);
+                    line (*sImg, cf->pointsOuter[ii-1], cf->pointsOuter[ii], SF_BLACK, 1, cv::LINE_AA);
                 }
             }
         }
@@ -509,7 +509,8 @@ public:
         for (size_t j=0; j<cf->FLE.size(); j++) {
             if (!cf->FLE[j].empty()) {
                 float themean = cf->FL_means.size() > j ? cf->FL_means[j] : 0.0f;
-                draw_region (cf->FLE[j], pImg, themean, SF_BLUE);
+                float thepixelmean = cf->FL_pixel_means.size() > j ? cf->FL_pixel_means[j] : 0;
+                draw_region (cf->FLE[j], pImg, thepixelmean, SF_BLUE);
                 draw_region (cf->FLE[j], sImg, themean, SF_BLACK);
             }
         }
@@ -612,7 +613,16 @@ public:
         int xh = 30;
         ss << "Frame: " << _this->getFrameNum() << "/" << _this->getNumFrames()
            << " " << cf->getFitInfo() << ". 'h' to toggle help.";
+        ss << " Range: " << cf->frame_maxmin.second << "," << cf->frame_maxmin.first;
+        ss.precision(3);
+        ss << " (bm:"<< cf->blurmeanU << ")";
         putText (*pImg, ss.str(), cv::Point(xh,30), cv::FONT_HERSHEY_SIMPLEX, 0.8, SF_BLACK, 1, cv::LINE_AA);
+
+        std::stringstream ss2;
+        ss2.precision(3);
+        ss2 << " Signal range: " << cf->frame_signal_maxmin.second << "," << cf->frame_signal_maxmin.first
+            << " (using blur offset: " << _this->bgBlurSubtractionOffset << ")";
+        putText (*sImg, ss2.str(), cv::Point(xh,30), cv::FONT_HERSHEY_SIMPLEX, 0.8, SF_WHITE, 1, cv::LINE_AA);
 
         int yh = 90;
         int yinc = 40;
