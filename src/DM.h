@@ -47,15 +47,14 @@ private:
     morph::Config conf;
     //! Should the help text be shown?
     bool showHelp = false;
+
     //! Colour space parameters
-    //@{
     std::string colourmodel = "monochrome";
     std::array<float, 9> colour_rot; // Colour space rotation
     std::array<float, 3> colour_trans; // Colour space pre-translation
     std::array<float, 2> ellip_axes; // red-green ellipse for "elliptical tube of expressing colours
     float luminosity_factor; // The slope of the linear luminosity vs signal fit.
     float luminosity_cutoff; // at what luminosity does the signal cut off to zero?
-    //@}
 
     // Called by next/previousFrame. Take binA, binB from the frame and change the
     // sliders. Update the fit and refresh boxes.
@@ -65,11 +64,15 @@ private:
         this->binB = this->gcf()->binB;
         this->nBinsTarg = this->gcf()->nBinsTarg;
         DM::updateTrackbars();
+        this->gcf()->ct = this->input_mode;
         this->gcf()->updateFit();
         this->gcf()->refreshBoxes (-(this->binA-BIN_A_OFFSET), this->binB);
     }
 
 public:
+
+    //! What's the global input mode?
+    InputMode input_mode = InputMode::Bezier;
 
     //! The instance public function. Uses the very short name 'i' to keep code tidy.
     static DM* i (void)
@@ -137,6 +140,21 @@ public:
 
     //! Return the size of vFrameData
     unsigned int getNumFrames (void) const { return this->vFrameData.size(); }
+
+    //! Toggle between curve fitting, freehand loop drawing or alignment mark (landmark) input.
+    void cycleInputMode()
+    {
+        if (this->input_mode == InputMode::Landmark) {
+            this->input_mode = InputMode::Bezier;
+        } else if (this->input_mode == InputMode::Bezier) {
+            this->input_mode = InputMode::Freehand;
+        } else if (this->input_mode == InputMode::Freehand) {
+            this->input_mode = InputMode::Landmark;
+        } else {
+            // Shouldn't get here...
+            this->input_mode = InputMode::Bezier;
+        }
+    }
 
     //! Copy the current frame's bin parameters (binA, binB, nBinsTarg) to all the other frames.
     void updateAllBins (void)
@@ -616,72 +634,75 @@ public:
         ss << " Range: " << cf->frame_maxmin.second << "," << cf->frame_maxmin.first;
         ss.precision(3);
         ss << " (bm:"<< cf->blurmeanU << ")";
-        putText (*pImg, ss.str(), cv::Point(xh,30), cv::FONT_HERSHEY_SIMPLEX, 0.8, SF_BLACK, 1, cv::LINE_AA);
+        // Float font size based on image size (frame width)?
+        float fwidth = (float)cf->frame.cols;
+        float fontsz = fwidth / 1727.0f;
+        putText (*pImg, ss.str(), cv::Point(xh,30), cv::FONT_HERSHEY_SIMPLEX, fontsz, SF_BLACK, 1, cv::LINE_AA);
 
         std::stringstream ss2;
         ss2.precision(3);
         ss2 << " Signal range: " << cf->frame_signal_maxmin.second << "," << cf->frame_signal_maxmin.first
             << " (using blur offset: " << _this->bgBlurSubtractionOffset << ")";
-        putText (*sImg, ss2.str(), cv::Point(xh,30), cv::FONT_HERSHEY_SIMPLEX, 0.8, SF_WHITE, 1, cv::LINE_AA);
+        putText (*sImg, ss2.str(), cv::Point(xh,30), cv::FONT_HERSHEY_SIMPLEX, fontsz, SF_WHITE, 1, cv::LINE_AA);
 
         int yh = 90;
         int yinc = 40;
         if (_this->showHelp) {
             putText (*pImg, std::string("Use the sliders to control the bin parameters"),
-                     cv::Point(xh,yh), cv::FONT_HERSHEY_SIMPLEX, 0.8, SF_BLACK, 1, cv::LINE_AA);
+                     cv::Point(xh,yh), cv::FONT_HERSHEY_SIMPLEX, fontsz, SF_BLACK, 1, cv::LINE_AA);
             yh += yinc;
             putText (*pImg, std::string("1:   Toggle Bezier controls"),
-                     cv::Point(xh,yh), cv::FONT_HERSHEY_SIMPLEX, 0.8, SF_BLACK, 1, cv::LINE_AA);
+                     cv::Point(xh,yh), cv::FONT_HERSHEY_SIMPLEX, fontsz, SF_BLACK, 1, cv::LINE_AA);
             yh += yinc;
             putText (*pImg, std::string("2:   Toggle user points"),
-                     cv::Point(xh,yh), cv::FONT_HERSHEY_SIMPLEX, 0.8, SF_BLACK, 1, cv::LINE_AA);
+                     cv::Point(xh,yh), cv::FONT_HERSHEY_SIMPLEX, fontsz, SF_BLACK, 1, cv::LINE_AA);
             yh += yinc;
             putText (*pImg, std::string("3:   Toggle the fit line"),
-                     cv::Point(xh,yh), cv::FONT_HERSHEY_SIMPLEX, 0.8, SF_BLACK, 1, cv::LINE_AA);
+                     cv::Point(xh,yh), cv::FONT_HERSHEY_SIMPLEX, fontsz, SF_BLACK, 1, cv::LINE_AA);
             yh += yinc;
             putText (*pImg, std::string("4:   Toggle the bins"),
-                     cv::Point(xh,yh), cv::FONT_HERSHEY_SIMPLEX, 0.8, SF_BLACK, 1, cv::LINE_AA);
+                     cv::Point(xh,yh), cv::FONT_HERSHEY_SIMPLEX, fontsz, SF_BLACK, 1, cv::LINE_AA);
             yh += yinc;
             putText (*pImg, std::string("Spc: Next curve"),
-                     cv::Point(xh,yh), cv::FONT_HERSHEY_SIMPLEX, 0.8, SF_BLACK, 1, cv::LINE_AA);
+                     cv::Point(xh,yh), cv::FONT_HERSHEY_SIMPLEX, fontsz, SF_BLACK, 1, cv::LINE_AA);
             yh += yinc;
             putText (*pImg, std::string("c:   Cancel last point/freehand region"),
-                     cv::Point(xh,yh), cv::FONT_HERSHEY_SIMPLEX, 0.8, SF_BLACK, 1, cv::LINE_AA);
+                     cv::Point(xh,yh), cv::FONT_HERSHEY_SIMPLEX, fontsz, SF_BLACK, 1, cv::LINE_AA);
             yh += yinc;
             putText (*pImg, std::string("f:   Update the fit"),
-                     cv::Point(xh,yh), cv::FONT_HERSHEY_SIMPLEX, 0.8, SF_BLACK, 1, cv::LINE_AA);
+                     cv::Point(xh,yh), cv::FONT_HERSHEY_SIMPLEX, fontsz, SF_BLACK, 1, cv::LINE_AA);
             yh += yinc;
             putText (*pImg, std::string("F:   Update fit (all frames)"),
-                     cv::Point(xh,yh), cv::FONT_HERSHEY_SIMPLEX, 0.8, SF_BLACK, 1, cv::LINE_AA);
+                     cv::Point(xh,yh), cv::FONT_HERSHEY_SIMPLEX, fontsz, SF_BLACK, 1, cv::LINE_AA);
             yh += yinc;
             putText (*pImg, std::string("B:   Copy current bin params to all frames"),
-                     cv::Point(xh,yh), cv::FONT_HERSHEY_SIMPLEX, 0.8, SF_BLACK, 1, cv::LINE_AA);
+                     cv::Point(xh,yh), cv::FONT_HERSHEY_SIMPLEX, fontsz, SF_BLACK, 1, cv::LINE_AA);
             yh += yinc;
             std::stringstream hh;
             hh << "w:   Save to file: " << _this->datafile;
             putText (*pImg, hh.str(),
-                     cv::Point(xh,yh), cv::FONT_HERSHEY_SIMPLEX, 0.8, SF_BLACK, 1, cv::LINE_AA);
+                     cv::Point(xh,yh), cv::FONT_HERSHEY_SIMPLEX, fontsz, SF_BLACK, 1, cv::LINE_AA);
             yh += yinc;
             putText (*pImg, std::string("o:   Draw mode (Curve/freehand/landmark)"),
-                     cv::Point(xh,yh), cv::FONT_HERSHEY_SIMPLEX, 0.8, SF_BLACK, 1, cv::LINE_AA);
+                     cv::Point(xh,yh), cv::FONT_HERSHEY_SIMPLEX, fontsz, SF_BLACK, 1, cv::LINE_AA);
             yh += yinc;
             putText (*pImg, std::string("n:   Next frame"),
-                     cv::Point(xh,yh), cv::FONT_HERSHEY_SIMPLEX, 0.8, SF_BLACK, 1, cv::LINE_AA);
+                     cv::Point(xh,yh), cv::FONT_HERSHEY_SIMPLEX, fontsz, SF_BLACK, 1, cv::LINE_AA);
             yh += yinc;
             putText (*pImg, std::string("b:   Back to previous frame"),
-                     cv::Point(xh,yh), cv::FONT_HERSHEY_SIMPLEX, 0.8, SF_BLACK, 1, cv::LINE_AA);
+                     cv::Point(xh,yh), cv::FONT_HERSHEY_SIMPLEX, fontsz, SF_BLACK, 1, cv::LINE_AA);
             yh += yinc;
             putText (*pImg, std::string("m:   Mirror this frame"),
-                     cv::Point(xh,yh), cv::FONT_HERSHEY_SIMPLEX, 0.8, SF_BLACK, 1, cv::LINE_AA);
+                     cv::Point(xh,yh), cv::FONT_HERSHEY_SIMPLEX, fontsz, SF_BLACK, 1, cv::LINE_AA);
             yh += yinc;
             putText (*pImg, std::string("r:   Toggle blur window"),
-                     cv::Point(xh,yh), cv::FONT_HERSHEY_SIMPLEX, 0.8, SF_BLACK, 1, cv::LINE_AA);
+                     cv::Point(xh,yh), cv::FONT_HERSHEY_SIMPLEX, fontsz, SF_BLACK, 1, cv::LINE_AA);
             yh += yinc;
             putText (*pImg, std::string("e:   Toggle signal window"),
-                     cv::Point(xh,yh), cv::FONT_HERSHEY_SIMPLEX, 0.8, SF_BLACK, 1, cv::LINE_AA);
+                     cv::Point(xh,yh), cv::FONT_HERSHEY_SIMPLEX, fontsz, SF_BLACK, 1, cv::LINE_AA);
             yh += yinc;
             putText (*pImg, std::string("x:   Exit the program"),
-                     cv::Point(xh,yh), cv::FONT_HERSHEY_SIMPLEX, 0.8, SF_BLACK, 1, cv::LINE_AA);
+                     cv::Point(xh,yh), cv::FONT_HERSHEY_SIMPLEX, fontsz, SF_BLACK, 1, cv::LINE_AA);
         }
 
         // Always show the main window

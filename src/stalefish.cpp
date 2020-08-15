@@ -119,8 +119,9 @@ int main (int argc, char** argv)
         }
         case ('o'):
         {
-            // Change fitting mode
-            DM::i()->gcf()->toggleInputMode();
+            // Change input mode
+            DM::i()->cycleInputMode(); // cycle globally
+            DM::i()->gcf()->ct = DM::i()->input_mode;
             DM::i()->gcf()->updateFit();
             DM::i()->gcf()->refreshBoxes (-DM::i()->gcf()->binA, DM::i()->gcf()->binB);
             break;

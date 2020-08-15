@@ -1077,21 +1077,6 @@ public:
         }
     }
 
-    //! Toggle between curve fitting, freehand loop drawing or alignment mark (landmark) input.
-    void toggleInputMode()
-    {
-        if (this->ct == InputMode::Landmark) {
-            this->ct = InputMode::Bezier;
-        } else if (this->ct == InputMode::Bezier) {
-            this->ct = InputMode::Freehand;
-        } else if (this->ct == InputMode::Freehand) {
-            this->ct = InputMode::Landmark;
-        } else {
-            // Shouldn't get here...
-            this->ct = InputMode::Bezier;
-        }
-    }
-
     // Toggle controls
 
     void toggleShowBoxes() { this->flags[ShowBoxes] = this->flags.test(ShowBoxes) ? false : true; }
