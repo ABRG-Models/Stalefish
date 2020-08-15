@@ -95,8 +95,10 @@ public:
     //! Raw colours of boxes in RGB
     std::vector<std::vector<std::array<float, 3>>> boxes_pixels_bgr;
 
+private:
     //! Target number of bins; used by bins slider
     int nBinsTarg;
+public:
     //! The bin lengths, set with a slider.
     int binA = 0;
     int binB = 100;
@@ -283,6 +285,8 @@ public:
         this->tangents.resize (this->nFit);
         this->normals.resize (this->nFit);
     }
+
+    unsigned int getBins() const { return this->nBinsTarg; }
 
     //! Show the max and the min of a
     std::pair<float, float> showMaxMin (const cv::Mat& m, const std::string& matlabel = "(unknown)")
@@ -1476,7 +1480,7 @@ private:
         std::cout << "rotateFitOptimally: DO have previous frame" << std::endl;
 
         // Now check if the previous frame has different number of bins
-        int nBinsSave = this->nBins;
+        int nBinsSave = this->nBinsTarg; // Rather than nBins?
         int nBinsTmp = (*this->parentStack)[this->previous].getNBins();
         std::cout << "  nBinsSave(this->nBins) = "<< nBinsSave << std::endl;
         std::cout << "  nBinsTmp(this->previous->nBins) = "<< nBinsTmp << std::endl;

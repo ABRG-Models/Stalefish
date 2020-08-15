@@ -62,7 +62,7 @@ private:
     {
         this->binA = this->gcf()->binA+BIN_A_OFFSET;
         this->binB = this->gcf()->binB;
-        this->nBinsTarg = this->gcf()->nBinsTarg;
+        this->nBinsTarg = this->gcf()->getBins();
         DM::updateTrackbars();
         this->gcf()->ct = this->input_mode;
         this->gcf()->updateFit();
@@ -161,16 +161,20 @@ public:
     {
         int nfr = DM::i()->getNumFrames();
         int idx = DM::i()->gcf()->idx;
+        std::cout << nfr << " frames; current is " << idx << "\n";
         for (int f = 0; f < nfr; ++f) {
             if (idx == f) {
                 continue;
             }
             this->vFrameData[f].binA = this->vFrameData[idx].binA;
             this->vFrameData[f].binB = this->vFrameData[idx].binB;
-            this->vFrameData[f].nBinsTarg = this->vFrameData[idx].nBinsTarg;
+            std::cout << "current frame's nBinsTarg = " << this->vFrameData[idx].getBins() << "\n";
+            std::cout << "current DM::nBinsTarg = " << this->nBinsTarg << "\n";
+            this->vFrameData[f].setBins(this->vFrameData[idx].getBins());
             this->vFrameData[f].updateFit();
             this->vFrameData[f].refreshBoxes (-this->vFrameData[f].binA, this->vFrameData[f].binB);
         }
+        std::cout << "End of updateAllBins()\n";
     }
 
     //! Update all fits - i.e. for every frame in the stack
@@ -390,7 +394,7 @@ public:
         // frame... But... is that information stored? Yes, it is.
         this->binA = this->gcf()->binA+BIN_A_OFFSET;
         this->binB = this->gcf()->binB;
-        this->nBinsTarg = this->gcf()->nBinsTarg;
+        this->nBinsTarg = this->gcf()->getBins();
         DM::createTrackbars();
         this->gcf()->refreshBoxes (-(this->binA-BIN_A_OFFSET), this->binB);
     }
@@ -756,11 +760,9 @@ public:
     static void ontrackbar_nbins (int val, void*)
     {
         FrameData* cf = DM::i()->gcf();
-        cf->nBinsTarg = DM::i()->nBinsTarg;
-        if (cf->nBinsTarg < 2) {
-            cf->nBinsTarg = 2;
-        }
-        cf->setBins (cf->nBinsTarg);
+        unsigned int nbt = DM::i()->nBinsTarg;
+        if (nbt < 2) { nbt = 2; }
+        cf->setBins (nbt);
         cf->setShowBoxes (true);
         cf->updateFit();
         cf->refreshBoxes (-cf->binA, cf->binB);

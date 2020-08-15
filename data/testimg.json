@@ -11,9 +11,9 @@
 
     "bg_blur_screen_proportion" : 0.1667,
 
-    "desc_bg_blur_subtraction_offset" : "final_img = original_img + (bg_blur_subtraction_offset - blurred_bg). Thus, possible range for bg_blur_subtraction_offset is 0 to 255. Should be 255 in theory & that's the default.",
+    "desc_bg_blur_subtraction_offset" : "signal_img = 255 - (original_img + (bg_blur_subtraction_offset - blurred_bg)). Thus, possible range for bg_blur_subtraction_offset is 0 to 255.",
 
-    "bg_blur_subtraction_offset" : 255,
+    "bg_blur_subtraction_offset" : 180,
 
     "desc_slices" : "The brain slices in the y-z plane, where y points to the anterior, z points dorsally (and so x is the lateral dimension).",
 
