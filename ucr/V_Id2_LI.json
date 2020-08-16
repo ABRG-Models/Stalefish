@@ -1,12 +1,22 @@
 {
-    // The thickness of a brain slice, assuming they'll all be the same.
-    "thickness" : 0.1, // Really 100 um = 0.1 mm
+    "desc_thickness" : "The thickness of a brain slice, assuming they'll all be the same.",
 
-    // How many pixels in the image corresponds to 1 mm? True in horz(y) and vert(z) directions equally?
+    "thickness" : 0.1,
+
+    "desc_pixels_per_mm" : "How many pixels in the image corresponds to 1 mm? Assumed to apply equally to horz(y) and vert(z) directions.",
+
     "pixels_per_mm" : 233,
 
-    // The brain slices in the y-z plane, where y points to the
-    // anterior, z points dorsally (and so x is the lateral dimension).
+    "desc_bg_blur" : "bg_blur_screen_proportion is multiplied by the width of the image in pixels to get a sigma for the Gaussian which is used to blur the image to subtract the background.",
+
+    "bg_blur_screen_proportion" : 0.1667,
+
+    "desc_bg_blur_subtraction_offset" : "signal_img = 255 - (original_img + (bg_blur_subtraction_offset - blurred_bg)). Thus, possible range for bg_blur_subtraction_offset is 0 to 255.",
+
+    "bg_blur_subtraction_offset" : 180,
+
+    "desc_slices" : "The brain slices in the y-z plane, where y points to the anterior, z points dorsally (and so x is the lateral dimension).",
+
     "slices": [
         { "filename" : "ucr/Vole_p1/Id2/HC1-9C_ordered/1-9C_HC_P1_ID2_10.5.16_1.tif", "x" : 0.0 },
         { "filename" : "ucr/Vole_p1/Id2/HC1-9C_ordered/1-9C_HC_P1_ID2_10.5.16_2.tif", "x" : 0.1 },
@@ -36,7 +46,6 @@
         { "filename" : "ucr/Vole_p1/Id2/HC1-9C_ordered/1-9C_HC_P1_ID2_10.5.16_26.tif", "x" : 2.5 },
         { "filename" : "ucr/Vole_p1/Id2/HC1-9C_ordered/1-9C_HC_P1_ID2_10.5.16_27.tif", "x" : 2.6 },
         { "filename" : "ucr/Vole_p1/Id2/HC1-9C_ordered/1-9C_HC_P1_ID2_10.5.16_28.tif", "x" : 2.7 },
-//        { "filename" : "ucr/Vole_p1/Id2/HC1-9C_ordered/1-9C_HC_P1_ID2_10.5.16_29.tif", "x" : 2.8 },
         { "filename" : "ucr/Vole_p1/Id2/HC1-9C_ordered/1-9C_HC_P1_ID2_10.5.16_30.tif", "x" : 2.9 },
         { "filename" : "ucr/Vole_p1/Id2/HC1-9C_ordered/1-9C_HC_P1_ID2_10.5.16_31.tif", "x" : 3.0 },
         { "filename" : "ucr/Vole_p1/Id2/HC1-9C_ordered/1-9C_HC_P1_ID2_10.5.16_32.tif", "x" : 3.1 },
@@ -56,5 +65,5 @@
         { "filename" : "ucr/Vole_p1/Id2/HC1-9C_ordered/1-9C_HC_P1_ID2_10.5.16_46.tif", "x" : 4.5 },
         { "filename" : "ucr/Vole_p1/Id2/HC1-9C_ordered/1-9C_HC_P1_ID2_10.5.16_47.tif", "x" : 4.6 },
         { "filename" : "ucr/Vole_p1/Id2/HC1-9C_ordered/1-9C_HC_P1_ID2_10.5.16_48.tif", "x" : 4.7 }
-    ] // end
+    ]
 }
