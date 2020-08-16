@@ -52,18 +52,18 @@ enum FrameFlag {
  */
 class FrameData
 {
-    //! Private attributes
 private:
     //! The 'previous' frame in the stack of frames (index into)
     int previous = -1;
     std::vector<FrameData>* parentStack;
 
+    //! Target number of bins; used by bins slider. Need both nBinsTarg for why??
+    int nBinsTarg;
     //! Number of bins to create for the fit (one less than nFit)
     int nBins;
     //! Number of points to create in the fit
     int nFit;
 
-    //! Public attributes
 public:
     //! What input mode is default?
     InputMode ct = InputMode::Bezier;
@@ -95,10 +95,6 @@ public:
     //! Raw colours of boxes in RGB
     std::vector<std::vector<std::array<float, 3>>> boxes_pixels_bgr;
 
-private:
-    //! Target number of bins; used by bins slider
-    int nBinsTarg;
-public:
     //! The bin lengths, set with a slider.
     int binA = 0;
     int binB = 100;
@@ -136,7 +132,6 @@ public:
     std::array<cv::Point, 2> extents_FL; // Extents of the loop FL
     //! vector of vectors containing the points enclosed by the path FL
     std::vector<std::vector<cv::Point>> FLE;
-
     //! The mean luminance of each freehand loop enclosed region in FLE.
     std::vector<float> FL_signal_means;
     //! The mean pixel value (0-255) in a freehand loop
@@ -147,6 +142,8 @@ public:
     std::vector<std::vector<float>> FL_signal;
     //! Raw values for each region in colour
     std::vector<std::vector<std::array<float, 3>>> FL_pixels_bgr;
+    //! Set true if a loop has been drawn, then completed. Reset to false once mouse button is released
+    bool loopFinished = false;
 
     //! A bit set containing flags
     std::bitset<8> flags;
@@ -268,26 +265,6 @@ public:
         this->frame_signal.convertTo (this->frame_signalU, CV_8UC3, 255.0);
     }
 
-    //! Set the number of bins and update the size of the various containers
-    void setBins (unsigned int num)
-    {
-        if (num > 5000) {
-            throw std::runtime_error ("Too many bins...");
-        }
-        this->nBins = num;
-        this->nBinsTarg = num;
-        this->nFit = num + 1;
-        this->fitted.resize (this->nFit);
-        this->fitted_offset.resize (this->nFit);
-        this->fitted_rotated.resize (this->nFit);
-        this->pointsInner.resize (this->nFit);
-        this->pointsOuter.resize (this->nFit);
-        this->tangents.resize (this->nFit);
-        this->normals.resize (this->nFit);
-    }
-
-    unsigned int getBins() const { return this->nBinsTarg; }
-
     //! Show the max and the min of a
     std::pair<float, float> showMaxMin (const cv::Mat& m, const std::string& matlabel = "(unknown)")
     {
@@ -323,11 +300,31 @@ public:
 
     //! Getter for the blurred image
     cv::Mat* getBlur() { return &this->blurred; }
-    //cv::Mat* getFrameOffs() { return &this->frame_signal; }
 
     //! Getter for nBins
     int getNBins() { return this->nBins; }
-    int getNBinsTarg() { return this->nBinsTarg; }
+
+    //! This getter returns the _target_ number of bins; the corresponding setter sets
+    //! both target and nBins itself.
+    int getBins() const { return this->nBinsTarg; }
+
+    //! Set the number of bins and update the size of the various containers
+    void setBins (int num)
+    {
+        if (num > 5000) {
+            throw std::runtime_error ("Too many bins...");
+        }
+        this->nBins = num;
+        this->nBinsTarg = num;
+        this->nFit = num + 1;
+        this->fitted.resize (this->nFit);
+        this->fitted_offset.resize (this->nFit);
+        this->fitted_rotated.resize (this->nFit);
+        this->pointsInner.resize (this->nFit);
+        this->pointsOuter.resize (this->nFit);
+        this->tangents.resize (this->nFit);
+        this->normals.resize (this->nFit);
+    }
 
     //! Setter for previous
     void setPrevious (int prev) { this->previous = prev; }
@@ -522,9 +519,6 @@ public:
         }
         return extents;
     }
-
-    //! Set true if a loop has been drawn, then completed. Reset to false once mouse button is released
-    bool loopFinished = false;
 
     //! Find all pixels enclosed by the pixels in this->FL which define a loop
     std::vector<cv::Point> getEnclosedByFL()
@@ -1010,9 +1004,12 @@ public:
     //! Carry out the actual mirroring operation on its own, leaving flags unchanged
     void mirror_image_only()
     {
-        cv::Mat mirrored (this->frame.rows, this->frame.cols, this->frame.type());
-        cv::flip (this->frame, mirrored, 1);
-        this->frame = mirrored;
+        this->compute_mirror (this->frame);
+        this->compute_mirror (this->frameF);
+        this->compute_mirror (this->frame_bgoff);
+        this->compute_mirror (this->frame_signal);
+        this->compute_mirror (this->frame_bgoffU);
+        this->compute_mirror (this->frame_signalU);
     }
 
     //! Flip the image & mark as such in flags
@@ -1024,9 +1021,12 @@ public:
     //! Flip the image without marking as flipped in flags.
     void flip_image_only()
     {
-        cv::Mat flipped (this->frame.rows, this->frame.cols, this->frame.type());
-        cv::flip (this->frame, flipped, 1);
-        this->frame = flipped;
+        this->compute_flip (this->frame);
+        this->compute_flip (this->frameF);
+        this->compute_flip (this->frame_bgoff);
+        this->compute_flip (this->frame_signal);
+        this->compute_flip (this->frame_bgoffU);
+        this->compute_flip (this->frame_signalU);
     }
 
     //! Recompute the fit
@@ -1096,6 +1096,22 @@ public:
     void setShowCtrls (bool t) { this->flags[ShowCtrls] = t; }
 
 private:
+
+    //! Mirror cv::Mat \a m about the vertical axis
+    void compute_mirror (cv::Mat& m)
+    {
+        cv::Mat mirrored (m.rows, m.cols, m.type());
+        cv::flip (m, mirrored, 1);
+        m = mirrored;
+    }
+
+    //! Flip cv::Mat \a m about the horizontal axis
+    void compute_flip (cv::Mat& m)
+    {
+        cv::Mat flipped (m.rows, m.cols, m.type());
+        cv::flip (m, flipped, 1);
+        m = flipped;
+    }
 
     //! Get the signal values from the region from the mRNA signal window (frame_signal).
     std::vector<float> getRegionSignalVals (const std::vector<cv::Point>& region)
