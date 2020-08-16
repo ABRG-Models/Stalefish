@@ -862,8 +862,8 @@ public:
         dname = frameName + "/box_pixel_means";
         df.add_contained_vals (dname.c_str(), this->box_pixel_means);
 
-        // Autoscale means and save a copy
-        dname = frameName + "/means_autoscaled";
+        // Autoscale box_signal_means and save a copy
+        dname = frameName + "/box_signal_means_autoscaled";
         // this->means is vector<double>
         std::vector<float> means_autoscaled = morph::MathAlgo::autoscale (this->box_signal_means, 0.0, 1.0);
         df.add_contained_vals (dname.c_str(), means_autoscaled);

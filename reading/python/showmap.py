@@ -46,10 +46,10 @@ with h5py.File (filename, 'r') as f:
         print ('frame: {0}'.format(frame))
 
         # The means of the sampled boxes are in means or means_autoscaled
-        key = '{0}/means'.format(frame)
+        key = '{0}/box_signal_means'.format(frame)
         means_ = list(f[key])
 
-        key = '{0}/means_autoscaled'.format(frame)
+        key = '{0}/box_signal_means_autoscaled'.format(frame)
         means_autoscaled_ = list(f[key])
 
         # The position on the 3D x-axis is in class/layer_x:
@@ -86,7 +86,7 @@ with h5py.File (filename, 'r') as f:
     elif n == 1:
         F.add_subplot (1,1,1)
 
-    scalemult=5
+    scalemult=1
     if n == 3 or n == 1:
         plt.title('Flattened heat plot')
         for ii in range(0,len(x)): # len(x) is the number of frames.
@@ -103,6 +103,7 @@ with h5py.File (filename, 'r') as f:
                                    [ x_r[jj],  y_b[jj] ],
                                    [ x_r[jj], y_t[jj] ],
                                    [ x_l[jj], y_t[jj] ] ])
+
                 poly = Polygon (v, facecolor=mpl.cm.Greys(scalemult*means[ii][jj]), edgecolor='None')
                 plt.gca().add_patch(poly)
 

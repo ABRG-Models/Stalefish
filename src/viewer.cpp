@@ -28,6 +28,7 @@ int main (int argc, char** argv)
     morph::Visual v(1024, 768, "Visualization");
     v.zNear = 0.001;
     v.zFar = 40.0;
+    v.setZDefault (-15.4);
 
     bool autoscale_per_slice = true;
     if (argc > 2) {
@@ -89,7 +90,7 @@ int main (int argc, char** argv)
 
             if (autoscale_per_slice) {
                 // Use the auto-scaled version of the means, with each slice autoscaled to [0,1]
-                str = frameName+"/means_autoscaled";
+                str = frameName+"/box_signal_means_autoscaled";
                 d.read_contained_vals (str.c_str(), frameMeans);
             } else {
                 // Use the raw means and autoscale them as an entire group
@@ -143,21 +144,29 @@ int main (int argc, char** argv)
         }
 
         unsigned int visId = 0;
+
+        // The 'ribbons' map (commented out)
         //offset[0] -= 3.0;
-        //visId = v.addQuadsVisual (&quads, offset, means, scale);
-        //cout << "Added Visual with visId " << visId << endl;
+        //visId = v.addVisualModel (new morph::QuadsVisual<float> (v.shaderprog,
+        //                                                         &quads, offset,
+        //                                                         &means, scale,
+        //                                                         morph::ColourMapType::MonochromeBlue));
 
-        //offset[0]+=3.0;
-        //cout << "fquads size: " << fquads.size() << "fmeans isze: " << fmeans.size() << endl;
-        //visId = v.addQuadsVisual (&fquads, offset, fmeans, scale);
-        //cout << "Added Visual with visId " << visId << endl;
+        // This is the flattened map
+        offset[0]-=5.0;
+        visId = v.addVisualModel (new morph::QuadsVisual<float> (v.shaderprog,
+                                                                 &fquads, offset,
+                                                                 &fmeans, scale,
+                                                                 morph::ColourMapType::Greyscale));
 
-        //offset[0]+=5.0;
-        //visId = v.addPointRowsVisual (&points, offset, means, scale, morph::ColourMapType::Plasma);
+
+        offset[0]+=5.0;
         visId = v.addVisualModel (new morph::PointRowsVisual<float> (v.shaderprog,
                                                                      &points, offset,
                                                                      &means, scale,
-                                                                     morph::ColourMapType::MonochromeBlue));
+                                                                     morph::ColourMapType::MonochromeBlue
+                                                                     //morph::ColourMapType::Plasma
+                                      ));
 
         cout << "Added Visual with visId " << visId << endl;
 
