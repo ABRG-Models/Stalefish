@@ -3,9 +3,7 @@
  */
 # include <GLFW/glfw3.h>
 #include <morph/Visual.h>
-using morph::Visual;
 #include <morph/HdfData.h>
-using morph::HdfData;
 #include <morph/Vector.h>
 #include <iostream>
 #include <fstream>
@@ -19,13 +17,27 @@ int main (int argc, char** argv)
 {
     int rtn = -1;
 
-    Visual v(1024, 768, "Visualization");
+    if (argc < 2) {
+        cout << "Usage: " << argv[0] << " /path/to/data.h5 [perslice|overall]\n"
+             << "  where perslice (the default) autoscales the signal for each slice before\n"
+             << "  assembling them together, and 'overall' autoscales the signal AFTER the\n"
+             << "  slices have been assembled together.\n";
+        return rtn;
+    }
+
+    morph::Visual v(1024, 768, "Visualization");
     v.zNear = 0.001;
     v.zFar = 40.0;
 
-    if (argc < 2) {
-        cout << "Usage: " << argv[0] << " /path/to/data.h5" << endl;
-        return rtn;
+    bool autoscale_per_slice = true;
+    if (argc > 2) {
+        string autoscale_str (argv[2]);
+        if (autoscale_str == "overall") {
+            cout << "Autoscaling the whole signal dataset\n";
+            autoscale_per_slice = false;
+        } else {
+            cout << "Autoscaling per-slice\n";
+        }
     }
 
     string datafile (argv[1]);
@@ -37,7 +49,7 @@ int main (int argc, char** argv)
         scale.setParams (1.0, 0.0);
 
         cout << "Opening H5 file " << datafile << endl;
-        HdfData d(datafile, true); // true for read
+        morph::HdfData d(datafile, true); // true for read
         int nf = 0;
         d.read_val ("/nframes", nf);
 
@@ -75,15 +87,15 @@ int main (int argc, char** argv)
                 framePoints.push_back (pt);
             }
 
-            bool autoscale_per_slice = true;
             if (autoscale_per_slice) {
-                // Use the auto-scaled version of the means
+                // Use the auto-scaled version of the means, with each slice autoscaled to [0,1]
                 str = frameName+"/means_autoscaled";
                 d.read_contained_vals (str.c_str(), frameMeans);
             } else {
                 // Use the raw means and autoscale them as an entire group
-                str = frameName+"/means";
+                str = frameName+"/box_signal_means";
                 d.read_contained_vals (str.c_str(), frameMeans);
+                // The morph::Scale object scale with autoscale the who thing.
                 scale.do_autoscale = true;
             }
 
