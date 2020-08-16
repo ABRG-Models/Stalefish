@@ -57,8 +57,6 @@ private:
     int previous = -1;
     std::vector<FrameData>* parentStack;
 
-    //! Target number of bins; used by bins slider. Need both nBinsTarg for why??
-    int nBinsTarg;
     //! Number of bins to create for the fit (one less than nFit)
     int nBins;
     //! Number of points to create in the fit
@@ -301,12 +299,9 @@ public:
     //! Getter for the blurred image
     cv::Mat* getBlur() { return &this->blurred; }
 
-    //! Getter for nBins
-    int getNBins() { return this->nBins; }
-
     //! This getter returns the _target_ number of bins; the corresponding setter sets
     //! both target and nBins itself.
-    int getBins() const { return this->nBinsTarg; }
+    int getBins() const { return this->nBins; }
 
     //! Set the number of bins and update the size of the various containers
     void setBins (int num)
@@ -315,7 +310,6 @@ public:
             throw std::runtime_error ("Too many bins...");
         }
         this->nBins = num;
-        this->nBinsTarg = num;
         this->nFit = num + 1;
         this->fitted.resize (this->nFit);
         this->fitted_offset.resize (this->nFit);
@@ -326,11 +320,13 @@ public:
         this->normals.resize (this->nFit);
     }
 
-    //! Setter for previous
+    //! Setter for FrameData::previous, which indexes the previous frame in the stack of
+    //! frames (FrameData::parentStack)
     void setPrevious (int prev) { this->previous = prev; }
+    //! Setter for the stack of frames (FrameData::parentStack)
     void setParentStack (std::vector<FrameData>* parentSt) { this->parentStack = parentSt; }
 
-    //! Get information about the fit
+    //! Get information about the Bezier fit and the input mode for this frame.
     std::string getFitInfo() const
     {
         std::stringstream ss;
@@ -742,9 +738,16 @@ public:
         dname = frameName + "/class/LM";
         df.read_contained_vals (dname.c_str(), this->LM);
 
-        dname = frameName + "/class/nBinsTarg";
-        df.read_val (dname.c_str(), this->nBinsTarg);
-        this->setBins (this->nBinsTarg);
+        dname = frameName + "/class/nBins";
+        int _nBins;
+        try {
+            df.read_val (dname.c_str(), _nBins);
+        } catch (...) {
+            // In case nBins stored as 'nBinsTarg'
+            dname = frameName + "/class/nBinsTarg";
+            df.read_val (dname.c_str(), _nBins);
+        }
+        this->setBins (_nBins);
         dname = frameName + "/class/binA";
         df.read_val (dname.c_str(), this->binA);
         dname = frameName + "/class/binB";
@@ -812,8 +815,8 @@ public:
 
         dname = frameName + "/class/pp_idx";
         df.add_val (dname.c_str(), this->pp_idx);
-        dname = frameName + "/class/nBinsTarg";
-        df.add_val (dname.c_str(), this->nBinsTarg);
+        dname = frameName + "/class/nBins";
+        df.add_val (dname.c_str(), this->nBins);
         dname = frameName + "/class/binA";
         df.add_val (dname.c_str(), this->binA);
         dname = frameName + "/class/binB";
@@ -1421,7 +1424,7 @@ private:
             return std::numeric_limits<double>::max();
         }
 
-        if ((*this->parentStack)[this->previous].getNBins() != this->nBins) {
+        if ((*this->parentStack)[this->previous].getBins() != this->nBins) {
             // Number of bins has to be same
             return std::numeric_limits<double>::max();
         }
@@ -1496,8 +1499,8 @@ private:
         std::cout << "rotateFitOptimally: DO have previous frame" << std::endl;
 
         // Now check if the previous frame has different number of bins
-        int nBinsSave = this->nBinsTarg; // Rather than nBins?
-        int nBinsTmp = (*this->parentStack)[this->previous].getNBins();
+        int nBinsSave = this->nBins;
+        int nBinsTmp = (*this->parentStack)[this->previous].getBins();
         std::cout << "  nBinsSave(this->nBins) = "<< nBinsSave << std::endl;
         std::cout << "  nBinsTmp(this->previous->nBins) = "<< nBinsTmp << std::endl;
         if (nBinsTmp != nBinsSave) {
