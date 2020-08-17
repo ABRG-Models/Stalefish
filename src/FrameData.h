@@ -81,6 +81,8 @@ public:
 
     //! The landmark points for this frame.
     std::vector<cv::Point> LM;
+    //! The landmark points scaled by pixels_per_mm
+    std::vector<cv::Point2d> LM_scaled;
 
     //! The means computed for the boxes. This is "mean_signal".
     std::vector<float> box_signal_means;
@@ -93,28 +95,40 @@ public:
     //! Raw colours of boxes in RGB
     std::vector<std::vector<std::array<float, 3>>> boxes_pixels_bgr;
 
-    //! The bin lengths, set with a slider.
+    //! Bin A sets the number of pixels along the normal to the fit to start the sample box
     int binA = 0;
+    //! Bin A sets the number of pixels along the normal to the fit to end the sample box
     int binB = 100;
 
-    //! A set of points created from the fit
+    //! A set of points created from the fit. Units: pixels.
     std::vector<cv::Point> fitted;
+    //! Take FrameData::fitted and scale by pixels_per_mm. Units: mm.
+    std::vector<cv::Point2d> fitted_scaled;
 
     // Attributes to do with the auto-transformed slices, where the centroid of each
     // curve is used to arrange the slices on an axis, then each slice's curve is
     // rotated to best-fit the previous curve.
 
-    //! The centroid of fitted.
-    cv::Point2d fit_centroid;
-    //! This holds offset and scaled fitted points: (fitted - fit_centroid) * pixels_per_mm
-    std::vector<cv::Point2d> fitted_offset;
+    //! (-) the centroid of fitted. Units: mm.
+    cv::Point2d autoalign_translation;
+    //! This holds scaled then translated fitted points: fitted_scaled - autoalign_translation
+    std::vector<cv::Point2d> fitted_autoalign_translated;
     //! The rotation of this slice, with respect to the previous slice. Used by slice alignment algorithms.
-    double slice_theta = 0.0;
-    //! This holds the fitted_offset points after they have been rotated to be in line
-    //! with fitted_rotated points in the 'previous' frame. 'in line' means the
-    //! smallest sum-of-square distances between the two fitted_rotated sets. Depends
+    double autoalign_theta = 0.0;
+    //! This holds the fitted_autoalign_translated points after they have been rotated to be in line
+    //! with fitted_autoaligned points in the 'previous' frame. 'in line' means the
+    //! smallest sum-of-square distances between the two fitted_autoaligned sets. Depends
     //! on nBins being the same in each.
-    std::vector<cv::Point2d> fitted_rotated;
+    std::vector<cv::Point2d> fitted_autoaligned;
+
+    //! The translation applied to fitted_scaled to get to fitted_lmalign_translated
+    cv::Point2d lm_translation;
+    //! Holds the scaled, fitted points after they have been translated by lm_translation.
+    std::vector<cv::Point2d> fitted_lmalign_translated;
+    //! The rotation applied to fitted_lmalign_translated to get to fitted_lmaligned
+    double lm_theta = 0.0;
+    //! Holds the final, translated and rotated points aligned with landmarks.
+    std::vector<cv::Point2d> fitted_lmaligned;
 
     //! For point in fitted, the tangent at that location
     std::vector<cv::Point2d> tangents;
@@ -313,8 +327,11 @@ public:
         this->nBins = num;
         this->nFit = num + 1;
         this->fitted.resize (this->nFit);
-        this->fitted_offset.resize (this->nFit);
-        this->fitted_rotated.resize (this->nFit);
+        this->fitted_scaled.resize (this->nFit);
+        this->fitted_autoalign_translated.resize (this->nFit);
+        this->fitted_autoaligned.resize (this->nFit);
+        this->fitted_lmalign_translated.resize (this->nFit);
+        this->fitted_lmaligned.resize (this->nFit);
         this->pointsInner.resize (this->nFit);
         this->pointsOuter.resize (this->nFit);
         this->tangents.resize (this->nFit);
@@ -730,9 +747,7 @@ public:
             ss.width(3);
             ss.fill('0');
             ss << i;
-            //std::cout << "Reading into FLE["<<i<<"] with name " << ss.str() << "\n";
             df.read_contained_vals (ss.str().c_str(), this->FLE[i]);
-            //std::cout << "FLE[i] now has size " << this->FLE[i].size() << "\n";
         }
 
         // Landmark points
@@ -758,13 +773,8 @@ public:
         dname = frameName + "/class/filename";
         df.read_string (dname.c_str(), this->filename);
 
-        // Don't read back from H5 file what is specified in json; too confusing.
-        //dname = frameName + "/class/layer_x";
-        //df.read_val (dname.c_str(), this->layer_x);
-        //dname = frameName + "/class/thickness";
-        //df.read_val (dname.c_str(), this->thickness);
-        //dname = frameName + "/class/pixels_per_mm";
-        //df.read_val (dname.c_str(), this->pixels_per_mm);
+        // NB: Don't read back from H5 file those variables which are specified in json,
+        // thus changes in json will override the h5 file.
     }
 
     //! Write the data out to an HdfData file \a df.
@@ -813,6 +823,8 @@ public:
         // The landmark points
         dname = frameName + "/class/LM";
         df.add_contained_vals (dname.c_str(), this->LM);
+        dname = frameName + "/class/LM_scaled";
+        df.add_contained_vals (dname.c_str(), this->LM_scaled);
 
         dname = frameName + "/class/pp_idx";
         df.add_val (dname.c_str(), this->pp_idx);
@@ -902,7 +914,7 @@ public:
             std::cout << "centroid in screen pix: " << cntroid << std::endl;
             cv::Point2d coff = this->offsetPoint (cntroid);
             std::cout << "centroid in scaled pix: " << coff << std::endl;
-            cv::Point2d coffrot = this->rotate (this->slice_theta, coff);
+            cv::Point2d coffrot = this->rotate (this->autoalign_theta, coff);
             std::cout << "centroid in scaled pix, rotated: " << coffrot << std::endl;
 
             df.add_contained_vals (cntss.str().c_str(), coffrot);
@@ -922,35 +934,50 @@ public:
         //std::cout << "Surface boxes extend from " << layer_x << " to " << (layer_x + thickness) << std::endl;
         for (int i = 1; i < this->nFit; ++i) {
             // c1 x,y,z
-            sbox[0] = this->layer_x;                 // x
-            sbox[1] = this->fitted_rotated[i-1].x;  // y
-            sbox[2] = this->fitted_rotated[i-1].y; // z
+            sbox[0] = this->layer_x;                    // x
+            sbox[1] = this->fitted_autoaligned[i-1].x;  // y
+            sbox[2] = this->fitted_autoaligned[i-1].y;  // z
             // c2 x,y,z
-            sbox[3] = this->layer_x;               // x
-            sbox[4] = this->fitted_rotated[i].x;  // y
-            sbox[5] = this->fitted_rotated[i].y; // z
+            sbox[3] = this->layer_x;                    // x
+            sbox[4] = this->fitted_autoaligned[i].x;    // y
+            sbox[5] = this->fitted_autoaligned[i].y;    // z
             // c3 x,y,z
-            sbox[6] = this->layer_x+this->thickness; // x
-            sbox[7] = this->fitted_rotated[i].x;     // y
-            sbox[8] = this->fitted_rotated[i].y;    // z
+            sbox[6] = this->layer_x+this->thickness;    // x
+            sbox[7] = this->fitted_autoaligned[i].x;    // y
+            sbox[8] = this->fitted_autoaligned[i].y;    // z
             // c4 x,y,z
-            sbox[9] = this->layer_x+this->thickness; // x
-            sbox[10] = this->fitted_rotated[i-1].x;  // y
-            sbox[11] = this->fitted_rotated[i-1].y; // z
+            sbox[9] = this->layer_x+this->thickness;    // x
+            sbox[10] = this->fitted_autoaligned[i-1].x; // y
+            sbox[11] = this->fitted_autoaligned[i-1].y; // z
 
             std::array<float, 3> sbox_centroid = morph::MathAlgo::centroid3D (sbox);//<float>
             surface_boxes.push_back (sbox);
             surface_box_centroids.push_back (sbox_centroid);
         }
 
+        // I'm storing all coordinates of the fitted points here.
         dname = frameName + "/fitted";
         df.add_contained_vals (dname.c_str(), this->fitted);
 
-        dname = frameName + "/fitted_offset";
-        df.add_contained_vals (dname.c_str(), this->fitted_offset);
+        // Also save the scaled version of the fitted points
+        dname = frameName + "/fitted_scaled";
+        df.add_contained_vals (dname.c_str(), this->fitted_scaled);
 
-        dname = frameName + "/fitted_rotated";
-        df.add_contained_vals (dname.c_str(), this->fitted_rotated);
+#if 0
+        // The scaled and then offset-by-the-centroid points (no need to save
+        dname = frameName + "/fitted_autoalign_translated";
+        df.add_contained_vals (dname.c_str(), this->fitted_autoalign_translated);
+
+        dname = frameName + "/fitted_lmalign_translated";
+        df.add_contained_vals (dname.c_str(), this->fitted_lmalign_translated);
+#endif
+        // This is in the final coordinate system for the auto-rotated (and transformed) slices
+        dname = frameName + "/fitted_autoaligned";
+        df.add_contained_vals (dname.c_str(), this->fitted_autoaligned);
+
+        // Coordinates where slices have been landmark aligned
+        dname = frameName + "/fitted_lmaligned";
+        df.add_contained_vals (dname.c_str(), this->fitted_lmaligned);
 
         // sboxes are 'surface boxes' - they lay in the plane of the cortical surface
         // and are not to be confused with the yellow boxes drawn in the UI in the y-z
@@ -1029,10 +1056,44 @@ public:
         }
 
         if (this->ct == InputMode::Bezier) {
-            // Scale
+#if 0
+            // Possibly
+            this->applyScaling(); // instead of offsetScaleFit() below.
+#endif
+            // Scale & offset by centroid
             this->offsetScaleFit();
             // Rotate
             this->rotateFitOptimally();
+
+            // Possible alternative to allow optimization to tweak the translation as well as the rotation
+#if 0
+            // Write function to ensure same number of bins in each frame (temporarily), then:
+            this->alignOptimally (this->fitted_scaled, (*this->parentStack)[this->previous].fitted_scaled,
+                                  this->fitted_scaled,
+                                  this->autoalign_translation, this->autoalign_theta, this->fitted_autoaligned);
+#endif
+
+            // Landmark scheme, if we have >=2 landmarks on each slice and same number of landmarks on each slice
+
+            // Re-scaled landmarks
+            this->LM_scaled.resize(this->LM.size());
+            for (size_t i = 0; i < this->LM.size(); ++i) {
+                this->LM_scaled[i] = this->LM[i]/this->pixels_per_mm;
+            }
+
+            // If there's no previous frame, then we just accept the src_coords
+            if (this->previous < 0) {
+                std::cout << "No previous frame, so accept coords with no tranformation..." << std::endl;
+                for (int i = 0; i < this->nFit; ++i) {
+                    this->fitted_lmaligned[i] = this->fitted_scaled[i];
+                }
+            } else {
+                std::cout << "alignOptimally...\n";
+                this->alignOptimally (this->LM_scaled, (*this->parentStack)[this->previous].LM_scaled,
+                                      this->fitted_scaled,
+                                      this->lm_translation, this->lm_theta, this->fitted_lmaligned);
+            }
+
             std::cout << "At end of updateFit(void). binA/binB: " << binA << "," << binB << std::endl;
         }
     }
@@ -1291,15 +1352,12 @@ private:
         }
     }
 
-    //! Update the fit, but don't rotate. Used by rotateFitOptimally()
-    void updateFit_norotate() { this->updateFitBezier(); }
-
     //! Update the fit, scale and rotate by \a _theta. Used by rotateFitOptimally()
     void updateFit (double _theta)
     {
         this->updateFitBezier();
         this->offsetScaleFit();
-        this->rotate (_theta);
+        this->rotate (this->fitted_autoalign_translated, this->fitted_autoaligned, _theta);
     }
 
     //! Recompute the Bezier fit
@@ -1371,18 +1429,25 @@ private:
         }
     }
 
+    //! This function offsets the fitted points by the centroid of the fitted points.
     void offsetScaleFit()
     {
-        cv::Point2d fitsum;
+        // First scale
         for (int i = 0; i < this->nFit; ++i) {
-            fitsum += cv::Point2d(this->fitted[i].x, this->fitted[i].y);
+            this->fitted_scaled[i] = cv::Point2d(this->fitted[i]) / this->pixels_per_mm;
         }
-        this->fit_centroid = fitsum/this->nFit;
-        std::cout << "Fit centroid: " << this->fit_centroid << std::endl;
-        // Apply offset and scale
+
+        // Now compute centroid
+        cv::Point2d fitsum (0.0, 0.0);
         for (int i = 0; i < this->nFit; ++i) {
-            cv::Point2d fd(this->fitted[i]);
-            this->fitted_offset[i] = (fd - this->fit_centroid) / this->pixels_per_mm;
+            //fitsum += cv::Point2d(this->fitted[i].x, this->fitted_scaled[i].y);
+            fitsum += this->fitted_scaled[i];
+        }
+        this->autoalign_translation = -fitsum/this->nFit; // i.e. it's the centroid of the points wrt the origin
+
+        // Apply offset and scale by pixels_per_mm
+        for (int i = 0; i < this->nFit; ++i) {
+            this->fitted_autoalign_translated[i] = this->fitted_scaled[i] + this->autoalign_translation;
         }
     }
 
@@ -1397,8 +1462,47 @@ private:
         if (this->pixels_per_mm == 0) {
             std::cerr << "WARNING: pixels_per_mm is 0, will get divide by zero..." << std::endl;
         }
-        cv::Point2d rtn = (fd - this->fit_centroid) / this->pixels_per_mm;
+        cv::Point2d rtn = (fd + this->autoalign_translation) / this->pixels_per_mm;
         return rtn;
+    }
+
+    //! vertex contains x,y,theta values and should have size 3
+    double computeSos3d (const std::vector<cv::Point2d> coords,
+                         const std::vector<cv::Point2d> prev_coords,
+                         const std::vector<double>& vertex)
+    {
+        // translate coords by vertex[0],vertex[1] and rotate by
+        // vertex[2]. Compute SOS compared with previous fitted thing.
+        if (this->previous < 0) {
+            return std::numeric_limits<double>::max();
+        }
+
+        // Assume that coords and prev_coords have same size; calling code should have tested? No, test anyway
+        if (coords.size() != prev_coords.size()) {
+            throw std::runtime_error ("computeSos3d: Number of elements in coords and prev_coords must be the same");
+        }
+
+        std::vector<cv::Point2d> tmp_coords (coords);
+
+        // 1 translate coords by vertex[0,1]
+        cv::Point2d tr(vertex[0], vertex[1]);
+        for (size_t i = 0; i < tmp_coords.size(); ++i) {
+            std::cout << "tmp_coords["<<i<<"]: " << tmp_coords[i] << std::endl;
+            tmp_coords[i] += tr;
+        }
+
+        // 2 Rotate tmp_coords by vertex[2]
+
+        // 3 Compute SOS wrt to prev_coords
+        double sos = 0.0;
+        for (size_t i = 0; i < prev_coords.size(); ++i) {
+            double xdiff = tmp_coords[i].x - prev_coords[i].x;
+            double ydiff = tmp_coords[i].y - prev_coords[i].y;
+            double d_ = (xdiff*xdiff + ydiff*ydiff);
+            sos += d_;
+        }
+
+        return sos;
     }
 
     //! Compute a sum of squared distances between the points in this fit and the
@@ -1414,13 +1518,13 @@ private:
             return std::numeric_limits<double>::max();
         }
 
-        this->rotate (_theta);
+        this->rotate (this->fitted_autoalign_translated, this->fitted_autoaligned, _theta);
 
         double sos = 0.0;
         for (int i = 0; i < this->nFit; ++i) {
-            // Distance^2 from this->fitted_rotated[i] to this->previous->fitted_rotated[i]
-            double xdiff = this->fitted_rotated[i].x - (*this->parentStack)[this->previous].fitted_rotated[i].x;
-            double ydiff = this->fitted_rotated[i].y - (*this->parentStack)[this->previous].fitted_rotated[i].y;
+            // Distance^2 from this->fitted_autoaligned[i] to this->previous->fitted_autoaligned[i]
+            double xdiff = this->fitted_autoaligned[i].x - (*this->parentStack)[this->previous].fitted_autoaligned[i].x;
+            double ydiff = this->fitted_autoaligned[i].y - (*this->parentStack)[this->previous].fitted_autoaligned[i].y;
             double d_ = (xdiff*xdiff + ydiff*ydiff);
             //std::cout << "sos += " << d_ << ", ";
             sos += d_;
@@ -1429,24 +1533,40 @@ private:
         return sos;
     }
 
-    //! Rotate the points in this->fitted_offset by theta about the origin and store
-    //! the result in this->fitted_rotated
-    void rotate (double _theta)
+    //! Do a translation operation
+    void translate (const std::vector<cv::Point2d>& coords, std::vector<cv::Point2d>& translated,
+                    const cv::Point2d& translation)
     {
+        if (coords.size() != translated.size()) {
+            throw std::runtime_error ("translate(): input and output vectors must have same size");
+        }
+        for (size_t i = 0; i < coords.size(); ++i) {
+            translated[i] = coords[i] + translation;
+        }
+    }
+
+    //! Rotate the points in this->fitted_autoalign_translated by theta about the origin and store
+    //! the result in this->fitted_autoaligned
+    void rotate (const std::vector<cv::Point2d>& coords, std::vector<cv::Point2d>& rotated, const double _theta)
+    {
+        if (coords.size() != rotated.size()) {
+            throw std::runtime_error ("rotate(): input and output vectors must have same size");
+        }
+
         if (_theta == 0.0) {
-            for (int i = 0; i < this->nFit; ++i) {
-                this->fitted_rotated[i] = this->fitted_offset[i];
+            for (size_t i = 0; i < coords.size(); ++i) {
+                rotated[i] = coords[i];
             }
             return;
         }
 
-        for (int i = 0; i < this->nFit; ++i) {
-            double xi = this->fitted_offset[i].x;
-            double yi = this->fitted_offset[i].y;
+        for (size_t i = 0; i < coords.size(); ++i) {
+            double xi = coords[i].x;
+            double yi = coords[i].y;
             double sin_theta = sin (_theta);
             double cos_theta = cos (_theta);
-            this->fitted_rotated[i].x = xi * cos_theta - yi * sin_theta;
-            this->fitted_rotated[i].y = xi * sin_theta + yi * cos_theta;
+            rotated[i].x = xi * cos_theta - yi * sin_theta;
+            rotated[i].y = xi * sin_theta + yi * cos_theta;
         }
     }
 
@@ -1454,10 +1574,7 @@ private:
     cv::Point2d rotate (double _theta, cv::Point2d pt)
     {
         cv::Point2d rtn = pt;
-
-        if (_theta == 0.0) {
-            return rtn;
-        }
+        if (_theta == 0.0) { return rtn; }
 
         double xi = pt.x;
         double yi = pt.y;
@@ -1469,14 +1586,90 @@ private:
         return rtn;
     }
 
+    //! By optimally aligning (by 2d translate and rotate only) the \a alignment_coords,
+    //! apply a translation and rotation to transform src_coords into aligned_coords
+    void alignOptimally (const std::vector<cv::Point2d>& alignment_coords,
+                         const std::vector<cv::Point2d>& prevframe_alignment_coords,
+                         const std::vector<cv::Point2d>& src_coords,
+                         cv::Point2d& translation,
+                         double& rotation,
+                         std::vector<cv::Point2d>& aligned_coords)
+    {
+        // Check that previous frame has same number of coords, if not throw exception
+        if (prevframe_alignment_coords.size() != alignment_coords.size()) {
+            throw std::runtime_error ("Same number of alignment coords in both frames please!");
+        }
+        if (src_coords.size() != aligned_coords.size()) {
+            throw std::runtime_error ("Same number of src/dest coords please!");
+        }
+
+        // Now we have a fit which has same number of bins as the previous frame,
+        // this means we can compute SOS objective function
+
+        // Store initial_vertices elements in order (x,y,theta). Note: Would like to
+        // apply a limit on theta to avoid degenerate solutions; to avoid rotating by
+        // anywhere close to 2pi, then rotation limit should be pi.
+        std::vector<std::vector<double>> initial_vertices;
+        initial_vertices.push_back ({0.0, 0.0, 0.0});
+        initial_vertices.push_back ({0.5, 0.0, 0.0});
+        initial_vertices.push_back ({0.0, 0.5, 0.0});
+        initial_vertices.push_back ({0.0, 0.0, 0.5});
+
+        morph::NM_Simplex<double> simp (initial_vertices);
+        // Set a termination threshold for the SD of the vertices of the simplex
+        simp.termination_threshold = 2.0 * std::numeric_limits<double>::epsilon();
+        // Set an operation limit, in case the above threshold can't be reached
+        simp.too_many_operations = 1000;
+
+        while (simp.state != morph::NM_Simplex_State::ReadyToStop) {
+
+            if (simp.state == morph::NM_Simplex_State::NeedToComputeThenOrder) {
+                // 1. apply objective to each vertex
+                for (unsigned int i = 0; i <= simp.n; ++i) {
+                    //simp.values[i] = this->computeSosWithPrev (simp.vertices[i][0]);
+                    simp.values[i] = this->computeSos3d (prevframe_alignment_coords, alignment_coords, simp.vertices[i]);
+                }
+                simp.order();
+
+            } else if (simp.state == morph::NM_Simplex_State::NeedToOrder) {
+                simp.order();
+
+            } else if (simp.state == morph::NM_Simplex_State::NeedToComputeReflection) {
+                double val = this->computeSos3d (prevframe_alignment_coords, alignment_coords, simp.xr);
+                simp.apply_reflection (val);
+
+            } else if (simp.state == morph::NM_Simplex_State::NeedToComputeExpansion) {
+                double val = this->computeSos3d (prevframe_alignment_coords, alignment_coords, simp.xe);
+                simp.apply_expansion (val);
+
+            } else if (simp.state == morph::NM_Simplex_State::NeedToComputeContraction) {
+                double val = this->computeSos3d (prevframe_alignment_coords, alignment_coords, simp.xc);
+                simp.apply_contraction (val);
+            }
+        }
+        std::vector<double> vP = simp.best_vertex();
+        double min_sos = simp.best_value();
+
+        std::cout << "Best sos value: " << min_sos
+                  << " and best x,y,theta: (" << vP[0] << "," << vP[1] << "," << vP[2] << ")" << std::endl;
+        translation.x = vP[0];
+        translation.y = vP[1];
+        rotation = vP[2];
+
+        // Transform src_coords into aligned_coords by the best translation and rotation (vP)
+        std::vector<cv::Point2d> tmp_coords (src_coords);
+        this->translate (src_coords, tmp_coords, translation);
+        this->rotate (tmp_coords, aligned_coords, rotation);
+    }
+
     //! Rotate the fit until we get the best one.
     void rotateFitOptimally()
     {
-        // If there's no previous frame, then fitted_rotated should be same as fitted_offset
+        // If there's no previous frame, then fitted_autoaligned should be same as fitted_autoalign_translated
         if (this->previous < 0) {
-            std::cout << "No previous frame, so just copying fitted_offset to fitted_rotated..." << std::endl;
+            std::cout << "No previous frame, so just copying fitted_autoalign_translated to fitted_autoaligned..." << std::endl;
             for (int i = 0; i < this->nFit; ++i) {
-                this->fitted_rotated[i] = this->fitted_offset[i];
+                this->fitted_autoaligned[i] = this->fitted_autoalign_translated[i];
             }
             return;
         }
@@ -1492,7 +1685,7 @@ private:
             // This temporarily re-computes THIS frame's fit with nBinsTmp
             std::cout << "set bins to nBinsTmp = " << nBinsTmp << std::endl;
             this->setBins (nBinsTmp);
-            this->updateFit_norotate();
+            this->updateFitBezier();
         }
 
         // Now we have a fit which has same number of bins as the previous frame,
@@ -1534,18 +1727,18 @@ private:
         double min_sos = simp.best_value();
 
         std::cout << "Best sos value: " << min_sos << " and best theta: " << vP[0] << std::endl;
-        this->slice_theta = vP[0];
+        this->autoalign_theta = vP[0];
 
         if (nBinsTmp != nBinsSave) {
             // Need to reset bins and update the fit again, but this time rotating by vP[0]
             std::cout << "reset bins to nBinsSave = " << nBinsSave << std::endl;
             this->setBins (nBinsSave);
-            std::cout << "Update fit with rotation " << this->slice_theta << std::endl;
-            this->updateFit (this->slice_theta);
+            std::cout << "Update fit with rotation " << this->autoalign_theta << std::endl;
+            this->updateFit (this->autoalign_theta);
         } else {
             // There was no need to change bin; rotate by the best theta, vP[0]
-            std::cout << "Update unchanged fit with rotation " << this->slice_theta << std::endl;
-            this->rotate (this->slice_theta);
+            std::cout << "Update unchanged fit with rotation " << this->autoalign_theta << std::endl;
+            this->rotate (this->fitted_autoalign_translated, this->fitted_autoaligned, this->autoalign_theta);
         }
     }
 
