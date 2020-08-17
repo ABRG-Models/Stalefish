@@ -99,6 +99,11 @@ public:
 
     //! A set of points created from the fit
     std::vector<cv::Point> fitted;
+
+    // Attributes to do with the auto-transformed slices, where the centroid of each
+    // curve is used to arrange the slices on an axis, then each slice's curve is
+    // rotated to best-fit the previous curve.
+
     //! The centroid of fitted.
     cv::Point2d fit_centroid;
     //! This holds offset and scaled fitted points: (fitted - fit_centroid) * pixels_per_mm
@@ -110,14 +115,12 @@ public:
     //! smallest sum-of-square distances between the two fitted_rotated sets. Depends
     //! on nBins being the same in each.
     std::vector<cv::Point2d> fitted_rotated;
+
     //! For point in fitted, the tangent at that location
     std::vector<cv::Point2d> tangents;
     //! For point in fitted, the normal at that location
     std::vector<cv::Point2d> normals;
-    //! The axes for the polynomial fit
-    std::vector<cv::Point> axis;
-    //! Coefficients for the polynomial fit axis
-    std::vector<double> axiscoefs;
+
     //! origins for the lines making the box sides (some distance from the curve)
     std::vector<cv::Point> pointsInner;
     //! endpoints for the lines making the box sides (a greater distance from the curve)
@@ -213,8 +216,6 @@ public:
         // Scale and convert frame to float format
         this->frame.convertTo (this->frameF, CV_32FC3, 1/255.0);
         this->showMaxMin (this->frameF, "frameF (float)");
-        this->axiscoefs.resize (2, 0.0);
-        this->axis.resize (2);
         // NB: Init these before the next three resize() calls
         this->setBins (100);
         // Init flags
@@ -915,9 +916,7 @@ public:
         // These are "surface_boxes" because they're the box thats in the plane of the
         // cortical sheet (roughly xy) rather than the box in the slice plane (yz).
         std::vector<std::array<float,12>> surface_boxes;
-#if 0
-        std::vector<std::array<float,12>> smooth_boxes; // smoothed surface
-#endif
+
         std::vector<std::array<float,3>> surface_box_centroids;
         std::array<float, 12> sbox;
         //std::cout << "Surface boxes extend from " << layer_x << " to " << (layer_x + thickness) << std::endl;
@@ -943,28 +942,7 @@ public:
             surface_boxes.push_back (sbox);
             surface_box_centroids.push_back (sbox_centroid);
         }
-#if 0
-        for (int i = 1; i < this->nFit; ++i) {
-            // c1 x,y,z
-            sbox[0] = this->layer_x;                 // x
-            sbox[1] = this->fitted_rotated[i-1].x;  // y
-            sbox[2] = this->fitted_rotated[i-1].y; // z
-            // c2 x,y,z
-            sbox[3] = this->layer_x;               // x
-            sbox[4] = this->fitted_rotated[i].x;  // y
-            sbox[5] = this->fitted_rotated[i].y; // z
-            // c3 x,y,z
-            sbox[6] = this->layer_x+this->thickness; // x
-            sbox[7] = this->fitted_rotated[i].x;     // y
-            sbox[8] = this->fitted_rotated[i].y;    // z
-            // c4 x,y,z
-            sbox[9] = this->layer_x+this->thickness; // x
-            sbox[10] = this->fitted_rotated[i-1].x;  // y
-            sbox[11] = this->fitted_rotated[i-1].y; // z
 
-            smooth_boxes.push_back (sbox);
-        }
-#endif
         dname = frameName + "/fitted";
         df.add_contained_vals (dname.c_str(), this->fitted);
 
@@ -974,7 +952,7 @@ public:
         dname = frameName + "/fitted_rotated";
         df.add_contained_vals (dname.c_str(), this->fitted_rotated);
 
-        // sboxes are 'surface boxes' - they lay in the plan of the cortical surface
+        // sboxes are 'surface boxes' - they lay in the plane of the cortical surface
         // and are not to be confused with the yellow boxes drawn in the UI in the y-z
         // plane.
         dname = frameName + "/sboxes";
