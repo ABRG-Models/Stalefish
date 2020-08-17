@@ -193,9 +193,9 @@ public:
     std::array<float, 3> colour_trans;
     //! red-green ellipse for "elliptical tube of expressing colours
     std::array<float, 2> ellip_axes;
-    //! The slope of the linear luminosity vs signal fit.
+    //! The slope of the linear luminosity vs signal fit. Only used for ColourModel::AllenDevMouse
     float luminosity_factor = -0.00392f; // -1/255 aka -1.0f
-    //! at what luminosity does the signal cut off to zero?
+    //! at what luminosity does the signal cut off to zero? Only used for ColourModel::AllenDevMouse
     float luminosity_cutoff = 255.0f; // aka 1.0f
 
 public:
@@ -842,6 +842,13 @@ public:
         df.add_val (dname.c_str(), this->bgBlurScreenProportion);
         dname = frameName + "/class/bg_blur_subtraction_offset";
         df.add_val (dname.c_str(), this->bgBlurSubtractionOffset);
+
+        if (this->cmodel == ColourModel::AllenDevMouse) {
+            dname = frameName + "/class/luminosity_factor";
+            df.add_val (dname.c_str(), this->luminosity_factor);
+            dname = frameName + "/class/luminosity_cutoff";
+            df.add_val (dname.c_str(), this->luminosity_cutoff);
+        }
 
         /*
          * The rest of the methods write out data that WON'T be read by the
