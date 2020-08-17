@@ -1134,15 +1134,19 @@ public:
 
     void toggleShowBoxes() { this->flags[ShowBoxes] = this->flags.test(ShowBoxes) ? false : true; }
     void setShowBoxes (bool t) { this->flags[ShowBoxes] = t; }
+    bool getShowBoxes() { return this->flags.test(ShowBoxes); }
 
     void toggleShowFits() { this->flags[ShowFits] = this->flags.test(ShowFits) ? false : true; }
     void setShowFits (bool t) { this->flags[ShowFits] = t; }
+    bool getShowFits() { return this->flags.test(ShowFits); }
 
     void toggleShowUsers() { this->flags[ShowUsers] = this->flags.test(ShowUsers) ? false : true; }
     void setShowUsers (bool t) { this->flags[ShowUsers] = t; }
+    bool getShowUsers() { return this->flags.test(ShowUsers); }
 
     void toggleShowCtrls() { this->flags[ShowCtrls] = this->flags.test(ShowCtrls) ? false : true; }
     void setShowCtrls (bool t) { this->flags[ShowCtrls] = t; }
+    bool getShowCtrls() { return this->flags.test(ShowCtrls); }
 
 private:
 

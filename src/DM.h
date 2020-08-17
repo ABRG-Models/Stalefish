@@ -4,6 +4,7 @@
 #include <vector>
 #include <cmath>
 #include <stdexcept>
+#include <bitset>
 #include <opencv2/opencv.hpp>
 #include <opencv2/imgproc.hpp>
 #include <morph/HdfData.h>
@@ -23,6 +24,15 @@
 
 //! OpenCV sliders can't be negative, so we have an offset.
 #define BIN_A_OFFSET 200
+
+//! Flags used by the application for application-wide state
+enum AppFlag {
+    AppShowBoxes, // Show the yellow boxes?
+    AppShowUsers, // Show the user points?
+    AppShowCtrls, // Show the ctrl points of the fits?
+    AppShowFits,  // Show the fits?
+    AppShowHelp
+};
 
 //! Singleton pattern data manager class to hold framedata
 class DM
@@ -45,8 +55,6 @@ private:
     float thickness = 0.05f;
     //! The application configuration
     morph::Config conf;
-    //! Should the help text be shown?
-    bool showHelp = false;
 
     //! Colour space parameters
     std::string colourmodel = "monochrome";
@@ -57,7 +65,7 @@ private:
     float luminosity_cutoff; // at what luminosity does the signal cut off to zero?
 
     // Called by next/previousFrame. Take binA, binB from the frame and change the
-    // sliders. Update the fit and refresh boxes.
+    // sliders. Update the fit and refresh boxes. Update the view of boxes/fit line/control points
     void refreshFrame (void)
     {
         this->binA = this->gcf()->binA+BIN_A_OFFSET;
@@ -67,10 +75,15 @@ private:
         this->gcf()->ct = this->input_mode;
         this->gcf()->updateFit();
         this->gcf()->refreshBoxes (-(this->binA-BIN_A_OFFSET), this->binB);
+        this->gcf()->setShowCtrls (this->flags.test(AppShowCtrls));
+        this->gcf()->setShowUsers (this->flags.test(AppShowUsers));
+        this->gcf()->setShowFits (this->flags.test(AppShowFits));
+        this->gcf()->setShowBoxes (this->flags.test(AppShowBoxes));
     }
 
 public:
-
+    //! A bit set containing flags to track application state
+    std::bitset<8> flags;
     //! What's the global input mode?
     InputMode input_mode = InputMode::Bezier;
 
@@ -182,7 +195,9 @@ public:
     {
         int nfr = DM::i()->getNumFrames();
         for (int f = 0; f < nfr; ++f) {
+            this->setShowFits (true);
             this->vFrameData[f].setShowFits (true);
+            this->setShowBoxes (true);
             this->vFrameData[f].setShowBoxes (true);
             this->vFrameData[f].updateFit();
             this->vFrameData[f].refreshBoxes (-this->vFrameData[f].binA, this->vFrameData[f].binB);
@@ -256,7 +271,20 @@ public:
     }
 
     //! Toogle showHelp
-    void toggleHelp() { this->showHelp = !this->showHelp;  }
+    void toggleShowHelp() { this->flags[AppShowHelp] = this->flags.test(AppShowHelp) ? false : true; }
+    void setShowHelp (bool t) { this->flags[AppShowHelp] = t; }
+
+    void toggleShowBoxes() { this->flags[AppShowBoxes] = this->flags.test(AppShowBoxes) ? false : true; }
+    void setShowBoxes (bool t) { this->flags[AppShowBoxes] = t; }
+
+    void toggleShowFits() { this->flags[AppShowFits] = this->flags.test(AppShowFits) ? false : true; }
+    void setShowFits (bool t) { this->flags[AppShowFits] = t; }
+
+    void toggleShowUsers() { this->flags[AppShowUsers] = this->flags.test(AppShowUsers) ? false : true; }
+    void setShowUsers (bool t) { this->flags[AppShowUsers] = t; }
+
+    void toggleShowCtrls() { this->flags[AppShowCtrls] = this->flags.test(AppShowCtrls) ? false : true; }
+    void setShowCtrls (bool t) { this->flags[AppShowCtrls] = t; }
 
     //! The application window name
     const std::string winName = "StaleFish";
@@ -395,6 +423,12 @@ public:
         this->binA = this->gcf()->binA+BIN_A_OFFSET;
         this->binB = this->gcf()->binB;
         this->nBinsTarg = this->gcf()->getBins();
+
+        this->setShowUsers (this->gcf()->getShowUsers());
+        this->setShowFits (this->gcf()->getShowFits());
+        this->setShowBoxes (this->gcf()->getShowBoxes());
+        this->setShowCtrls (this->gcf()->getShowCtrls());
+
         DM::createTrackbars();
         this->gcf()->refreshBoxes (-(this->binA-BIN_A_OFFSET), this->binB);
     }
@@ -651,7 +685,7 @@ public:
 
         int yh = 90;
         int yinc = 40;
-        if (_this->showHelp) {
+        if (_this->flags.test(AppShowHelp)) {
             putText (*pImg, std::string("Use the sliders to control the bin parameters"),
                      cv::Point(xh,yh), cv::FONT_HERSHEY_SIMPLEX, fontsz, SF_BLACK, 1, cv::LINE_AA);
             yh += yinc;

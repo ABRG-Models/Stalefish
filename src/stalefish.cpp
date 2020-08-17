@@ -53,22 +53,26 @@ int main (int argc, char** argv)
         // 1 to 4 - select what is shown
         case ('1'):
         {
-            DM::i()->gcf()->toggleShowCtrls();
+            DM::i()->toggleShowCtrls();
+            DM::i()->gcf()->setShowCtrls (DM::i()->flags.test(AppShowCtrls));
             break;
         }
         case ('2'):
         {
-            DM::i()->gcf()->toggleShowUsers();
+            DM::i()->toggleShowUsers();
+            DM::i()->gcf()->setShowUsers (DM::i()->flags.test(AppShowUsers));
             break;
         }
         case ('3'):
         {
-            DM::i()->gcf()->toggleShowFits();
+            DM::i()->toggleShowFits();
+            DM::i()->gcf()->setShowFits (DM::i()->flags.test(AppShowFits));
             break;
         }
         case ('4'):
         {
-            DM::i()->gcf()->toggleShowBoxes();
+            DM::i()->toggleShowBoxes();
+            DM::i()->gcf()->setShowBoxes (DM::i()->flags.test(AppShowBoxes));
             break;
         }
         // Apply bin values across all frames
@@ -128,7 +132,7 @@ int main (int argc, char** argv)
         }
         case ('h'):
         {
-            DM::i()->toggleHelp();
+            DM::i()->toggleShowHelp();
             DM::onmouse (cv::EVENT_MOUSEMOVE, -1, -1, 0, NULL);
             break;
         }
