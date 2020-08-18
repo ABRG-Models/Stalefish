@@ -83,6 +83,8 @@ public:
     std::vector<cv::Point> LM;
     //! The landmark points scaled by pixels_per_mm
     std::vector<cv::Point2d> LM_scaled;
+    //! As part of alignment, have to help a copy of the aligned landmarks
+    std::vector<cv::Point2d> LM_lmaligned;
 
     //! The means computed for the boxes. This is "mean_signal".
     std::vector<float> box_signal_means;
@@ -682,12 +684,7 @@ public:
     }
 
     //! Remove the last landmark coordinate
-    void removeLastLandmark()
-    {
-        if (!this->LM.empty()) {
-            this->LM.pop_back();
-        }
-    }
+    void removeLastLandmark() { if (!this->LM.empty()) { this->LM.pop_back(); } }
 
     //! In Bezier mode, store the current set of user points (P) into PP and clear P.
     void nextCurve()
@@ -920,41 +917,6 @@ public:
             df.add_contained_vals (cntss.str().c_str(), coffrot);
         }
 
-        // Need to get from fitted to y and z. Note that fitted is in (integer) pixels...
-        // vector<cv::Point> fitted;
-        //
-        // Make up the boxes. A box (in 3d space) can be a vector of 12 floats. Thus
-        // we should be able to write a vector of boxes as a vector<vector<float>>
-        // These are "surface_boxes" because they're the box thats in the plane of the
-        // cortical sheet (roughly xy) rather than the box in the slice plane (yz).
-        std::vector<std::array<float,12>> surface_boxes;
-
-        std::vector<std::array<float,3>> surface_box_centroids;
-        std::array<float, 12> sbox;
-        //std::cout << "Surface boxes extend from " << layer_x << " to " << (layer_x + thickness) << std::endl;
-        for (int i = 1; i < this->nFit; ++i) {
-            // c1 x,y,z
-            sbox[0] = this->layer_x;                    // x
-            sbox[1] = this->fitted_autoaligned[i-1].x;  // y
-            sbox[2] = this->fitted_autoaligned[i-1].y;  // z
-            // c2 x,y,z
-            sbox[3] = this->layer_x;                    // x
-            sbox[4] = this->fitted_autoaligned[i].x;    // y
-            sbox[5] = this->fitted_autoaligned[i].y;    // z
-            // c3 x,y,z
-            sbox[6] = this->layer_x+this->thickness;    // x
-            sbox[7] = this->fitted_autoaligned[i].x;    // y
-            sbox[8] = this->fitted_autoaligned[i].y;    // z
-            // c4 x,y,z
-            sbox[9] = this->layer_x+this->thickness;    // x
-            sbox[10] = this->fitted_autoaligned[i-1].x; // y
-            sbox[11] = this->fitted_autoaligned[i-1].y; // z
-
-            std::array<float, 3> sbox_centroid = morph::MathAlgo::centroid3D (sbox);//<float>
-            surface_boxes.push_back (sbox);
-            surface_box_centroids.push_back (sbox_centroid);
-        }
-
         // I'm storing all coordinates of the fitted points here.
         dname = frameName + "/fitted";
         df.add_contained_vals (dname.c_str(), this->fitted);
@@ -979,14 +941,102 @@ public:
         dname = frameName + "/fitted_lmaligned";
         df.add_contained_vals (dname.c_str(), this->fitted_lmaligned);
 
-        // sboxes are 'surface boxes' - they lay in the plane of the cortical surface
+        // Need to get from fitted to y and z. Note that fitted is in (integer) pixels...
+        // vector<cv::Point> fitted;
+        //
+        // Make up the boxes. A box (in 3d space) can be a vector of 12 floats. Thus
+        // we should be able to write a vector of boxes as a vector<vector<float>>
+        // These are "surface_boxes" because they're the box thats in the plane of the
+        // cortical sheet (roughly xy) rather than the box in the slice plane (yz).
+        std::array<float, 12> sbox;
+
+        std::vector<std::array<float,12>> surface_boxes_autoaligned;
+        std::vector<std::array<float,12>> surface_boxes_lmaligned;
+        std::vector<std::array<float,12>> surface_boxes_scaled;
+        std::vector<std::array<float,3>> surface_box_centroids_autoaligned;
+        std::vector<std::array<float,3>> surface_box_centroids_lmaligned;
+        std::vector<std::array<float,3>> surface_box_centroids_scaled;
+        //std::cout << "Surface boxes extend from " << layer_x << " to " << (layer_x + thickness) << std::endl;
+        for (int i = 1; i < this->nFit; ++i) {
+            // Create auto-aligned surface box
+            // c1 x,y,z
+            sbox[0] = this->layer_x;                    // x
+            sbox[1] = this->fitted_autoaligned[i-1].x;  // y
+            sbox[2] = this->fitted_autoaligned[i-1].y;  // z
+            // c2 x,y,z
+            sbox[3] = this->layer_x;                    // x
+            sbox[4] = this->fitted_autoaligned[i].x;    // y
+            sbox[5] = this->fitted_autoaligned[i].y;    // z
+            // c3 x,y,z
+            sbox[6] = this->layer_x+this->thickness;    // x
+            sbox[7] = this->fitted_autoaligned[i].x;    // y
+            sbox[8] = this->fitted_autoaligned[i].y;    // z
+            // c4 x,y,z
+            sbox[9] = this->layer_x+this->thickness;    // x
+            sbox[10] = this->fitted_autoaligned[i-1].x; // y
+            sbox[11] = this->fitted_autoaligned[i-1].y; // z
+
+            std::array<float, 3> sbox_centroid = morph::MathAlgo::centroid3D (sbox);//<float>
+            surface_boxes_autoaligned.push_back (sbox);
+            surface_box_centroids_autoaligned.push_back (sbox_centroid);
+
+            // Create landmark-aligned surface box
+            // c1 x,y,z
+            sbox[1] = this->fitted_lmaligned[i-1].x;  // y
+            sbox[2] = this->fitted_lmaligned[i-1].y;  // z
+            // c2 x,y,z
+            sbox[4] = this->fitted_lmaligned[i].x;    // y
+            sbox[5] = this->fitted_lmaligned[i].y;    // z
+            // c3 x,y,z
+            sbox[7] = this->fitted_lmaligned[i].x;    // y
+            sbox[8] = this->fitted_lmaligned[i].y;    // z
+            // c4 x,y,z
+            sbox[10] = this->fitted_lmaligned[i-1].x; // y
+            sbox[11] = this->fitted_lmaligned[i-1].y; // z
+
+            sbox_centroid = morph::MathAlgo::centroid3D (sbox);
+            surface_boxes_lmaligned.push_back (sbox);
+            surface_box_centroids_lmaligned.push_back (sbox_centroid);
+
+            // Create un-aligned surface box for debugging
+            // c1 x,y,z
+            sbox[1] = this->fitted_scaled[i-1].x;  // y
+            sbox[2] = this->fitted_scaled[i-1].y;  // z
+            // c2 x,y,z
+            sbox[4] = this->fitted_scaled[i].x;    // y
+            sbox[5] = this->fitted_scaled[i].y;    // z
+            // c3 x,y,z
+            sbox[7] = this->fitted_scaled[i].x;    // y
+            sbox[8] = this->fitted_scaled[i].y;    // z
+            // c4 x,y,z
+            sbox[10] = this->fitted_scaled[i-1].x; // y
+            sbox[11] = this->fitted_scaled[i-1].y; // z
+
+            sbox_centroid = morph::MathAlgo::centroid3D (sbox);
+            surface_boxes_scaled.push_back (sbox);
+            surface_box_centroids_scaled.push_back (sbox_centroid);
+        }
+
+        // sboxes are 'surface boxes' - they lie in the plane of the cortical surface
         // and are not to be confused with the yellow boxes drawn in the UI in the y-z
         // plane.
-        dname = frameName + "/sboxes";
-        df.add_contained_vals (dname.c_str(), surface_boxes);
+        dname = frameName + "/sboxes_autoaligned";
+        df.add_contained_vals (dname.c_str(), surface_boxes_autoaligned);
 
-        dname = frameName + "/sbox_centers";
-        df.add_contained_vals (dname.c_str(), surface_box_centroids);
+        dname = frameName + "/sbox_centers_autoaligned";
+        df.add_contained_vals (dname.c_str(), surface_box_centroids_autoaligned);
+
+        dname = frameName + "/sboxes_lmaligned";
+        df.add_contained_vals (dname.c_str(), surface_boxes_lmaligned);
+
+        dname = frameName + "/sbox_centers_lmaligned";
+        df.add_contained_vals (dname.c_str(), surface_box_centroids_lmaligned);
+
+        dname = frameName + "/sboxes_scaled";
+        df.add_contained_vals (dname.c_str(), surface_boxes_scaled);
+
+        dname = frameName + "/sbox_centers_scaled";
+        df.add_contained_vals (dname.c_str(), surface_box_centroids_scaled);
 
         // From surface_box_centroids, can compute linear distance along curve. Could
         // be useful for making naive maps that unroll the cortex in one dimension.
@@ -995,8 +1045,8 @@ public:
         std::vector<float> linear_distances (this->nBins, 0.0f);
         for (int i=1; i<this->nBins; ++i) {
             // Compute distance from Previous to current
-            float d = morph::MathAlgo::distance<float> (surface_box_centroids[i-1],
-                                                        surface_box_centroids[i]);
+            float d = morph::MathAlgo::distance<float> (surface_box_centroids_autoaligned[i-1],
+                                                        surface_box_centroids_autoaligned[i]);
             total_linear_distance += d;
             linear_distances[i] = total_linear_distance;
         }
@@ -1068,17 +1118,16 @@ public:
             // Possible alternative to allow optimization to tweak the translation as well as the rotation
 #if 0
             // Write function to ensure same number of bins in each frame (temporarily), then:
-            this->alignOptimally (this->fitted_scaled, (*this->parentStack)[this->previous].fitted_scaled,
-                                  this->fitted_scaled,
-                                  this->autoalign_translation, this->autoalign_theta, this->fitted_autoaligned);
+            this->alignOptimally (args);
 #endif
 
             // Landmark scheme, if we have >=2 landmarks on each slice and same number of landmarks on each slice
 
             // Re-scaled landmarks
             this->LM_scaled.resize(this->LM.size());
+            this->LM_lmaligned.resize(this->LM.size());
             for (size_t i = 0; i < this->LM.size(); ++i) {
-                this->LM_scaled[i] = this->LM[i]/this->pixels_per_mm;
+                this->LM_scaled[i] = cv::Point2d(this->LM[i])/this->pixels_per_mm;
             }
 
             // If there's no previous frame, then we just accept the src_coords
@@ -1087,9 +1136,16 @@ public:
                 for (int i = 0; i < this->nFit; ++i) {
                     this->fitted_lmaligned[i] = this->fitted_scaled[i];
                 }
+                for (size_t i = 0; i < this->LM_scaled.size(); ++i) {
+                    this->LM_lmaligned[i] = this->LM_scaled[i];
+                }
             } else {
                 std::cout << "alignOptimally...\n";
-                this->alignOptimally (this->LM_scaled, (*this->parentStack)[this->previous].LM_scaled,
+                // FIXME: Need to update LM_scaled/use LM_lmaligned for the *previous*
+                this->alignOptimally (this->LM_scaled,
+                                      //(*this->parentStack)[this->previous].LM_lmaligned,
+                                      (*this->parentStack)[0].LM_lmaligned,
+                                      this->LM_lmaligned,
                                       this->fitted_scaled,
                                       this->lm_translation, this->lm_theta, this->fitted_lmaligned);
             }
@@ -1470,34 +1526,28 @@ private:
         return rtn;
     }
 
-    //! vertex contains x,y,theta values and should have size 3
+    //! vertex contains x,y,theta values and should have size 3 translate coords by
+    //! vertex[0],vertex[1] and rotate by vertex[2]. Compute SOS compared with previous
+    //! coordinates
     double computeSos3d (const std::vector<cv::Point2d> coords,
                          const std::vector<cv::Point2d> prev_coords,
                          const std::vector<double>& vertex)
     {
-        // translate coords by vertex[0],vertex[1] and rotate by
-        // vertex[2]. Compute SOS compared with previous fitted thing.
-        if (this->previous < 0) {
-            return std::numeric_limits<double>::max();
-        }
+        if (this->previous < 0) { return std::numeric_limits<double>::max(); }
 
-        // Assume that coords and prev_coords have same size; calling code should have tested? No, test anyway
         if (coords.size() != prev_coords.size()) {
             throw std::runtime_error ("computeSos3d: Number of elements in coords and prev_coords must be the same");
         }
 
+        //std::cout << "computeSos3d: x,y,theta = (" << vertex[0] << "," << vertex[1] << "," << vertex[2] << ")" << std::endl;
+
+        // Transform coords
         std::vector<cv::Point2d> tmp_coords (coords);
-
-        // 1 translate coords by vertex[0,1]
         cv::Point2d tr(vertex[0], vertex[1]);
-        for (size_t i = 0; i < tmp_coords.size(); ++i) {
-            std::cout << "tmp_coords["<<i<<"]: " << tmp_coords[i] << std::endl;
-            tmp_coords[i] += tr;
-        }
+        this->translate (coords, tmp_coords, tr);
+        this->rotate (tmp_coords, tmp_coords, vertex[2]);
 
-        // 2 Rotate tmp_coords by vertex[2]
-
-        // 3 Compute SOS wrt to prev_coords
+        // Compute SOS wrt to prev_coords
         double sos = 0.0;
         for (size_t i = 0; i < prev_coords.size(); ++i) {
             double xdiff = tmp_coords[i].x - prev_coords[i].x;
@@ -1506,6 +1556,7 @@ private:
             sos += d_;
         }
 
+        //std::cout << "sos=" << sos << std::endl;
         return sos;
     }
 
@@ -1591,16 +1642,18 @@ private:
     }
 
     //! By optimally aligning (by 2d translate and rotate only) the \a alignment_coords,
-    //! apply a translation and rotation to transform src_coords into aligned_coords
+    //! apply a translation and rotation to transform alignment_coords into aligned_coords
     void alignOptimally (const std::vector<cv::Point2d>& alignment_coords,
-                         const std::vector<cv::Point2d>& prevframe_alignment_coords,
+                         const std::vector<cv::Point2d>& prevframe_aligned_coords,
+                         std::vector<cv::Point2d>& curframe_aligned_coords,
                          const std::vector<cv::Point2d>& src_coords,
                          cv::Point2d& translation,
                          double& rotation,
                          std::vector<cv::Point2d>& aligned_coords)
     {
+        std::cout << "alignOptimally called\n";
         // Check that previous frame has same number of coords, if not throw exception
-        if (prevframe_alignment_coords.size() != alignment_coords.size()) {
+        if (prevframe_aligned_coords.size() != alignment_coords.size()) {
             throw std::runtime_error ("Same number of alignment coords in both frames please!");
         }
         if (src_coords.size() != aligned_coords.size()) {
@@ -1612,12 +1665,20 @@ private:
 
         // Store initial_vertices elements in order (x,y,theta). Note: Would like to
         // apply a limit on theta to avoid degenerate solutions; to avoid rotating by
-        // anywhere close to 2pi, then rotation limit should be pi.
+        // anywhere close to 2pi, then rotation limit should be pi. So far this has not
+        // been addressed.
+        //
+        // Use some proportion of the distance between the first landmark and its
+        // equivalent on the previous slice to determine the values for the initial
+        // vertices.
+        cv::Point2d l1_offset = alignment_coords[0] - prevframe_aligned_coords[0];
+        double d = 0.3 * std::sqrt (l1_offset.x * l1_offset.x + l1_offset.y * l1_offset.y);
+        std::cout << "distance used for initial vertices in xytheta space: " << d << std::endl;
         std::vector<std::vector<double>> initial_vertices;
         initial_vertices.push_back ({0.0, 0.0, 0.0});
-        initial_vertices.push_back ({0.5, 0.0, 0.0});
-        initial_vertices.push_back ({0.0, 0.5, 0.0});
-        initial_vertices.push_back ({0.0, 0.0, 0.5});
+        initial_vertices.push_back ({d, 0.0, 0.0});
+        initial_vertices.push_back ({d, d, 0.0});
+        initial_vertices.push_back ({d, 0.0, 0.1});
 
         morph::NM_Simplex<double> simp (initial_vertices);
         // Set a termination threshold for the SD of the vertices of the simplex
@@ -1631,7 +1692,7 @@ private:
                 // 1. apply objective to each vertex
                 for (unsigned int i = 0; i <= simp.n; ++i) {
                     //simp.values[i] = this->computeSosWithPrev (simp.vertices[i][0]);
-                    simp.values[i] = this->computeSos3d (prevframe_alignment_coords, alignment_coords, simp.vertices[i]);
+                    simp.values[i] = this->computeSos3d (prevframe_aligned_coords, alignment_coords, simp.vertices[i]);
                 }
                 simp.order();
 
@@ -1639,22 +1700,22 @@ private:
                 simp.order();
 
             } else if (simp.state == morph::NM_Simplex_State::NeedToComputeReflection) {
-                double val = this->computeSos3d (prevframe_alignment_coords, alignment_coords, simp.xr);
+                double val = this->computeSos3d (prevframe_aligned_coords, alignment_coords, simp.xr);
                 simp.apply_reflection (val);
 
             } else if (simp.state == morph::NM_Simplex_State::NeedToComputeExpansion) {
-                double val = this->computeSos3d (prevframe_alignment_coords, alignment_coords, simp.xe);
+                double val = this->computeSos3d (prevframe_aligned_coords, alignment_coords, simp.xe);
                 simp.apply_expansion (val);
 
             } else if (simp.state == morph::NM_Simplex_State::NeedToComputeContraction) {
-                double val = this->computeSos3d (prevframe_alignment_coords, alignment_coords, simp.xc);
+                double val = this->computeSos3d (prevframe_aligned_coords, alignment_coords, simp.xc);
                 simp.apply_contraction (val);
             }
         }
         std::vector<double> vP = simp.best_vertex();
         double min_sos = simp.best_value();
 
-        std::cout << "Best sos value: " << min_sos
+        std::cout << "After " << simp.operation_count << " operations, best sos value: " << min_sos
                   << " and best x,y,theta: (" << vP[0] << "," << vP[1] << "," << vP[2] << ")" << std::endl;
         translation.x = vP[0];
         translation.y = vP[1];
@@ -1662,8 +1723,19 @@ private:
 
         // Transform src_coords into aligned_coords by the best translation and rotation (vP)
         std::vector<cv::Point2d> tmp_coords (src_coords);
-        this->translate (src_coords, tmp_coords, translation);
-        this->rotate (tmp_coords, aligned_coords, rotation);
+        std::cout << "alignOptimally: Final transformation: ("
+                  << translation.x << "," << translation.y << "," << rotation << ")" << std::endl;
+        this->translate (src_coords, tmp_coords, -translation);
+        this->rotate (tmp_coords, aligned_coords, -rotation);
+
+        std::cout << "Example coordinate: src: " << alignment_coords[0];
+
+        // Also transform the alignment coords, ready for the next slice
+        std::vector<cv::Point2d> tmp_alignment_coords (alignment_coords);
+        this->translate (alignment_coords, tmp_alignment_coords, -translation);
+        this->rotate (tmp_alignment_coords, curframe_aligned_coords, -rotation);
+
+        std::cout << ", translated: " << curframe_aligned_coords[0] << " (which is used for next slice) and cf prevframe_aligned_coords[0]: " << prevframe_aligned_coords[0] << std::endl;
     }
 
     //! Rotate the fit until we get the best one.

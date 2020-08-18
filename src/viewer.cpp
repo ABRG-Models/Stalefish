@@ -58,7 +58,9 @@ int main (int argc, char** argv)
         float thickness = 0.1f;
         float xx = thickness;
 
-        vector<array<float, 12>> quads; // Get from HDF5
+        vector<array<float, 12>> quads_autoaligned; // Get from HDF5
+        vector<array<float, 12>> quads_lmaligned;
+        vector<array<float, 12>> quads_scaled;
         vector<array<float, 12>> fquads; // Flat quads, for the flat visualization
         vector<morph::Vector<float>> points; // Centres of boxes; for smooth surface (points rows)
         vector<float> means;
@@ -74,20 +76,38 @@ int main (int argc, char** argv)
             ss << i;
             frameName = ss.str();
 
-            vector<array<float, 12>> frameQuads;
-            vector<double> frameMeans;
-            vector<morph::Vector<float>> framePoints;
+            vector<array<float, 12>> frameQuads_scaled;
+            vector<array<float, 12>> frameQuads_lmaligned;
+            vector<array<float, 12>> frameQuads_autoaligned;
+
+            vector<morph::Vector<float>> framePoints_autoaligned;
+            vector<morph::Vector<float>> framePoints_lmaligned;
+            vector<morph::Vector<float>> framePoints_scaled;
 
             // Read quads and data for each frame and add to an overall pair of vectors...
-            string str = frameName+"/sboxes";
-            d.read_contained_vals (str.c_str(), frameQuads);
+            string str = frameName+"/sboxes_autoaligned";
+            d.read_contained_vals (str.c_str(), frameQuads_autoaligned);
+            str = frameName+"/sboxes_lmaligned";
+            d.read_contained_vals (str.c_str(), frameQuads_lmaligned);
+            // Un-transformed:
+            str = frameName+"/sboxes_scaled";
+            d.read_contained_vals (str.c_str(), frameQuads_scaled);
 
-            for (auto fq : frameQuads) {
+            for (auto fq : frameQuads_autoaligned) {
                 // FIXME: Use centre of box, or even each end of box, or something
                 morph::Vector<float> pt = {fq[0],fq[1],fq[2]};
-                framePoints.push_back (pt);
+                framePoints_autoaligned.push_back (pt);
+            }
+            for (auto fq : frameQuads_lmaligned) {
+                morph::Vector<float> pt = {fq[0],fq[1],fq[2]};
+                framePoints_lmaligned.push_back (pt);
+            }
+            for (auto fq : frameQuads_scaled) {
+                morph::Vector<float> pt = {fq[0],fq[1],fq[2]};
+                framePoints_scaled.push_back (pt);
             }
 
+            vector<double> frameMeans;
             if (autoscale_per_slice) {
                 // Use the auto-scaled version of the means, with each slice autoscaled to [0,1]
                 str = frameName+"/box_signal_means_autoscaled";
@@ -106,9 +126,12 @@ int main (int argc, char** argv)
                 frameMeansF.push_back (static_cast<float>(frameMeans[j]));
             }
 
-            quads.insert (quads.end(), frameQuads.begin(), frameQuads.end());
+            quads_autoaligned.insert (quads_autoaligned.end(), frameQuads_autoaligned.begin(), frameQuads_autoaligned.end());
+            quads_lmaligned.insert (quads_lmaligned.end(), frameQuads_lmaligned.begin(), frameQuads_lmaligned.end());
+            quads_scaled.insert (quads_scaled.end(), frameQuads_scaled.begin(), frameQuads_scaled.end());
             means.insert (means.end(), frameMeansF.begin(), frameMeansF.end());
-            points.insert (points.end(), framePoints.begin(), framePoints.end());
+
+            points.insert (points.end(), framePoints_lmaligned.begin(), framePoints_lmaligned.end());
 
             // Load in linear stuff as well, to make up flat boxes? Or easier to do at source?
             vector<float> linbins;
@@ -145,28 +168,40 @@ int main (int argc, char** argv)
 
         unsigned int visId = 0;
 
+#if 0
         // The 'ribbons' map (commented out)
-        //offset[0] -= 3.0;
-        //visId = v.addVisualModel (new morph::QuadsVisual<float> (v.shaderprog,
-        //                                                         &quads, offset,
-        //                                                         &means, scale,
-        //                                                         morph::ColourMapType::MonochromeBlue));
+        offset[0] = 0.0;
+        visId = v.addVisualModel (new morph::QuadsVisual<float> (v.shaderprog,
+                                                                 &quads_autoaligned, offset,
+                                                                 &means, scale,
+                                                                 morph::ColourMapType::MonochromeBlue));
+
+        offset[0] = 5.0;
+        visId = v.addVisualModel (new morph::QuadsVisual<float> (v.shaderprog,
+                                                                 &quads_lmaligned, offset,
+                                                                 &means, scale,
+                                                                 morph::ColourMapType::MonochromeRed));
+#endif
+#if 0
+        offset[0] = 10.0;
+        visId = v.addVisualModel (new morph::QuadsVisual<float> (v.shaderprog,
+                                                                 &quads_scaled, offset,
+                                                                 &means, scale,
+                                                                 morph::ColourMapType::MonochromeGreen));
+#endif
 
         // This is the flattened map
-        offset[0]-=5.0;
+        offset[0]=-5.0;
         visId = v.addVisualModel (new morph::QuadsVisual<float> (v.shaderprog,
                                                                  &fquads, offset,
                                                                  &fmeans, scale,
                                                                  morph::ColourMapType::Greyscale));
 
-
-        offset[0]+=5.0;
+        offset[0]=0.0;
         visId = v.addVisualModel (new morph::PointRowsVisual<float> (v.shaderprog,
                                                                      &points, offset,
                                                                      &means, scale,
-                                                                     morph::ColourMapType::MonochromeBlue
-                                                                     //morph::ColourMapType::Plasma
-                                      ));
+                                                                     morph::ColourMapType::MonochromeBlue));
 
         cout << "Added Visual with visId " << visId << endl;
 
