@@ -143,7 +143,10 @@ public:
             if (fd.flags.test (Mirrored)) {
                 fd.mirror_image_only();
             }
+            // Update the Bezier fit so that the boxes can be drawn
             fd.updateFit();
+            // Update landmarks, so they exist in the vFrameData?
+
         } catch (...) {
             // No problem, just carry on
         }
@@ -259,6 +262,11 @@ public:
         // Call updateAllFits() before writing only to ensure that all the boxes have
         // been refreshed. Seems these are not read out of the .h5 file. Bit of a hack, this.
         this->refreshAllBoxes();
+
+        // Before writing, apply the slice alignment algorithms
+        for (auto& f : this->vFrameData) {
+            f.updateAlignments();
+        }
 
         morph::HdfData d(this->datafile);
         for (auto f : this->vFrameData) {
