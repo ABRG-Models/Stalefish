@@ -1095,6 +1095,26 @@ public:
         this->compute_flip (this->frame_signalU);
     }
 
+    //! Check landmarks on each slice. If there are n landmarks on every slice, and n >=
+    //! 2, return true, else return false.
+    bool landmarkCheck()
+    {
+        bool rtn = false;
+        size_t n = this->LM.size();
+        // Only if we have at least 2 landmarks is it worth checking any further
+        if (n >= 2) {
+            // Ok, so now see if all the other frames have n landmarks. If so, then we
+            // could apply the landmark based alignment (and should return true)
+            rtn = true;
+            for (auto fr : (*this->parentStack)) {
+                if (fr.LM.size() != n) {
+                    rtn = false;
+                }
+            }
+        }
+        return rtn;
+    }
+
     //! Recompute the fit
     void updateFit()
     {
@@ -1207,26 +1227,6 @@ public:
     bool getShowCtrls() { return this->flags.test(ShowCtrls); }
 
 private:
-
-    //! Check landmarks on each slice. If there are n landmarks on every slice, and n >=
-    //! 2, return true, else return false.
-    bool landmarkCheck()
-    {
-        bool rtn = false;
-        size_t n = this->LM.size();
-        // Only if we have at least 2 landmarks is it worth checking any further
-        if (n >= 2) {
-            // Ok, so now see if all the other frames have n landmarks. If so, then we
-            // could apply the landmark based alignment (and should return true)
-            rtn = true;
-            for (auto fr : (*this->parentStack)) {
-                if (fr.LM.size() != n) {
-                    rtn = false;
-                }
-            }
-        }
-        return rtn;
-    }
 
     //! Mirror cv::Mat \a m about the vertical axis
     void compute_mirror (cv::Mat& m)
