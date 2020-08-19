@@ -68,6 +68,12 @@ int main (int argc, char** argv)
         vector<float> means;
         vector<float> fmeans;
 
+        // Check first frame for alignments
+        bool lmalignComputed = false;
+        d.read_val ("Frame001/lmalign_computed", lmalignComputed);
+        bool autoalignComputed = false;
+        d.read_val ("Frame001/autoalign_computed", autoalignComputed);
+
         string frameName("");
         for (int i = 1; i<=nf; ++i) {
 
@@ -202,18 +208,18 @@ int main (int argc, char** argv)
                                                                  morph::ColourMapType::Greyscale));
 
         offset[0]=0.0;
-        offset[2]=3.0;
-        visId = v.addVisualModel (new morph::PointRowsVisual<float> (v.shaderprog,
-                                                                     &points_autoaligned, offset,
-                                                                     &means, scale,
-                                                                     morph::ColourMapType::MonochromeBlue));
-
-        offset[0]=0.0;
-        offset[2]=-3.0;
-        visId = v.addVisualModel (new morph::PointRowsVisual<float> (v.shaderprog,
-                                                                     &points_lmaligned, offset,
-                                                                     &means, scale,
-                                                                     morph::ColourMapType::MonochromeRed));
+        // Show landmark aligned for preference:
+        if (lmalignComputed == true) {
+            visId = v.addVisualModel (new morph::PointRowsVisual<float> (v.shaderprog,
+                                                                         &points_lmaligned, offset,
+                                                                         &means, scale,
+                                                                         morph::ColourMapType::MonochromeRed));
+        } else {
+            visId = v.addVisualModel (new morph::PointRowsVisual<float> (v.shaderprog,
+                                                                         &points_autoaligned, offset,
+                                                                         &means, scale,
+                                                                         morph::ColourMapType::MonochromeBlue));
+        }
 
         cout << "Added Visual with visId " << visId << endl;
 

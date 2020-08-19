@@ -122,6 +122,8 @@ public:
     //! smallest sum-of-square distances between the two fitted_autoaligned sets. Depends
     //! on nBins being the same in each.
     std::vector<cv::Point2d> fitted_autoaligned;
+    //! Set true if centroid-and-rotate alignment was completed before write()
+    bool autoalignComputed = false;
 
     //! The translation applied to fitted_scaled to get to fitted_lmalign_translated
     cv::Point2d lm_translation;
@@ -131,6 +133,8 @@ public:
     double lm_theta = 0.0;
     //! Holds the final, translated and rotated points aligned with landmarks.
     std::vector<cv::Point2d> fitted_lmaligned;
+    //! Set true if landmark alignment was completed before write()
+    bool lmalignComputed = false;
 
     //! For point in fitted, the tangent at that location
     std::vector<cv::Point2d> tangents;
@@ -942,6 +946,11 @@ public:
         dname = frameName + "/fitted_lmaligned";
         df.add_contained_vals (dname.c_str(), this->fitted_lmaligned);
 
+        dname = frameName + "/lmalign_computed";
+        df.add_val (dname.c_str(), this->lmalignComputed);
+        dname = frameName + "/autoalign_computed";
+        df.add_val (dname.c_str(), this->autoalignComputed);
+
         // Need to get from fitted to y and z. Note that fitted is in (integer) pixels...
         // vector<cv::Point> fitted;
         //
@@ -1124,10 +1133,13 @@ public:
         // Set variables saying aligned_with_centroids = false; aligned_with_landmarks =
         // false; for writing into the h5 file. Then set these true as appropriate,
         // below.
+        this->autoalignComputed = false;
+        this->lmalignComputed = false;
 
         // Compute the align-centroid-and-rotate slice alignments
         this->offsetCentroid();
         this->rotateFitOptimally();
+        this->autoalignComputed = true;
 
 #if 0
         // Possible alternative to allow optimization to tweak the translation as well as the rotation:
@@ -1153,12 +1165,19 @@ public:
 
         // If there's no previous frame, then we just accept the src_coords
         if (this->previous < 0) {
-            std::cout << "No previous frame, so accept coords with no tranformation..." << std::endl;
+            std::cout << "No previous frame, so align first frame about the origin." << std::endl;
+            // get centroid of this->fitted_scaled
+            cv::Point2d slice0centroid (0.0, 0.0);
             for (int i = 0; i < this->nFit; ++i) {
-                this->fitted_lmaligned[i] = this->fitted_scaled[i];
+                slice0centroid += this->fitted_scaled[i];
+            }
+            slice0centroid /= this->nFit;
+
+            for (int i = 0; i < this->nFit; ++i) {
+                this->fitted_lmaligned[i] = this->fitted_scaled[i] - slice0centroid;
             }
             for (size_t i = 0; i < this->LM_scaled.size(); ++i) {
-                this->LM_lmaligned[i] = this->LM_scaled[i];
+                this->LM_lmaligned[i] = this->LM_scaled[i] - slice0centroid;
                 std::cout << "Set first LM_lmaligned to have size " << this->LM_lmaligned.size() << std::endl;
                 // WARNING parentStack doesn't hold THIS frame. Why?
                 std::cout << "parent stack first frame has LM_aligned size: " << (*this->parentStack)[0].LM_lmaligned.size() << std::endl;
@@ -1174,6 +1193,7 @@ public:
                                   this->fitted_scaled,
                                   this->lm_translation, this->lm_theta, this->fitted_lmaligned);
         }
+        this->lmalignComputed = true;
     }
 
     //! Public wrapper around updateFitBezier()
