@@ -62,7 +62,9 @@ int main (int argc, char** argv)
         vector<array<float, 12>> quads_lmaligned;
         vector<array<float, 12>> quads_scaled;
         vector<array<float, 12>> fquads; // Flat quads, for the flat visualization
-        vector<morph::Vector<float>> points; // Centres of boxes; for smooth surface (points rows)
+        vector<morph::Vector<float>> points_autoaligned; // Centres of boxes; for smooth surface (points rows)
+        vector<morph::Vector<float>> points_lmaligned; // Centres of boxes; for smooth surface (points rows)
+        vector<morph::Vector<float>> points_scaled; // Centres of boxes; for smooth surface (points rows)
         vector<float> means;
         vector<float> fmeans;
 
@@ -131,7 +133,9 @@ int main (int argc, char** argv)
             quads_scaled.insert (quads_scaled.end(), frameQuads_scaled.begin(), frameQuads_scaled.end());
             means.insert (means.end(), frameMeansF.begin(), frameMeansF.end());
 
-            points.insert (points.end(), framePoints_lmaligned.begin(), framePoints_lmaligned.end());
+            points_lmaligned.insert (points_lmaligned.end(), framePoints_lmaligned.begin(), framePoints_lmaligned.end());
+            points_autoaligned.insert (points_autoaligned.end(), framePoints_autoaligned.begin(), framePoints_autoaligned.end());
+            points_scaled.insert (points_scaled.end(), framePoints_scaled.begin(), framePoints_scaled.end());
 
             // Load in linear stuff as well, to make up flat boxes? Or easier to do at source?
             vector<float> linbins;
@@ -198,10 +202,18 @@ int main (int argc, char** argv)
                                                                  morph::ColourMapType::Greyscale));
 
         offset[0]=0.0;
+        offset[2]=3.0;
         visId = v.addVisualModel (new morph::PointRowsVisual<float> (v.shaderprog,
-                                                                     &points, offset,
+                                                                     &points_autoaligned, offset,
                                                                      &means, scale,
                                                                      morph::ColourMapType::MonochromeBlue));
+
+        offset[0]=0.0;
+        offset[2]=-3.0;
+        visId = v.addVisualModel (new morph::PointRowsVisual<float> (v.shaderprog,
+                                                                     &points_lmaligned, offset,
+                                                                     &means, scale,
+                                                                     morph::ColourMapType::MonochromeRed));
 
         cout << "Added Visual with visId " << visId << endl;
 
