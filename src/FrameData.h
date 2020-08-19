@@ -549,6 +549,7 @@ public:
         this->extents_FL = this->getExtents (this->FL);
 
         // Create a winder object to compute winding numbers
+        // FL is: std::vector<cv::Point> FL;
         morph::Winder w (this->FL);
 
         // It's perhaps inefficient to compute the winding number of EVERY pixel here,
@@ -1122,32 +1123,33 @@ public:
 #endif
 
             // Landmark scheme, if we have >=2 landmarks on each slice and same number of landmarks on each slice
-
-            // Re-scaled landmarks
-            this->LM_scaled.resize(this->LM.size());
-            this->LM_lmaligned.resize(this->LM.size());
-            for (size_t i = 0; i < this->LM.size(); ++i) {
-                this->LM_scaled[i] = cv::Point2d(this->LM[i])/this->pixels_per_mm;
-            }
-
-            // If there's no previous frame, then we just accept the src_coords
-            if (this->previous < 0) {
-                std::cout << "No previous frame, so accept coords with no tranformation..." << std::endl;
-                for (int i = 0; i < this->nFit; ++i) {
-                    this->fitted_lmaligned[i] = this->fitted_scaled[i];
+            if (this->landmarkCheck() == true) {
+                // Re-scaled landmarks. If no landmarks, then this crashes!
+                this->LM_scaled.resize(this->LM.size());
+                this->LM_lmaligned.resize(this->LM.size());
+                for (size_t i = 0; i < this->LM.size(); ++i) {
+                    this->LM_scaled[i] = cv::Point2d(this->LM[i])/this->pixels_per_mm;
                 }
-                for (size_t i = 0; i < this->LM_scaled.size(); ++i) {
-                    this->LM_lmaligned[i] = this->LM_scaled[i];
+
+                // If there's no previous frame, then we just accept the src_coords
+                if (this->previous < 0) {
+                    std::cout << "No previous frame, so accept coords with no tranformation..." << std::endl;
+                    for (int i = 0; i < this->nFit; ++i) {
+                        this->fitted_lmaligned[i] = this->fitted_scaled[i];
+                    }
+                    for (size_t i = 0; i < this->LM_scaled.size(); ++i) {
+                        this->LM_lmaligned[i] = this->LM_scaled[i];
+                    }
+                } else {
+                    std::cout << "alignOptimally...\n";
+                    // FIXME: Need to update LM_scaled/use LM_lmaligned for the *previous*
+                    this->alignOptimally (this->LM_scaled,
+                                          //(*this->parentStack)[this->previous].LM_lmaligned,
+                                          (*this->parentStack)[0].LM_lmaligned,
+                                          this->LM_lmaligned,
+                                          this->fitted_scaled,
+                                          this->lm_translation, this->lm_theta, this->fitted_lmaligned);
                 }
-            } else {
-                std::cout << "alignOptimally...\n";
-                // FIXME: Need to update LM_scaled/use LM_lmaligned for the *previous*
-                this->alignOptimally (this->LM_scaled,
-                                      //(*this->parentStack)[this->previous].LM_lmaligned,
-                                      (*this->parentStack)[0].LM_lmaligned,
-                                      this->LM_lmaligned,
-                                      this->fitted_scaled,
-                                      this->lm_translation, this->lm_theta, this->fitted_lmaligned);
             }
 
             std::cout << "At end of updateFit(void). binA/binB: " << binA << "," << binB << std::endl;
@@ -1205,6 +1207,26 @@ public:
     bool getShowCtrls() { return this->flags.test(ShowCtrls); }
 
 private:
+
+    //! Check landmarks on each slice. If there are n landmarks on every slice, and n >=
+    //! 2, return true, else return false.
+    bool landmarkCheck()
+    {
+        bool rtn = false;
+        size_t n = this->LM.size();
+        // Only if we have at least 2 landmarks is it worth checking any further
+        if (n >= 2) {
+            // Ok, so now see if all the other frames have n landmarks. If so, then we
+            // could apply the landmark based alignment (and should return true)
+            rtn = true;
+            for (auto fr : (*this->parentStack)) {
+                if (fr.LM.size() != n) {
+                    rtn = false;
+                }
+            }
+        }
+        return rtn;
+    }
 
     //! Mirror cv::Mat \a m about the vertical axis
     void compute_mirror (cv::Mat& m)
