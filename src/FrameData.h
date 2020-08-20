@@ -680,6 +680,7 @@ public:
         this->clearBoxes();
         if (!this->P.empty()) { this->P.clear(); }
         if (!this->PP.empty()) { this->PP.clear(); }
+        this->pp_idx = 0;
     }
 
     //! Remove the last user point
@@ -701,9 +702,14 @@ public:
         } else {
             // P is empty, go to previous curve and remove a point from that
             if (this->ct == InputMode::Bezier && this->pp_idx>0) {
-                this->P = this->PP[--this->pp_idx];
-                this->PP.pop_back();
-                this->P.pop_back();
+                if (!this->PP.empty()) {
+                    this->P = this->PP[--this->pp_idx];
+                    this->PP.pop_back();
+                    this->P.pop_back();
+                } else {
+                    // Catch pathological case where PP is empty, but pp_idx != 0
+                    this->pp_idx = 0;
+                }
             }
         }
     }
@@ -1148,6 +1154,10 @@ public:
     //! landmark-based alignment.
     void updateAlignments()
     {
+        if (this->fitted.empty()) {
+            return;
+        }
+
         this->scaleFitted();
 
         // Set variables saying aligned_with_centroids = false; aligned_with_landmarks =
@@ -1554,6 +1564,11 @@ private:
     //! Apply scaling to this->fitted to populate this->fitted_scaled
     void scaleFitted()
     {
+        if (static_cast<int>(this->fitted.size()) != this->nFit
+            || static_cast<int>(this->fitted_scaled.size()) != this->nFit) {
+            // Then fitted is probably empty.
+            return;
+        }
         for (int i = 0; i < this->nFit; ++i) {
             this->fitted_scaled[i] = cv::Point2d(this->fitted[i]) / this->pixels_per_mm;
         }
