@@ -332,16 +332,18 @@ public:
         }
         this->nBins = num;
         this->nFit = num + 1;
-        this->fitted.resize (this->nFit);
         this->fitted_scaled.resize (this->nFit);
         this->fitted_autoalign_translated.resize (this->nFit);
         this->fitted_autoaligned.resize (this->nFit);
         this->fitted_lmalign_translated.resize (this->nFit);
         this->fitted_lmaligned.resize (this->nFit);
+#if 0 // These now resized before use
         this->pointsInner.resize (this->nFit);
         this->pointsOuter.resize (this->nFit);
+        this->fitted.resize (this->nFit);
         this->tangents.resize (this->nFit);
         this->normals.resize (this->nFit);
+#endif
     }
 
     //! Setter for FrameData::previous, which indexes the previous frame in the stack of
@@ -660,6 +662,24 @@ public:
                 this->FLE.pop_back();
             }
         }
+    }
+
+    //! Clear the information for the Bezier fit
+    void clearFitBezier()
+    {
+        this->bcp.reset();
+        this->fitted.clear();
+        this->tangents.clear();
+        this->normals.clear();
+    }
+
+    //! Remove all user points - go back to a blank slate
+    void removeAllPoints()
+    {
+        this->clearFitBezier();
+        this->clearBoxes();
+        if (!this->P.empty()) { this->P.clear(); }
+        if (!this->PP.empty()) { this->PP.clear(); }
     }
 
     //! Remove the last user point
@@ -1212,6 +1232,12 @@ public:
             return;
         }
 
+        if (this->fitted.empty()) {
+            return;
+        }
+
+        this->pointsInner.resize(this->nFit);
+        this->pointsOuter.resize(this->nFit);
         for (int i=0; i<this->nFit; i++) {
             cv::Point2d normLenA = this->normals[i]*lenA;
             cv::Point2d normLenB = this->normals[i]*lenB;
@@ -1229,6 +1255,14 @@ public:
             pts[3] = this->pointsOuter[i];
             this->boxes[i] = pts;
         }
+    }
+
+    //! Clear the boxes, making pointsInner and pointsOuter all 0
+    void clearBoxes()
+    {
+        this->pointsInner.clear();
+        this->pointsOuter.clear();
+        this->boxes.clear();
     }
 
     // Toggle controls
@@ -1501,33 +1535,15 @@ private:
             }
         }
 
-#if 0 // Prefer to treat the points in P as "draft points" now.
-        if (this->P.size()>2) {
-            std::vector<std::pair<double,double>> user_points;
-            user_points.clear();
-            for (auto pt : this->P) {
-                user_points.push_back (std::make_pair(pt.x, pt.y));
-            }
-            morph::BezCurve<double> bc;
-            if (this->bcp.isNull()) {
-                // No previous curves; fit just on user_points
-                bc.fit (user_points);
-                this->bcp.addCurve (bc);
-            } else {
-                morph::BezCurve<double> last = this->bcp.curves.back();
-                bc.fit (user_points, last);
-                this->bcp.removeCurve();
-                this->bcp.addCurve (last);
-                this->bcp.addCurve (bc);
-            }
-        }
-#endif
         // Update this->fitted
         this->bcp.computePoints (static_cast<unsigned int>(this->nFit));
         std::vector<morph::BezCoord<double>> coords = this->bcp.getPoints();
         std::vector<morph::BezCoord<double>> tans = this->bcp.getTangents();
         std::vector<morph::BezCoord<double>> norms = this->bcp.getNormals();
         // Point2d fitsum;
+        this->fitted.resize (this->nFit);
+        this->tangents.resize (this->nFit);
+        this->normals.resize (this->nFit);
         for (int i = 0; i < this->nFit; ++i) {
             this->fitted[i] = cv::Point(coords[i].x(),coords[i].y());
             this->tangents[i] = cv::Point2d(tans[i].x(),tans[i].y());

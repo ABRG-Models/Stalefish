@@ -66,7 +66,7 @@ private:
 
     // Called by next/previousFrame. Take binA, binB from the frame and change the
     // sliders. Update the fit and refresh boxes. Update the view of boxes/fit line/control points
-    void refreshFrame (void)
+    void refreshFrame()
     {
         this->binA = this->gcf()->binA+BIN_A_OFFSET;
         this->binB = this->gcf()->binB;
@@ -86,9 +86,11 @@ public:
     std::bitset<8> flags;
     //! What's the global input mode?
     InputMode input_mode = InputMode::Bezier;
+    //! Set true if we're in 'clear all pending' mode
+    bool clearAllPending = false;
 
     //! The instance public function. Uses the very short name 'i' to keep code tidy.
-    static DM* i (void)
+    static DM* i()
     {
         if (DM::pInstance == 0) {
             DM::pInstance = new DM;
@@ -98,7 +100,7 @@ public:
     }
 
     //! Initialize by clearing out vFrameData.
-    void init (void) { this->vFrameData.clear(); }
+    void init() { this->vFrameData.clear(); }
 
     /*!
      * Add frame \a frameImg to vFrameData, setting the metadata attributes
@@ -145,7 +147,6 @@ public:
             }
             // Update the Bezier fit so that the boxes can be drawn
             fd.updateFit();
-            // Update landmarks, so they exist in the vFrameData?
 
         } catch (...) {
             // No problem, just carry on
@@ -155,7 +156,7 @@ public:
     }
 
     //! Return the size of vFrameData
-    unsigned int getNumFrames (void) const { return this->vFrameData.size(); }
+    unsigned int getNumFrames() const { return this->vFrameData.size(); }
 
     //! Toggle between curve fitting, freehand loop drawing or alignment mark (landmark) input.
     void cycleInputMode()
@@ -172,8 +173,18 @@ public:
         }
     }
 
+    void clearAllCurves()
+    {
+        std::cout << "Clearing all user-supplied curve points...\n";
+        int nfr = DM::i()->getNumFrames();
+        for (int f = 0; f < nfr; ++f) {
+            this->vFrameData[f].removeAllPoints();
+            this->vFrameData[f].refreshBoxes (-this->vFrameData[f].binA, this->vFrameData[f].binB);
+        }
+    }
+
     //! Copy the current frame's bin parameters (binA, binB, nBinsTarg) to all the other frames.
-    void updateAllBins (void)
+    void updateAllBins()
     {
         int nfr = DM::i()->getNumFrames();
         int idx = DM::i()->gcf()->idx;
@@ -194,7 +205,7 @@ public:
     }
 
     //! Update all fits - i.e. for every frame in the stack
-    void updateAllFits (void)
+    void updateAllFits()
     {
         int nfr = DM::i()->getNumFrames();
         for (int f = 0; f < nfr; ++f) {
@@ -208,7 +219,7 @@ public:
     }
 
     //! Call before write to ensure boxes are all created from the current fits.
-    void refreshAllBoxes (void)
+    void refreshAllBoxes()
     {
         int nfr = DM::i()->getNumFrames();
         for (int f = 0; f < nfr; ++f) {
@@ -217,7 +228,7 @@ public:
     }
 
     //! get current frame. Short name on purpose.
-    FrameData* gcf (void)
+    FrameData* gcf()
     {
         if (!this->vFrameData.empty()) {
             return &(this->vFrameData[this->I]);
@@ -226,29 +237,29 @@ public:
     }
 
     //! Get the current frame number, counting from 1 like a human.
-    int getFrameNum (void) const { return 1+this->I; }
+    int getFrameNum() const { return 1+this->I; }
 
     //! Get a pointer to the persistent Mat img member attribute
-    cv::Mat* getImg (void) { return &(this->img); }
+    cv::Mat* getImg() { return &(this->img); }
     //! Signal image
-    cv::Mat* getSImg (void) { return &(this->sImg); }
+    cv::Mat* getSImg() { return &(this->sImg); }
 
     //! Make the next frame current (or cycle back to the first)
-    void nextFrame (void)
+    void nextFrame()
     {
         ++this->I %= this->vFrameData.size();
         this->refreshFrame();
     }
 
     //! Back up a frame
-    void previousFrame (void)
+    void previousFrame()
     {
         this->I = --this->I < 0 ? this->vFrameData.size()-1 : this->I;
         this->refreshFrame();
     }
 
     //! Clone the current frame into Mat img
-    void cloneFrame (void) {
+    void cloneFrame() {
         this->img = this->vFrameData[this->I].frame.clone();
         FrameData* cf = this->gcf();
         if (cf) {
@@ -257,7 +268,7 @@ public:
     }
 
     //! Write frames to HdfData
-    void writeFrames (void)
+    void writeFrames()
     {
         // Call updateAllFits() before writing only to ensure that all the boxes have
         // been refreshed. Seems these are not read out of the .h5 file. Bit of a hack, this.
@@ -450,9 +461,9 @@ public:
         // Signal image comes straight out of the FrameData
         cv::Mat* sImg = _this->getSImg();
 
-        // red circle under the cursor
+        // green circle under the cursor indicates curve mode
         if (cf->ct == InputMode::Bezier) {
-            circle (*pImg, pt, 5, SF_RED, 1);
+            circle (*pImg, pt, 5, SF_GREEN, 1);
         }
 
         if (cf->flags.test(ShowUsers) == true) {
@@ -693,6 +704,13 @@ public:
             << " (using blur offset: " << _this->bgBlurSubtractionOffset << ")";
         putText (*sImg, ss2.str(), cv::Point(xh,30), cv::FONT_HERSHEY_SIMPLEX, fontsz, SF_WHITE, 1, cv::LINE_AA);
 
+        if (_this->clearAllPending == true) {
+            std::stringstream ss3;
+            ss3 << "Clear curves on ALL frames? (press 'C' to confirm, 'Esc' to cancel)";
+            putText (*pImg, ss3.str(), cv::Point(xh,80), cv::FONT_HERSHEY_SIMPLEX, 1.2*fontsz, SF_BLACK, 1, cv::LINE_AA);
+            putText (*sImg, ss3.str(), cv::Point(xh,80), cv::FONT_HERSHEY_SIMPLEX, 1.2*fontsz, SF_WHITE, 1, cv::LINE_AA);
+        }
+
         int yh = 90;
         int yinc = 40;
         if (_this->flags.test(AppShowHelp)) {
@@ -813,7 +831,7 @@ public:
         DM::onmouse (cv::EVENT_MOUSEMOVE, -1, -1, 0, NULL);
     }
 
-    static void createTrackbars (void)
+    static void createTrackbars()
     {
         // Set up trackbars. Have to do this for each frame
         std::string tbBinA = "Box A";
@@ -830,7 +848,7 @@ public:
         cv::setTrackbarPos (tbNBins, _this->winName, _this->nBinsTarg);
     }
 
-    static void updateTrackbars (void)
+    static void updateTrackbars()
     {
         std::string tbBinA = "Box A";
         std::string tbBinB = "Box B";

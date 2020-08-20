@@ -81,6 +81,23 @@ int main (int argc, char** argv)
             DM::i()->updateAllBins();
             break;
         }
+        // Clear all Curves
+        case('C'):
+        {
+            if (DM::i()->clearAllPending == true) {
+                DM::i()->clearAllCurves();
+                DM::i()->clearAllPending = false;
+            } else {
+                DM::i()->clearAllPending = true;
+            }
+            break;
+        }
+        // Cancel a pending 'clear all curves'. char(27) is the Esc key.
+        case(char(27)):
+        {
+            DM::i()->clearAllPending = false;
+            break;
+        }
         // Perform all fits
         case('F'):
         {
