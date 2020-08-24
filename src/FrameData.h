@@ -83,7 +83,10 @@ public:
     std::vector<cv::Point> LM;
     //! The landmark points scaled by pixels_per_mm
     std::vector<cv::Point2d> LM_scaled;
-    //! As part of alignment, have to help a copy of the aligned landmarks
+    //! We'll also save out the autoaligned landmarks
+    std::vector<cv::Point2d> LM_autoalign_translated;
+    std::vector<cv::Point2d> LM_autoaligned;
+    //! As part of alignment, have to hold a copy of the aligned landmarks
     std::vector<cv::Point2d> LM_lmaligned;
 
     //! The means computed for the boxes. This is "mean_signal".
@@ -977,6 +980,23 @@ public:
         dname = frameName + "/autoalign_computed";
         df.add_val (dname.c_str(), this->autoalignComputed);
 
+        // Save autoalign and lmalign translated landmark coordinates.
+        std::vector<std::array<float,3>> LM_autoaligned_3d (this->LM_autoaligned.size(), {this->layer_x,0.0f,0.0f});
+        for (size_t i = 0; i < this->LM_autoaligned.size(); ++i) {
+            LM_autoaligned_3d[i][1] = static_cast<float>(this->LM_autoaligned[i].x);
+            LM_autoaligned_3d[i][2] = static_cast<float>(this->LM_autoaligned[i].y);
+        }
+        dname = frameName + "/LM_autoaligned";
+        df.add_contained_vals (dname.c_str(), LM_autoaligned_3d);
+
+        std::vector<std::array<float,3>> LM_lmaligned_3d(this->LM_lmaligned.size(), {this->layer_x,0.0f,0.0f});
+        for (size_t i = 0; i < this->LM_lmaligned.size(); ++i) {
+            LM_lmaligned_3d[i][1] = static_cast<float>(this->LM_lmaligned[i].x);
+            LM_lmaligned_3d[i][2] = static_cast<float>(this->LM_lmaligned[i].y);
+        }
+        dname = frameName + "/LM_lmaligned";
+        df.add_contained_vals (dname.c_str(), LM_lmaligned_3d);
+
         // Need to get from fitted to y and z. Note that fitted is in (integer) pixels...
         // vector<cv::Point> fitted;
         //
@@ -1160,6 +1180,21 @@ public:
 
         this->scaleFitted();
 
+        // Need to resize the container for the autoalign-translated copies of any landmarks:
+        // Re-size landmark containers.
+        if (this->landmarkCheck() == true) {
+            std::cout << "LM (landmark container) size: " << this->LM.size() << std::endl;
+            this->LM_scaled.resize(this->LM.size());
+            this->LM_lmaligned.resize(this->LM.size());
+            this->LM_autoalign_translated.resize(this->LM.size());
+            this->LM_autoaligned.resize(this->LM.size());
+
+            // Scale the landmarks
+            for (size_t i = 0; i < this->LM.size(); ++i) {
+                this->LM_scaled[i] = cv::Point2d(this->LM[i])/this->pixels_per_mm;
+            }
+        }
+
         // Set variables saying aligned_with_centroids = false; aligned_with_landmarks =
         // false; for writing into the h5 file. Then set these true as appropriate,
         // below.
@@ -1181,16 +1216,6 @@ public:
         // landmarks on each slice the we can compute alignment with the landmarks.
         if (this->landmarkCheck() == false) {
             return;
-        }
-
-        // Re-size landmark containers.
-        std::cout << "LM (landmark container) size: " << this->LM.size() << std::endl;
-        this->LM_scaled.resize(this->LM.size());
-        this->LM_lmaligned.resize(this->LM.size());
-
-        // Scale the landmarks
-        for (size_t i = 0; i < this->LM.size(); ++i) {
-            this->LM_scaled[i] = cv::Point2d(this->LM[i])/this->pixels_per_mm;
         }
 
         // If there's no previous frame, then we just accept the src_coords
@@ -1216,9 +1241,10 @@ public:
             std::cout << "parent stack size: " << (*this->parentStack).size() << std::endl;
             std::cout << "parent stack first frame has LM size: " << (*this->parentStack)[0].LM.size() << std::endl;
             std::cout << "parent stack first frame has LM_aligned size: " << (*this->parentStack)[0].LM_lmaligned.size() << std::endl;
+            size_t alignment_slice = 0;
             this->alignOptimally (this->LM_scaled,
-                                  //(*this->parentStack)[this->previous].LM_lmaligned, // Aligning to the previous slice each time
-                                  (*this->parentStack)[0].LM_lmaligned, // Aligning all landmarks to the *first* slice
+                                  //(*this->parentStack)[this->previous].LM_lmaligned, // Aligning to the previous slice each time fails
+                                  (*this->parentStack)[alignment_slice].LM_lmaligned, // Aligning all landmarks to the *first* slice
                                   this->LM_lmaligned,
                                   this->fitted_scaled,
                                   this->lm_translation, this->lm_theta, this->fitted_lmaligned);
@@ -1589,6 +1615,11 @@ private:
         for (int i = 0; i < this->nFit; ++i) {
             this->fitted_autoalign_translated[i] = this->fitted_scaled[i] + this->autoalign_translation;
         }
+        // Also apply the translation to any landmarks
+        for (size_t i = 0; i < this->LM_autoalign_translated.size(); ++i) {
+            this->LM_autoalign_translated[i] = this->LM_scaled[i] + this->autoalign_translation;
+        }
+
     }
 
     //! Move the point \a pt in 'screen pixels', offsetting by the centroid of the
@@ -1917,11 +1948,12 @@ private:
             this->setBins (nBinsSave);
             std::cout << "Update fit with rotation " << this->autoalign_theta << std::endl;
             this->updateFit (this->autoalign_theta);
-        } else {
-            // There was no need to change bin; rotate by the best theta, vP[0]
-            std::cout << "Update unchanged fit with rotation " << this->autoalign_theta << std::endl;
-            this->rotate (this->fitted_autoalign_translated, this->fitted_autoaligned, this->autoalign_theta);
-        }
+        } // else there was no need to change bins back
+
+        // rotate by the best theta, vP[0]
+        std::cout << "Update unchanged fit with rotation " << this->autoalign_theta << std::endl;
+        this->rotate (this->fitted_autoalign_translated, this->fitted_autoaligned, this->autoalign_theta);
+        this->rotate (this->LM_autoalign_translated, this->LM_autoaligned, this->autoalign_theta);
     }
 
     //! Common code to generate the frame name

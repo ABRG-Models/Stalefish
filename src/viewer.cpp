@@ -10,6 +10,7 @@
 #include <cmath>
 #include <array>
 #include <morph/PointRowsVisual.h>
+#include <morph/ScatterVisual.h>
 
 using namespace std;
 
@@ -65,6 +66,11 @@ int main (int argc, char** argv)
         vector<morph::Vector<float>> points_autoaligned; // Centres of boxes; for smooth surface (points rows)
         vector<morph::Vector<float>> points_lmaligned; // Centres of boxes; for smooth surface (points rows)
         vector<morph::Vector<float>> points_scaled; // Centres of boxes; for smooth surface (points rows)
+
+        vector<morph::Vector<float>> landmarks_autoaligned;
+        vector<morph::Vector<float>> landmarks_lmaligned;
+        vector<float> landmarks_id;
+
         vector<float> means;
         vector<float> fmeans;
 
@@ -92,6 +98,9 @@ int main (int argc, char** argv)
             vector<morph::Vector<float>> framePoints_lmaligned;
             vector<morph::Vector<float>> framePoints_scaled;
 
+            //vector<morph::Vector<float>> frameLM_autoaligned;
+            //vector<morph::Vector<float>> frameLM_lmaligned;
+
             // Read quads and data for each frame and add to an overall pair of vectors...
             string str = frameName+"/sboxes_autoaligned";
             d.read_contained_vals (str.c_str(), frameQuads_autoaligned);
@@ -113,6 +122,27 @@ int main (int argc, char** argv)
             for (auto fq : frameQuads_scaled) {
                 morph::Vector<float> pt = {fq[0],fq[1],fq[2]};
                 framePoints_scaled.push_back (pt);
+            }
+
+            // Landmarks
+            vector<array<float, 3>> LM_autoaligned;
+            vector<array<float, 3>> LM_lmaligned;
+            str = frameName+"/LM_autoaligned";
+            d.read_contained_vals (str.c_str(), LM_autoaligned);
+            str = frameName+"/LM_lmaligned";
+            d.read_contained_vals (str.c_str(), LM_lmaligned);
+            size_t lmcount = 0;
+            float lmid = 0.0f;
+            float lmidmax = (float)LM_autoaligned.size();
+            for (auto lm : LM_autoaligned) {
+                morph::Vector<float> _lm = {lm[0],lm[1],lm[2]};
+                landmarks_autoaligned.push_back (_lm);
+                lmid = (float)lmcount++ / lmidmax;
+                landmarks_id.push_back (lmid);
+            }
+            for (auto lm : LM_lmaligned) {
+                morph::Vector<float> _lm = {lm[0],lm[1],lm[2]};
+                landmarks_lmaligned.push_back (_lm);
             }
 
             vector<double> frameMeans;
@@ -142,6 +172,9 @@ int main (int argc, char** argv)
             points_lmaligned.insert (points_lmaligned.end(), framePoints_lmaligned.begin(), framePoints_lmaligned.end());
             points_autoaligned.insert (points_autoaligned.end(), framePoints_autoaligned.begin(), framePoints_autoaligned.end());
             points_scaled.insert (points_scaled.end(), framePoints_scaled.begin(), framePoints_scaled.end());
+
+            //landmarks_lmaligned.insert (landmarks_lmaligned.end(), frameLM_lmaligned.begin(), frameLM_lmaligned.end());
+            //landmarks_autoaligned.insert (landmarks_autoaligned.end(), frameLM_autoaligned.begin(), frameLM_autoaligned.end());
 
             // Load in linear stuff as well, to make up flat boxes? Or easier to do at source?
             vector<float> linbins;
@@ -175,6 +208,8 @@ int main (int argc, char** argv)
             fmeans.insert (fmeans.end(), frameMeansF.begin(), --frameMeansF.end());
             xx += thickness;
         }
+
+        cout << "landmarks_autoaligned.size(): " << landmarks_autoaligned.size() << endl;
 
         unsigned int visId = 0;
 
@@ -214,11 +249,21 @@ int main (int argc, char** argv)
                                                                          &points_lmaligned, offset,
                                                                          &means, scale,
                                                                          morph::ColourMapType::MonochromeRed));
+
+            // Create a thing containing values for the landmarks.
+            visId = v.addVisualModel (new morph::ScatterVisual<float> (v.shaderprog,
+                                                                       &landmarks_lmaligned, offset,
+                                                                       &landmarks_id, 0.1f, scale,
+                                                                       morph::ColourMapType::Plasma));
         } else {
             visId = v.addVisualModel (new morph::PointRowsVisual<float> (v.shaderprog,
                                                                          &points_autoaligned, offset,
                                                                          &means, scale,
                                                                          morph::ColourMapType::MonochromeBlue));
+            visId = v.addVisualModel (new morph::ScatterVisual<float> (v.shaderprog,
+                                                                       &landmarks_autoaligned, offset,
+                                                                       &landmarks_id, 0.01f, scale,
+                                                                       morph::ColourMapType::MonochromeGreen));
         }
 
         cout << "Added Visual with visId " << visId << endl;
