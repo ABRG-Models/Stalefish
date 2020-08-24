@@ -74,6 +74,18 @@ Each frame contains:
    the brain slice auto-alignment algorithm based on the curves was
    computed and stored in fitted_autoaligned.
 
+ * autoalign_translation y/z coordinates of the translation applied to
+   fitted_scaled and LM_scaled (autoalign).
+
+ * lm_translation y/z coordinates of the translation applied to
+   fitted_scaled and LM_scaled (landmark align).
+
+ * autoalign_theta Rotation (about x) applied to fitted_scaled and
+   LM_scaled (autoalign).
+
+ * lm_theta Rotation (about x) applied to fitted_scaled and LM_scaled
+   (landmark align).
+
  * fitted_autoaligned - a list of the fitted points for the curve fitted to the
    user-supplied points. Auto-aligned coordinates (mm)
 

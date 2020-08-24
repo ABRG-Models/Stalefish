@@ -156,6 +156,11 @@ public:
     std::array<cv::Point, 2> extents_FL; // Extents of the loop FL
     //! vector of vectors containing the points enclosed by the path FL
     std::vector<std::vector<cv::Point>> FLE;
+    //! To hold the  points enclosed by the path FL transformed according to autoalign
+    std::vector<std::vector<cv::Point2d>> FLE_autoaligned;
+    //! To hold the  points enclosed by the path FL transformed according to lmalign
+    std::vector<std::vector<cv::Point2d>> FLE_lmaligned;
+
     //! The mean luminance of each freehand loop enclosed region in FLE.
     std::vector<float> FL_signal_means;
     //! The mean pixel value (0-255) in a freehand loop
@@ -849,6 +854,27 @@ public:
             ss.fill('0');
             ss << i;
             df.add_contained_vals (ss.str().c_str(), this->FLE[i]);
+
+            // Now transform FLE[i] according to autoalign and lmalign and save
+            std::stringstream ss1;
+            ss1 << frameName + "/FLE_autoalign";
+            ss1.width(3);
+            ss1.fill('0');
+            ss1 << i;
+            std::vector<cv::Point2d> FLE_scaled (this->FLE[i].size());
+            this->scalePoints (this->FLE[i], FLE_scaled);
+            std::vector<cv::Point2d> FLE_aa;
+            this->transform (FLE_scaled, FLE_aa, this->autoalign_translation, this->autoalign_theta);
+            df.add_contained_vals (ss1.str().c_str(), FLE_aa);
+
+            std::stringstream ss2;
+            ss2 << frameName + "/FLE_lmalign";
+            ss2.width(3);
+            ss2.fill('0');
+            ss2 << i;
+            std::vector<cv::Point2d> FLE_lm;
+            this->transform (FLE_scaled, FLE_lm, this->lm_translation, this->lm_theta);
+            df.add_contained_vals (ss2.str().c_str(), FLE_lm);
         }
 
         // The landmark points
@@ -934,21 +960,34 @@ public:
         dname = frameName + "/freehand_pixel_means";
         df.add_contained_vals (dname.c_str(), this->FL_pixel_means);
 
+        // Here, compute centroid of freehand regions, and then save this in autoalign
+        // coordinate system and in the lmalign coord system.
+        //
         // Add the centroid of the freehand regions (in the y-z or 'in-slice' plane)
         for (size_t i = 0; i<fle_size; ++i) {
             cv::Point cntroid = morph::MathAlgo::centroid (this->FLE[i]);
-            std::stringstream cntss;
-            cntss << frameName + "/freehand" << std::to_string(i) << "_centroid";
 
+            std::cout << "centroid in screen pix: " << cntroid << std::endl;
+
+            cv::Point2d cntroid_scaled = this->scalePoint (cntroid);
+            cv::Point2d cntroid_autoaligned = this->transform (cntroid_scaled, this->autoalign_translation, this->autoalign_theta);
+            cv::Point2d cntroid_lmaligned = this->transform (cntroid_scaled, this->lm_translation, this->lm_theta);
+
+#if 0
             // Offset and scale cntroid suitably (from screen pixels to mm in the slice
             // plane), before saving
-            std::cout << "centroid in screen pix: " << cntroid << std::endl;
             cv::Point2d coff = this->offsetPoint (cntroid);
             std::cout << "centroid in scaled pix: " << coff << std::endl;
-            cv::Point2d coffrot = this->rotate (this->autoalign_theta, coff);
+            cv::Point2d coffrot = this->rotate (coff, this->autoalign_theta);
             std::cout << "centroid in scaled pix, rotated: " << coffrot << std::endl;
+#endif
+            std::stringstream cntss1;
+            cntss1 << frameName + "/freehand" << std::to_string(i) << "_centroid_autoaligned";
+            df.add_contained_vals (cntss1.str().c_str(), cntroid_autoaligned);
 
-            df.add_contained_vals (cntss.str().c_str(), coffrot);
+            std::stringstream cntss2;
+            cntss2 << frameName + "/freehand" << std::to_string(i) << "_centroid_lmaligned";
+            df.add_contained_vals (cntss2.str().c_str(), cntroid_lmaligned);
         }
 
         // I'm storing all coordinates of the fitted points here.
@@ -1184,7 +1223,7 @@ public:
             return;
         }
 
-        this->scaleFitted();
+        this->scalePoints (this->fitted, this->fitted_scaled);
 
         // Need to resize the container for the autoalign-translated copies of any landmarks:
         // Re-size landmark containers.
@@ -1196,9 +1235,7 @@ public:
             this->LM_autoaligned.resize(this->LM.size());
 
             // Scale the landmarks
-            for (size_t i = 0; i < this->LM.size(); ++i) {
-                this->LM_scaled[i] = cv::Point2d(this->LM[i])/this->pixels_per_mm;
-            }
+            this->scalePoints (this->LM, this->LM_scaled);
         }
 
         // Set variables saying aligned_with_centroids = false; aligned_with_landmarks =
@@ -1238,6 +1275,7 @@ public:
                 this->fitted_lmaligned[i] = this->fitted_scaled[i] - slice0centroid;
             }
             for (size_t i = 0; i < this->LM_scaled.size(); ++i) {
+                // FIXME: slice0centroid needs to be added to this->lm_translation!!!!!!!!!!
                 this->LM_lmaligned[i] = this->LM_scaled[i] - slice0centroid;
                 std::cout << "Set first LM_lmaligned to have size " << this->LM_lmaligned.size() << std::endl;
                 // WARNING parentStack doesn't hold THIS frame. Why?
@@ -1537,7 +1575,7 @@ private:
     void updateFit (double _theta)
     {
         this->updateFitBezier();
-        this->scaleFitted();
+        this->scalePoints(this->fitted, this->fitted_scaled);
         this->offsetCentroid();
         this->rotate (this->fitted_autoalign_translated, this->fitted_autoaligned, _theta);
     }
@@ -1593,19 +1631,24 @@ private:
         }
     }
 
-    //! Apply scaling to this->fitted to populate this->fitted_scaled
-    void scaleFitted()
+    //! Scale \a points by FrameData::pixels_per_mm to give \a scaled_points
+    void scalePoints (const std::vector<cv::Point>& points, std::vector<cv::Point2d>& scaled_points)
     {
-        if (static_cast<int>(this->fitted.size()) != this->nFit
-            || static_cast<int>(this->fitted_scaled.size()) != this->nFit) {
-            // Then fitted is probably empty.
-            return;
-        }
-        for (int i = 0; i < this->nFit; ++i) {
-            this->fitted_scaled[i] = cv::Point2d(this->fitted[i]) / this->pixels_per_mm;
+        size_t sz = points.size();
+        size_t sz2 = scaled_points.size();
+        if (sz != sz2) { throw std::runtime_error ("scalePoints: size mismatch"); }
+        for (size_t i = 0; i < sz; ++i) {
+            scaled_points[i] = cv::Point2d(points[i]) / this->pixels_per_mm;
         }
     }
 
+    cv::Point2d scalePoint (const cv::Point& pt)
+    {
+        cv::Point2d rtn = cv::Point2d(pt)/this->pixels_per_mm;
+        return rtn;
+    }
+
+    //! BAD: A bit of a mixture of stuff
     //! This function offsets the fitted points by the centroid of the fitted points.
     void offsetCentroid()
     {
@@ -1617,7 +1660,7 @@ private:
         }
         this->autoalign_translation = -fitsum/this->nFit; // i.e. it's the centroid of the points wrt the origin
 
-        // Apply offset and scale by pixels_per_mm
+        // Apply offset
         for (int i = 0; i < this->nFit; ++i) {
             this->fitted_autoalign_translated[i] = this->fitted_scaled[i] + this->autoalign_translation;
         }
@@ -1625,9 +1668,10 @@ private:
         for (size_t i = 0; i < this->LM_autoalign_translated.size(); ++i) {
             this->LM_autoalign_translated[i] = this->LM_scaled[i] + this->autoalign_translation;
         }
-
     }
 
+#if 0
+    //! BAD autoalign-specific!
     //! Move the point \a pt in 'screen pixels', offsetting by the centroid of the
     //! fitted Bezier curve (if applicable) and scaled by this->pixels_per_mm.
     cv::Point2d offsetPoint (const cv::Point& pt)
@@ -1642,6 +1686,7 @@ private:
         cv::Point2d rtn = (fd + this->autoalign_translation) / this->pixels_per_mm;
         return rtn;
     }
+#endif
 
     //! vertex contains x,y,theta values and should have size 3 translate coords by
     //! vertex[0],vertex[1] and rotate by vertex[2]. Compute SOS compared with previous
@@ -1703,6 +1748,23 @@ private:
         return sos;
     }
 
+    //! Transform a single coordinate by a translation and a rotation
+    cv::Point2d transform (const cv::Point2d& coord, const cv::Point2d& translation, const double _theta)
+    {
+        cv::Point2d trans = coord + translation;
+        return this->rotate (trans, _theta);
+    }
+
+    //! Transform a vector of coordinates
+    void transform (const std::vector<cv::Point2d>& coords, std::vector<cv::Point2d>& transformed,
+                    const cv::Point2d& translation, const double _theta)
+    {
+        if (coords.size() != transformed.size()) { transformed.resize (coords.size()); }
+        std::vector<cv::Point2d> translated (coords.size());
+        this->translate (coords, translated, translation);
+        this->rotate (translated, transformed, _theta);
+    }
+
     //! Do a translation operation
     void translate (const std::vector<cv::Point2d>& coords, std::vector<cv::Point2d>& translated,
                     const cv::Point2d& translation)
@@ -1741,7 +1803,7 @@ private:
     }
 
     //! Rotate the point \a pt by theta about the origin, returning rotated point
-    cv::Point2d rotate (double _theta, cv::Point2d pt)
+    cv::Point2d rotate (const cv::Point2d& pt, const double _theta)
     {
         cv::Point2d rtn = pt;
         if (_theta == 0.0) { return rtn; }
