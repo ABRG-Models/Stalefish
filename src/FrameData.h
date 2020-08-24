@@ -959,14 +959,6 @@ public:
         dname = frameName + "/fitted_scaled";
         df.add_contained_vals (dname.c_str(), this->fitted_scaled);
 
-#if 0
-        // The scaled and then offset-by-the-centroid points (no need to save
-        dname = frameName + "/fitted_autoalign_translated";
-        df.add_contained_vals (dname.c_str(), this->fitted_autoalign_translated);
-
-        dname = frameName + "/fitted_lmalign_translated";
-        df.add_contained_vals (dname.c_str(), this->fitted_lmalign_translated);
-#endif
         // This is in the final coordinate system for the auto-rotated (and transformed) slices
         dname = frameName + "/fitted_autoaligned";
         df.add_contained_vals (dname.c_str(), this->fitted_autoaligned);
@@ -979,6 +971,20 @@ public:
         df.add_val (dname.c_str(), this->lmalignComputed);
         dname = frameName + "/autoalign_computed";
         df.add_val (dname.c_str(), this->autoalignComputed);
+
+        // The parameters of the translation which takes us from (fitted/LM)_scaled to (fitted/LM)_autoaligned
+        dname = frameName + "/autoalign_translation";
+        std::pair<double, double> aa_t = std::make_pair(this->autoalign_translation.x, this->autoalign_translation.y);
+        df.add_contained_vals (dname.c_str(), aa_t);
+        dname = frameName + "/autoalign_theta";
+        df.add_val (dname.c_str(), this->autoalign_theta);
+
+        // The parameters of the translation which takes us from (fitted/LM)_scaled to (fitted/LM)_autoaligned
+        dname = frameName + "/lm_translation";
+        std::pair<double, double> lm_t = std::make_pair(this->lm_translation.x, this->lm_translation.y);
+        df.add_contained_vals (dname.c_str(), lm_t);
+        dname = frameName + "/lm_theta";
+        df.add_val (dname.c_str(), this->lm_theta);
 
         // Save autoalign and lmalign translated landmark coordinates.
         std::vector<std::array<float,3>> LM_autoaligned_3d (this->LM_autoaligned.size(), {this->layer_x,0.0f,0.0f});
