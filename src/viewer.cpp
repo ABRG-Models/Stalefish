@@ -98,9 +98,6 @@ int main (int argc, char** argv)
             vector<morph::Vector<float>> framePoints_lmaligned;
             vector<morph::Vector<float>> framePoints_scaled;
 
-            //vector<morph::Vector<float>> frameLM_autoaligned;
-            //vector<morph::Vector<float>> frameLM_lmaligned;
-
             // Read quads and data for each frame and add to an overall pair of vectors...
             string str = frameName+"/sboxes_autoaligned";
             d.read_contained_vals (str.c_str(), frameQuads_autoaligned);
@@ -173,9 +170,6 @@ int main (int argc, char** argv)
             points_autoaligned.insert (points_autoaligned.end(), framePoints_autoaligned.begin(), framePoints_autoaligned.end());
             points_scaled.insert (points_scaled.end(), framePoints_scaled.begin(), framePoints_scaled.end());
 
-            //landmarks_lmaligned.insert (landmarks_lmaligned.end(), frameLM_lmaligned.begin(), frameLM_lmaligned.end());
-            //landmarks_autoaligned.insert (landmarks_autoaligned.end(), frameLM_autoaligned.begin(), frameLM_autoaligned.end());
-
             // Load in linear stuff as well, to make up flat boxes? Or easier to do at source?
             vector<float> linbins;
             str = frameName+"/sbox_linear_distance";
@@ -214,20 +208,17 @@ int main (int argc, char** argv)
         unsigned int visId = 0;
 
 #if 0
-        // The 'ribbons' map (commented out)
+        // The 'ribbons' maps
         offset[0] = 0.0;
         visId = v.addVisualModel (new morph::QuadsVisual<float> (v.shaderprog,
                                                                  &quads_autoaligned, offset,
                                                                  &means, scale,
                                                                  morph::ColourMapType::MonochromeBlue));
-
         offset[0] = 5.0;
         visId = v.addVisualModel (new morph::QuadsVisual<float> (v.shaderprog,
                                                                  &quads_lmaligned, offset,
                                                                  &means, scale,
                                                                  morph::ColourMapType::MonochromeRed));
-#endif
-#if 0
         offset[0] = 10.0;
         visId = v.addVisualModel (new morph::QuadsVisual<float> (v.shaderprog,
                                                                  &quads_scaled, offset,
@@ -235,7 +226,7 @@ int main (int argc, char** argv)
                                                                  morph::ColourMapType::MonochromeGreen));
 #endif
 
-        // This is the flattened map
+        // This is the flattened map; showing it alongside the 3D map for now
         offset[0]=-5.0;
         visId = v.addVisualModel (new morph::QuadsVisual<float> (v.shaderprog,
                                                                  &fquads, offset,
@@ -243,14 +234,14 @@ int main (int argc, char** argv)
                                                                  morph::ColourMapType::Greyscale));
 
         offset[0]=0.0;
+
         // Show landmark aligned for preference:
         if (lmalignComputed == true) {
             visId = v.addVisualModel (new morph::PointRowsVisual<float> (v.shaderprog,
                                                                          &points_lmaligned, offset,
                                                                          &means, scale,
                                                                          morph::ColourMapType::MonochromeRed));
-
-            // Create a thing containing values for the landmarks.
+            // Show the landmarks with a ScatterVisual
             visId = v.addVisualModel (new morph::ScatterVisual<float> (v.shaderprog,
                                                                        &landmarks_lmaligned, offset,
                                                                        &landmarks_id, 0.07f, scale,

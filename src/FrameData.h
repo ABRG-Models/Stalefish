@@ -1244,65 +1244,55 @@ public:
         this->autoalignComputed = false;
         this->lmalignComputed = false;
 
+#if 1
         // Compute the align-centroid-and-rotate slice alignments
         this->offsetCentroid();
         this->rotateFitOptimally();
-        this->autoalignComputed = true;
-
-#if 0
+#else
         // Possible alternative to allow optimization to tweak the translation as well as the rotation:
         // Write function to ensure same number of bins in each frame (temporarily), then:
-        this->alignOptimally (args);
+        if (this->previous < 0) {
+            // get centroid of this->fitted_scaled (the 0th slice
+            cv::Point2d slice0centroid = morph::MathAlgo::centroid (this->fitted_scaled);
+            // The translation to record for the first slice is the inverse of the centroid
+            this->autoalign_translation = -slice0centroid;
+            this->autoalign_theta = 0.0;
+
+        } else {
+            size_t alignment_slice = 0; // Align to the 0th slice
+            this->alignOptimally (this->fitted_scaled, (*this->parentStack)[alignment_slice].fitted_autoaligned,
+                                  this->autoalign_translation, this->autoalign_theta);
+        }
+        this->transform (this->fitted_scaled, this->fitted_autoaligned, this->autoalign_translation, this->autoalign_theta);
+        this->transform (this->LM_scaled, this->LM_autoaligned, this->autoalign_translation, this->autoalign_theta);
+
 #endif
+        this->autoalignComputed = true;
 
         // Landmark scheme, if we have >=2 landmarks on each slice and same number of
         // landmarks on each slice the we can compute alignment with the landmarks.
+        // FIXME: If 1 landmark, then do an "align-on-the-landmark-and-rotate-optimally-thereafter" process
         if (this->landmarkCheck() == false) {
             return;
         }
 
-        // If there's no previous frame, then we just accept the src_coords
+        // If there's no previous frame, we just translate the frame to lie around the origin (with no rotation)
         if (this->previous < 0) {
-            std::cout << "No previous frame, so align first frame about the origin." << std::endl;
-            // get centroid of this->fitted_scaled
-            cv::Point2d slice0centroid (0.0, 0.0);
-            for (int i = 0; i < this->nFit; ++i) {
-                slice0centroid += this->fitted_scaled[i];
-            }
-            slice0centroid /= this->nFit;
-            std::cout << "ALIGNO: slice0centroid is " << slice0centroid << std::endl;
-            for (int i = 0; i < this->nFit; ++i) {
-                this->fitted_lmaligned[i] = this->fitted_scaled[i] - slice0centroid;
-            }
-            // The translation to record for the first slice is the inverse of the centroid of the 0th slice
+            // get centroid of this->fitted_scaled (the 0th slice
+            cv::Point2d slice0centroid = morph::MathAlgo::centroid (this->fitted_scaled);
+            // The translation to record for the first slice is the inverse of the centroid
             this->lm_translation = -slice0centroid;
+            this->lm_theta = 0.0;
 
-            for (size_t i = 0; i < this->LM_scaled.size(); ++i) {
-                // FIXME: slice0centroid needs to be added to this->lm_translation
-                // because lm_translation needs to be the translation that takes us from
-                // LM_scaled to LM_lmaligned.
-                this->LM_lmaligned[i] = this->LM_scaled[i] + this->lm_translation;
-                std::cout << "Set first LM_lmaligned to have size " << this->LM_lmaligned.size() << std::endl;
-                // WARNING parentStack doesn't hold THIS frame. Why?
-                std::cout << "parent stack first frame has LM_aligned size: "
-                          << (*this->parentStack)[0].LM_lmaligned.size() << std::endl;
-            }
-            std::cout << "ALIGNO: For first slice, we set lm_translation to " << this->lm_translation
-                      << " and lm_theta to " << this->lm_theta << std::endl;
         } else {
-            std::cout << "parent stack size: " << (*this->parentStack).size() << std::endl;
-            std::cout << "parent stack first frame has LM size: " << (*this->parentStack)[0].LM.size() << std::endl;
-            std::cout << "parent stack first frame has LM_aligned size: " << (*this->parentStack)[0].LM_lmaligned.size() << std::endl;
-            size_t alignment_slice = 0;
-            this->alignOptimally (this->LM_scaled,
-                                  //(*this->parentStack)[this->previous].LM_lmaligned, // Aligning to the previous slice each time fails
-                                  (*this->parentStack)[alignment_slice].LM_lmaligned, // Aligning all landmarks to the *first* slice
-                                  this->LM_lmaligned,
-                                  this->fitted_scaled,
-                                  this->lm_translation, this->lm_theta, this->fitted_lmaligned);
-            std::cout << "ALIGNO: alignOptimally sets lm_translation to " << this->lm_translation
-                      << " and lm_theta to " << this->lm_theta << std::endl;
+            size_t alignment_slice = 0; // Align to the 0th slice
+            this->alignOptimally (this->LM_scaled, (*this->parentStack)[alignment_slice].LM_lmaligned,
+                                  this->lm_translation, this->lm_theta);
         }
+
+        this->transform (this->LM_scaled, this->LM_lmaligned, this->lm_translation, this->lm_theta);
+        this->transform (this->fitted_scaled, this->fitted_lmaligned, this->lm_translation, this->lm_theta);
+
         this->lmalignComputed = true;
     }
 
@@ -1680,24 +1670,6 @@ private:
         }
     }
 
-#if 0
-    //! BAD autoalign-specific!
-    //! Move the point \a pt in 'screen pixels', offsetting by the centroid of the
-    //! fitted Bezier curve (if applicable) and scaled by this->pixels_per_mm.
-    cv::Point2d offsetPoint (const cv::Point& pt)
-    {
-        // Apply offset and scale
-        cv::Point2d fd;
-        fd.x = (double)pt.x;
-        fd.y = (double)pt.y;
-        if (this->pixels_per_mm == 0) {
-            std::cerr << "WARNING: pixels_per_mm is 0, will get divide by zero..." << std::endl;
-        }
-        cv::Point2d rtn = (fd + this->autoalign_translation) / this->pixels_per_mm;
-        return rtn;
-    }
-#endif
-
     //! vertex contains x,y,theta values and should have size 3 translate coords by
     //! vertex[0],vertex[1] and rotate by vertex[2]. Compute SOS compared with target
     //! coordinates
@@ -1841,12 +1813,6 @@ private:
      * should be transformed until they match target_aligned_alignment_coords as closely
      * as possible.
      *
-     * \param aligned_alignment_coords Output. This will be filled with the
-     * aligned alignment_coords (e.g. the newly aligned landmarks)
-     *
-     * \param coords A second set of unaligned source coordinates that will be aligned -
-     * this is intended for the Bezier curve points.
-     *
      * \param translation Output. The x/y translation applied to alignment_coords and
      * coords to give (after \a rotation has also been applied) \a aligned_alignment_coords
      * and \a aligned_coords
@@ -1854,28 +1820,18 @@ private:
      * \param rotation Output. The rotation (theta) applied to alignment_coords and
      * coords to give (as long as translation was applied)
      * aligned_alignment_coords and aligned_coords
-     *
-     * \param aligned_coords Output. The aligned version of coords (i.e. the aligned
-     * curve)
      */
     void alignOptimally (const std::vector<cv::Point2d>& alignment_coords,
                          const std::vector<cv::Point2d>& target_aligned_alignment_coords,
-                         std::vector<cv::Point2d>& aligned_alignment_coords,
-                         const std::vector<cv::Point2d>& coords,
                          cv::Point2d& translation,
-                         double& rotation,
-                         std::vector<cv::Point2d>& aligned_coords)
+                         double& rotation)
     {
-        std::cout << "alignOptimally called\n";
-        // Check that previous frame has same number of coords, if not throw exception
+        // Check that target frame has same number of coords, if not throw exception
         if (target_aligned_alignment_coords.size() != alignment_coords.size()) {
             std::stringstream ee;
             ee << "Same number of alignment coords in both frames please! target_aligned..: "
                << target_aligned_alignment_coords.size() << ", alignment_coords: " << alignment_coords.size();
             throw std::runtime_error (ee.str());
-        }
-        if (coords.size() != aligned_coords.size()) {
-            throw std::runtime_error ("Same number of src/dest coords please!");
         }
 
         // Now we have a fit which has same number of bins as the previous frame,
@@ -1935,28 +1891,10 @@ private:
         std::cout << "After " << simp.operation_count << " operations, best sos value: " << min_sos
                   << " and best x,y,theta: (" << vP[0] << "," << vP[1] << "," << vP[2] << ")" << std::endl;
 
-        // Negate translation and rotation
+        // Set translation and rotation
         translation.x = vP[0];
         translation.y = vP[1];
         rotation = vP[2];
-
-        // Transform coords into aligned_coords by the best translation and rotation (vP)
-        std::vector<cv::Point2d> tmp_coords (coords);
-        std::cout << "alignOptimally: Final transformation: ("
-                  << translation.x << "," << translation.y << "," << rotation << ")" << std::endl;
-        this->translate (coords, tmp_coords, translation);
-        this->rotate (tmp_coords, aligned_coords, rotation);
-
-        std::cout << "Example coordinate: src: " << alignment_coords[0];
-
-        // Also transform the alignment coords, ready for the next slice
-        std::vector<cv::Point2d> tmp_alignment_coords (alignment_coords);
-        this->translate (alignment_coords, tmp_alignment_coords, translation);
-        this->rotate (tmp_alignment_coords, aligned_alignment_coords, rotation);
-
-        std::cout << ", translated: " << aligned_alignment_coords[0]
-                  << " (which is used for next slice) and cf target_aligned_alignment_coords[0]: "
-                  << target_aligned_alignment_coords[0] << std::endl;
     }
 
     //! Rotate the fit until we get the best one.
