@@ -1245,8 +1245,12 @@ public:
         this->lmalignComputed = false;
 
 #if 1
-        // Compute the align-centroid-and-rotate slice alignments
-        this->offsetCentroid();
+        // The autoalign translation is the centroid of the scaled fitted points
+        this->autoalign_translation = -morph::MathAlgo::centroid (this->fitted_scaled);
+        // Apply offset
+        this->translate (this->fitted_scaled, this->fitted_autoalign_translated, this->autoalign_translation);
+        // Also apply the translation to any landmarks
+        this->translate (this->LM_scaled, this->LM_autoalign_translated, this->autoalign_translation);
         this->rotateFitOptimally();
 #else
         // Possible alternative to allow optimization to tweak the translation as well as the rotation:
@@ -1575,8 +1579,10 @@ private:
     void updateFit (double _theta)
     {
         this->updateFitBezier();
-        this->scalePoints(this->fitted, this->fitted_scaled);
-        this->offsetCentroid();
+        this->scalePoints (this->fitted, this->fitted_scaled);
+        this->autoalign_translation = -morph::MathAlgo::centroid (this->fitted_scaled);
+        this->translate (this->fitted_scaled, this->fitted_autoalign_translated, this->autoalign_translation);
+        this->translate (this->LM_scaled, this->LM_autoalign_translated, this->autoalign_translation);
         this->rotate (this->fitted_autoalign_translated, this->fitted_autoaligned, _theta);
     }
 
@@ -1642,6 +1648,7 @@ private:
         }
     }
 
+    //! Scale the coordinate \a pt by FrameData::pixels_per_mm and return the result
     cv::Point2d scalePoint (const cv::Point& pt)
     {
         cv::Point2d rtn = cv::Point2d(pt)/this->pixels_per_mm;
@@ -1652,22 +1659,12 @@ private:
     //! This function offsets the fitted points by the centroid of the fitted points.
     void offsetCentroid()
     {
-        // Now compute centroid
-        cv::Point2d fitsum (0.0, 0.0);
-        for (int i = 0; i < this->nFit; ++i) {
-            //fitsum += cv::Point2d(this->fitted[i].x, this->fitted_scaled[i].y);
-            fitsum += this->fitted_scaled[i];
-        }
-        this->autoalign_translation = -fitsum/this->nFit; // i.e. it's the centroid of the points wrt the origin
-
+        // The autoalign translation is the centroid of the scaled fitted points
+        this->autoalign_translation = -morph::MathAlgo::centroid (this->fitted_scaled);
         // Apply offset
-        for (int i = 0; i < this->nFit; ++i) {
-            this->fitted_autoalign_translated[i] = this->fitted_scaled[i] + this->autoalign_translation;
-        }
+        this->translate (this->fitted_scaled, this->fitted_autoalign_translated, this->autoalign_translation);
         // Also apply the translation to any landmarks
-        for (size_t i = 0; i < this->LM_autoalign_translated.size(); ++i) {
-            this->LM_autoalign_translated[i] = this->LM_scaled[i] + this->autoalign_translation;
-        }
+        this->translate (this->LM_scaled, this->LM_autoalign_translated, this->autoalign_translation);
     }
 
     //! vertex contains x,y,theta values and should have size 3 translate coords by
