@@ -1582,7 +1582,6 @@ private:
         this->scalePoints (this->fitted, this->fitted_scaled);
         this->autoalign_translation = -morph::MathAlgo::centroid (this->fitted_scaled);
         this->translate (this->fitted_scaled, this->fitted_autoalign_translated, this->autoalign_translation);
-        this->translate (this->LM_scaled, this->LM_autoalign_translated, this->autoalign_translation);
         this->rotate (this->fitted_autoalign_translated, this->fitted_autoaligned, _theta);
     }
 
@@ -1653,18 +1652,6 @@ private:
     {
         cv::Point2d rtn = cv::Point2d(pt)/this->pixels_per_mm;
         return rtn;
-    }
-
-    //! BAD: A bit of a mixture of stuff
-    //! This function offsets the fitted points by the centroid of the fitted points.
-    void offsetCentroid()
-    {
-        // The autoalign translation is the centroid of the scaled fitted points
-        this->autoalign_translation = -morph::MathAlgo::centroid (this->fitted_scaled);
-        // Apply offset
-        this->translate (this->fitted_scaled, this->fitted_autoalign_translated, this->autoalign_translation);
-        // Also apply the translation to any landmarks
-        this->translate (this->LM_scaled, this->LM_autoalign_translated, this->autoalign_translation);
     }
 
     //! vertex contains x,y,theta values and should have size 3 translate coords by
@@ -1899,10 +1886,9 @@ private:
     {
         // If there's no previous frame, then fitted_autoaligned should be same as fitted_autoalign_translated
         if (this->previous < 0) {
-            std::cout << "No previous frame, so just copying fitted_autoalign_translated to fitted_autoaligned..." << std::endl;
-            for (int i = 0; i < this->nFit; ++i) {
-                this->fitted_autoaligned[i] = this->fitted_autoalign_translated[i];
-            }
+            // Using translate as copy here:
+            this->translate (this->fitted_autoalign_translated, this->fitted_autoaligned, cv::Point2d(0,0));
+            this->translate (this->LM_autoalign_translated, this->LM_autoaligned, cv::Point2d(0,0));
             return;
         }
 
