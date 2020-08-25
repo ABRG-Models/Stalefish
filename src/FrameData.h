@@ -95,6 +95,12 @@ public:
     std::vector<unsigned int> box_pixel_means;
     //! The raw pixel values for each box as a vector of unsigned ints for each box.
     std::vector<std::vector<unsigned int>> boxes_pixels;
+    //! The coordinates, in pixels, of the pixels in each box.
+    std::vector<std::vector<cv::Point>> box_coords_pixels;
+    //! The coordinates, in mm, of the pixels in each box in the autoalign coordinate system
+    std::vector<std::vector<cv::Point2d>> box_coords_autoalign;
+    //! The coordinates, in mm, of the pixels in each box in the lmalign coordinate system
+    std::vector<std::vector<cv::Point2d>> box_coords_lmalign;
     //! The signal values for each box as a vector of floats for each box.
     std::vector<std::vector<float>> boxes_signal;
     //! Raw colours of boxes in RGB
@@ -139,9 +145,9 @@ public:
     //! Set true if landmark alignment was completed before write()
     bool lmalignComputed = false;
 
-    //! For point in fitted, the tangent at that location
+    //! For point in fitted, the tangent at that location. Units: pixels.
     std::vector<cv::Point2d> tangents;
-    //! For point in fitted, the normal at that location
+    //! For point in fitted, the normal at that location. Units: pixels.
     std::vector<cv::Point2d> normals;
 
     //! origins for the lines making the box sides (some distance from the curve)
@@ -345,13 +351,6 @@ public:
         this->fitted_autoaligned.resize (this->nFit);
         this->fitted_lmalign_translated.resize (this->nFit);
         this->fitted_lmaligned.resize (this->nFit);
-#if 0 // These now resized before use
-        this->pointsInner.resize (this->nFit);
-        this->pointsOuter.resize (this->nFit);
-        this->fitted.resize (this->nFit);
-        this->tangents.resize (this->nFit);
-        this->normals.resize (this->nFit);
-#endif
     }
 
     //! Setter for FrameData::previous, which indexes the previous frame in the stack of
@@ -945,6 +944,18 @@ public:
         std::vector<float> means_autoscaled = morph::MathAlgo::autoscale (this->box_signal_means, 0.0, 1.0);
         df.add_contained_vals (dname.c_str(), means_autoscaled);
 
+        // Save box_coords_pixels, box_coords_autoalign, box_coords_lmalign
+        // Inflates the output files significantly. May be worth making this optional.
+        for (size_t bi = 0; bi < this->boxes_pixels.size(); ++bi) {
+            dname = frameName + "/box_coords_pixels" + std::to_string(bi);
+            df.add_contained_vals (dname.c_str(), this->box_coords_pixels[bi]);
+            dname = frameName + "/box_coords_autoalign" + std::to_string(bi);
+            df.add_contained_vals (dname.c_str(), this->box_coords_autoalign[bi]);
+            dname = frameName + "/box_coords_lmalign" + std::to_string(bi);
+            df.add_contained_vals (dname.c_str(), this->box_coords_lmalign[bi]);
+            // Plus also box_depths, where box_depths = (box_coords_* - fitted_*) . (normal_*)
+        }
+
         // Freehand drawn regions - results
         for (size_t ri = 0; ri < this->FL_pixels.size(); ++ri) {
             dname = frameName + "/freehand_pixels" + std::to_string(ri);
@@ -1411,10 +1422,10 @@ private:
         return regionPixelVals;
     }
 
-    std::vector<cv::Point> getBoxRegion (const std::vector<cv::Point> pp)
+    std::vector<cv::Point> getBoxRegion (const std::vector<cv::Point> boxVtxs)
     {
         // Four cv::Points define a rectangle. Convert from vector to an array of Points
-        cv::Point pts[4] = {pp[0],pp[1],pp[2],pp[3]};
+        cv::Point pts[4] = {boxVtxs[0],boxVtxs[1],boxVtxs[2],boxVtxs[3]};
         // Create a mask of (initially) zeros.
         cv::Mat mask = cv::Mat::zeros(this->frame.rows, this->frame.cols, CV_8UC3);
         // Set the box defined by pts to ones.
@@ -1428,26 +1439,29 @@ private:
         return maskpositives;
     }
 
-    //! Get the raw pixel values in the box defined by pp.
-    std::vector<unsigned int> getBoxedPixelVals (const std::vector<cv::Point> pp)
+    //! Get the raw pixel values in the box defined by boxVtxs. \a maskpositives: Output
+    //! the coordinates (in pixels) of all the non-zero pixels
+    std::vector<unsigned int> getBoxedPixelVals (const std::vector<cv::Point> boxVtxs,
+                                                 std::vector<cv::Point>& maskpositives)
     {
-        std::vector<cv::Point> maskpositives = this->getBoxRegion (pp);
+        maskpositives = this->getBoxRegion (boxVtxs);
+        // Save maskpositives into the relevant box? These are the pixel coords for box[i], whatever i is.
         return this->getRegionPixelVals (maskpositives);
     }
 
     //! Find a grayscale value for each pixel of image in FrameData::frame_bgoff within
-    //! the box defined by \a pp and return this in a vector of floats, without
+    //! the box defined by \a boxVtxs and return this in a vector of floats, without
     //! conversion
-    std::vector<float> getBoxedSignalVals (const std::vector<cv::Point> pp)
+    std::vector<float> getBoxedSignalVals (const std::vector<cv::Point> boxVtxs)
     {
-        std::vector<cv::Point> maskpositives = this->getBoxRegion (pp);
+        std::vector<cv::Point> maskpositives = this->getBoxRegion (boxVtxs);
         return this->getRegionSignalVals (maskpositives);
     }
 
     //! In a box, obtain colour values as BGR float triplets
-    std::vector<std::array<float, 3>> getBoxedPixelColour (const std::vector<cv::Point> pp)
+    std::vector<std::array<float, 3>> getBoxedPixelColour (const std::vector<cv::Point> boxVtxs)
     {
-        cv::Point pts[4] = {pp[0],pp[1],pp[2],pp[3]};
+        cv::Point pts[4] = {boxVtxs[0],boxVtxs[1],boxVtxs[2],boxVtxs[3]};
         cv::Mat mask = cv::Mat::zeros(frame.rows, frame.cols, CV_8UC3);
         cv::fillConvexPoly (mask, pts, 4, cv::Scalar(255,255,255));
         //
@@ -1509,9 +1523,13 @@ private:
     {
         this->boxes_pixels.resize (this->boxes.size());
         this->boxes_signal.resize (this->boxes.size());
+        this->box_coords_pixels.resize (this->boxes.size());
+        this->box_coords_autoalign.resize (this->boxes.size());
+        this->box_coords_lmalign.resize (this->boxes.size());
         this->boxes_pixels_bgr.resize (this->boxes.size());
         this->box_signal_means.resize (this->boxes.size());
         this->box_pixel_means.resize (this->boxes.size());
+
         for (size_t i=0; i<this->boxes.size(); i++) {
 
             // Zero the means value
@@ -1520,6 +1538,9 @@ private:
 
             // if luminance value only/greyscale:
             if (this->cmodel == ColourModel::AllenDevMouse) {
+
+                throw std::runtime_error ("FIXME: computeBoxMeans()Review this code before using it.");
+
                 // But we'll have to pass parameters for transforming the colours and
                 // determining if they're on the "expressing" axis. This will include
                 // a translate matrix, a rotation matrix and ellipse parameters,
@@ -1567,10 +1588,18 @@ private:
                 this->box_signal_means[i] /= (double)this->boxes_pixels_bgr[i].size();
 
             } else { // Default is ColourModel::Greyscale
-                this->boxes_pixels[i] = this->getBoxedPixelVals (this->boxes[i]);
+                // We get the box pixel VALUES in the return value and the COORDS in the output argument
+                this->boxes_pixels[i] = this->getBoxedPixelVals (this->boxes[i], this->box_coords_pixels[i]);
                 this->boxes_signal[i] = this->getBoxedSignalVals (this->boxes[i]);
                 morph::MathAlgo::compute_mean_sd<unsigned int> (this->boxes_pixels[i], this->box_pixel_means[i]);
                 morph::MathAlgo::compute_mean_sd<float> (this->boxes_signal[i], this->box_signal_means[i]);
+                // transform box_coords_pixels into box_coords_autoalign and box_coords_lmalign
+                std::vector<cv::Point2d> bcpix(this->box_coords_pixels[i].size());
+                for (size_t j = 0; j < bcpix.size(); ++j) {
+                    bcpix[j] = cv::Point2d(this->box_coords_pixels[i][j]);
+                }
+                this->transform (bcpix, this->box_coords_autoalign[i], this->autoalign_translation, this->autoalign_theta);
+                this->transform (bcpix, this->box_coords_lmalign[i], this->lm_translation, this->lm_theta);
             }
         }
     }
