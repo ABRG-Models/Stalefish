@@ -253,7 +253,7 @@ int main (int argc, char** argv)
             // Create a thing containing values for the landmarks.
             visId = v.addVisualModel (new morph::ScatterVisual<float> (v.shaderprog,
                                                                        &landmarks_lmaligned, offset,
-                                                                       &landmarks_id, 0.1f, scale,
+                                                                       &landmarks_id, 0.07f, scale,
                                                                        morph::ColourMapType::Plasma));
         } else {
             visId = v.addVisualModel (new morph::PointRowsVisual<float> (v.shaderprog,
@@ -262,8 +262,8 @@ int main (int argc, char** argv)
                                                                          morph::ColourMapType::MonochromeBlue));
             visId = v.addVisualModel (new morph::ScatterVisual<float> (v.shaderprog,
                                                                        &landmarks_autoaligned, offset,
-                                                                       &landmarks_id, 0.01f, scale,
-                                                                       morph::ColourMapType::MonochromeGreen));
+                                                                       &landmarks_id, 0.07f, scale,
+                                                                       morph::ColourMapType::Plasma));
         }
 
         cout << "Added Visual with visId " << visId << endl;
