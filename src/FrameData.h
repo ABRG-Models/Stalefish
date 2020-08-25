@@ -1270,17 +1270,25 @@ public:
                 slice0centroid += this->fitted_scaled[i];
             }
             slice0centroid /= this->nFit;
-
+            std::cout << "ALIGNO: slice0centroid is " << slice0centroid << std::endl;
             for (int i = 0; i < this->nFit; ++i) {
                 this->fitted_lmaligned[i] = this->fitted_scaled[i] - slice0centroid;
             }
+            // The translation to record for the first slice is the inverse of the centroid of the 0th slice
+            this->lm_translation = -slice0centroid;
+
             for (size_t i = 0; i < this->LM_scaled.size(); ++i) {
-                // FIXME: slice0centroid needs to be added to this->lm_translation!!!!!!!!!!
-                this->LM_lmaligned[i] = this->LM_scaled[i] - slice0centroid;
+                // FIXME: slice0centroid needs to be added to this->lm_translation
+                // because lm_translation needs to be the translation that takes us from
+                // LM_scaled to LM_lmaligned.
+                this->LM_lmaligned[i] = this->LM_scaled[i] + this->lm_translation;
                 std::cout << "Set first LM_lmaligned to have size " << this->LM_lmaligned.size() << std::endl;
                 // WARNING parentStack doesn't hold THIS frame. Why?
-                std::cout << "parent stack first frame has LM_aligned size: " << (*this->parentStack)[0].LM_lmaligned.size() << std::endl;
+                std::cout << "parent stack first frame has LM_aligned size: "
+                          << (*this->parentStack)[0].LM_lmaligned.size() << std::endl;
             }
+            std::cout << "ALIGNO: For first slice, we set lm_translation to " << this->lm_translation
+                      << " and lm_theta to " << this->lm_theta << std::endl;
         } else {
             std::cout << "parent stack size: " << (*this->parentStack).size() << std::endl;
             std::cout << "parent stack first frame has LM size: " << (*this->parentStack)[0].LM.size() << std::endl;
@@ -1292,6 +1300,8 @@ public:
                                   this->LM_lmaligned,
                                   this->fitted_scaled,
                                   this->lm_translation, this->lm_theta, this->fitted_lmaligned);
+            std::cout << "ALIGNO: alignOptimally sets lm_translation to " << this->lm_translation
+                      << " and lm_theta to " << this->lm_theta << std::endl;
         }
         this->lmalignComputed = true;
     }
@@ -1689,16 +1699,16 @@ private:
 #endif
 
     //! vertex contains x,y,theta values and should have size 3 translate coords by
-    //! vertex[0],vertex[1] and rotate by vertex[2]. Compute SOS compared with previous
+    //! vertex[0],vertex[1] and rotate by vertex[2]. Compute SOS compared with target
     //! coordinates
-    double computeSos3d (const std::vector<cv::Point2d> coords,
-                         const std::vector<cv::Point2d> prev_coords,
+    double computeSos3d (const std::vector<cv::Point2d> target_coords,
+                         const std::vector<cv::Point2d> coords,
                          const std::vector<double>& vertex)
     {
         if (this->previous < 0) { return std::numeric_limits<double>::max(); }
 
-        if (coords.size() != prev_coords.size()) {
-            throw std::runtime_error ("computeSos3d: Number of elements in coords and prev_coords must be the same");
+        if (coords.size() != target_coords.size()) {
+            throw std::runtime_error ("computeSos3d: Number of elements in coords and target_coords must be the same");
         }
 
         //std::cout << "computeSos3d: x,y,theta = (" << vertex[0] << "," << vertex[1] << "," << vertex[2] << ")" << std::endl;
@@ -1709,11 +1719,11 @@ private:
         this->translate (coords, tmp_coords, tr);
         this->rotate (tmp_coords, tmp_coords, vertex[2]);
 
-        // Compute SOS wrt to prev_coords
+        // Compute SOS wrt to target_coords
         double sos = 0.0;
-        for (size_t i = 0; i < prev_coords.size(); ++i) {
-            double xdiff = tmp_coords[i].x - prev_coords[i].x;
-            double ydiff = tmp_coords[i].y - prev_coords[i].y;
+        for (size_t i = 0; i < target_coords.size(); ++i) {
+            double xdiff = tmp_coords[i].x - target_coords[i].x;
+            double ydiff = tmp_coords[i].y - target_coords[i].y;
             double d_ = (xdiff*xdiff + ydiff*ydiff);
             sos += d_;
         }
@@ -1819,49 +1829,52 @@ private:
     }
 
     /*!
-     * By optimally aligning (by 2d translate and rotate only) the \a alignment_coords,
-     * apply a translation and rotation to transform alignment_coords into
-     * aligned_coords.
+     * By optimally aligning (by 2d translate and rotate only) the \a alignment_coords
+     * with \a target_aligned_alignment_coords, find a translation and rotation to
+     * transform \a alignment_coords into \a aligned_alignment_coords and \a coords into
+     * \a aligned_coords.
      *
-     * \param alignment_coords The source coordinates which will be aligned, slice by slice
+     * \param alignment_coords The coordinates which will be aligned by the
+     * optimization. These could be user-supplied landmarks or the Bezier curve points.
      *
-     * \param prevframe_aligned_alignment_coords The now-aligned coordinates in the
-     * previous frame
+     * \param target_aligned_alignment_coords The target for alignment. alignment_coords
+     * should be transformed until they match target_aligned_alignment_coords as closely
+     * as possible.
      *
-     * \param curframe_aligned_alignment_coords Output. This will be filled with the
+     * \param aligned_alignment_coords Output. This will be filled with the
      * aligned alignment_coords (e.g. the newly aligned landmarks)
      *
-     * \param src_coords The unaligned source coordinates that we will align - i.e. the
-     * Bezier curve points
+     * \param coords A second set of unaligned source coordinates that will be aligned -
+     * this is intended for the Bezier curve points.
      *
      * \param translation Output. The x/y translation applied to alignment_coords and
-     * src_coords to give (after rotation has been applied)
-     * curframe_aligned_alignment_coords and aligned_coords
+     * coords to give (after \a rotation has also been applied) \a aligned_alignment_coords
+     * and \a aligned_coords
      *
      * \param rotation Output. The rotation (theta) applied to alignment_coords and
-     * src_coords to give (as long as translation was applied)
-     * curframe_aligned_alignment_coords and aligned_coords
+     * coords to give (as long as translation was applied)
+     * aligned_alignment_coords and aligned_coords
      *
-     * \param aligned_coords Output. The aligned version of src_coords (i.e. the aligned
+     * \param aligned_coords Output. The aligned version of coords (i.e. the aligned
      * curve)
      */
     void alignOptimally (const std::vector<cv::Point2d>& alignment_coords,
-                         const std::vector<cv::Point2d>& prevframe_aligned_alignment_coords,
-                         std::vector<cv::Point2d>& curframe_aligned_alignment_coords,
-                         const std::vector<cv::Point2d>& src_coords,
+                         const std::vector<cv::Point2d>& target_aligned_alignment_coords,
+                         std::vector<cv::Point2d>& aligned_alignment_coords,
+                         const std::vector<cv::Point2d>& coords,
                          cv::Point2d& translation,
                          double& rotation,
                          std::vector<cv::Point2d>& aligned_coords)
     {
         std::cout << "alignOptimally called\n";
         // Check that previous frame has same number of coords, if not throw exception
-        if (prevframe_aligned_alignment_coords.size() != alignment_coords.size()) {
+        if (target_aligned_alignment_coords.size() != alignment_coords.size()) {
             std::stringstream ee;
-            ee << "Same number of alignment coords in both frames please! prevframe_aligned..: "
-               << prevframe_aligned_alignment_coords.size() << ", alignment_coords: " << alignment_coords.size();
+            ee << "Same number of alignment coords in both frames please! target_aligned..: "
+               << target_aligned_alignment_coords.size() << ", alignment_coords: " << alignment_coords.size();
             throw std::runtime_error (ee.str());
         }
-        if (src_coords.size() != aligned_coords.size()) {
+        if (coords.size() != aligned_coords.size()) {
             throw std::runtime_error ("Same number of src/dest coords please!");
         }
 
@@ -1876,7 +1889,7 @@ private:
         // Use some proportion of the distance between the first landmark and its
         // equivalent on the previous slice to determine the values for the initial
         // vertices.
-        cv::Point2d l1_offset = alignment_coords[0] - prevframe_aligned_alignment_coords[0];
+        cv::Point2d l1_offset = alignment_coords[0] - target_aligned_alignment_coords[0];
         double d = 0.3 * std::sqrt (l1_offset.x * l1_offset.x + l1_offset.y * l1_offset.y);
         std::cout << "distance used for initial vertices in xytheta space: " << d << std::endl;
         std::vector<std::vector<double>> initial_vertices;
@@ -1896,8 +1909,7 @@ private:
             if (simp.state == morph::NM_Simplex_State::NeedToComputeThenOrder) {
                 // 1. apply objective to each vertex
                 for (unsigned int i = 0; i <= simp.n; ++i) {
-                    //simp.values[i] = this->computeSosWithPrev (simp.vertices[i][0]);
-                    simp.values[i] = this->computeSos3d (prevframe_aligned_alignment_coords, alignment_coords, simp.vertices[i]);
+                    simp.values[i] = this->computeSos3d (target_aligned_alignment_coords, alignment_coords, simp.vertices[i]);
                 }
                 simp.order();
 
@@ -1905,15 +1917,15 @@ private:
                 simp.order();
 
             } else if (simp.state == morph::NM_Simplex_State::NeedToComputeReflection) {
-                double val = this->computeSos3d (prevframe_aligned_alignment_coords, alignment_coords, simp.xr);
+                double val = this->computeSos3d (target_aligned_alignment_coords, alignment_coords, simp.xr);
                 simp.apply_reflection (val);
 
             } else if (simp.state == morph::NM_Simplex_State::NeedToComputeExpansion) {
-                double val = this->computeSos3d (prevframe_aligned_alignment_coords, alignment_coords, simp.xe);
+                double val = this->computeSos3d (target_aligned_alignment_coords, alignment_coords, simp.xe);
                 simp.apply_expansion (val);
 
             } else if (simp.state == morph::NM_Simplex_State::NeedToComputeContraction) {
-                double val = this->computeSos3d (prevframe_aligned_alignment_coords, alignment_coords, simp.xc);
+                double val = this->computeSos3d (target_aligned_alignment_coords, alignment_coords, simp.xc);
                 simp.apply_contraction (val);
             }
         }
@@ -1922,25 +1934,29 @@ private:
 
         std::cout << "After " << simp.operation_count << " operations, best sos value: " << min_sos
                   << " and best x,y,theta: (" << vP[0] << "," << vP[1] << "," << vP[2] << ")" << std::endl;
+
+        // Negate translation and rotation
         translation.x = vP[0];
         translation.y = vP[1];
         rotation = vP[2];
 
-        // Transform src_coords into aligned_coords by the best translation and rotation (vP)
-        std::vector<cv::Point2d> tmp_coords (src_coords);
+        // Transform coords into aligned_coords by the best translation and rotation (vP)
+        std::vector<cv::Point2d> tmp_coords (coords);
         std::cout << "alignOptimally: Final transformation: ("
                   << translation.x << "," << translation.y << "," << rotation << ")" << std::endl;
-        this->translate (src_coords, tmp_coords, -translation);
-        this->rotate (tmp_coords, aligned_coords, -rotation);
+        this->translate (coords, tmp_coords, translation);
+        this->rotate (tmp_coords, aligned_coords, rotation);
 
         std::cout << "Example coordinate: src: " << alignment_coords[0];
 
         // Also transform the alignment coords, ready for the next slice
         std::vector<cv::Point2d> tmp_alignment_coords (alignment_coords);
-        this->translate (alignment_coords, tmp_alignment_coords, -translation);
-        this->rotate (tmp_alignment_coords, curframe_aligned_alignment_coords, -rotation);
+        this->translate (alignment_coords, tmp_alignment_coords, translation);
+        this->rotate (tmp_alignment_coords, aligned_alignment_coords, rotation);
 
-        std::cout << ", translated: " << curframe_aligned_alignment_coords[0] << " (which is used for next slice) and cf prevframe_aligned_alignment_coords[0]: " << prevframe_aligned_alignment_coords[0] << std::endl;
+        std::cout << ", translated: " << aligned_alignment_coords[0]
+                  << " (which is used for next slice) and cf target_aligned_alignment_coords[0]: "
+                  << target_aligned_alignment_coords[0] << std::endl;
     }
 
     //! Rotate the fit until we get the best one.
