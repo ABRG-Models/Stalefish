@@ -15,6 +15,15 @@
 
     "bg_blur_subtraction_offset" : 180,
 
+    "desc_save_per_pixel_data" : "If true, then save out the signal values and coordinates of every individual pixel in each box and freehand loop. Can lead to very large data files.",
+    "save_per_pixel_data" : true,
+
+    "desc_save_auto_align_data" : "Default is true. If false, then don't write coordinates in the autoaligned frame of reference into the HDF5 data file.",
+    "save_auto_align_data" : true,
+
+    "desc_save_landmark_align_data" : "Default is true. If false, then don't write coordinates in the landmark aligned frame of reference into the HDF5 data file.",
+    "save_landmark_align_data" : true,
+
     "desc_slices" : "The brain slices in the y-z plane, where y points to the anterior, z points dorsally (and so x is the lateral dimension).",
 
     "slices": [
