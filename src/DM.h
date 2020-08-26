@@ -137,7 +137,9 @@ public:
         fd.ellip_axes = this->ellip_axes;
         fd.luminosity_factor = this->luminosity_factor;
         fd.luminosity_cutoff = this->luminosity_cutoff;
-
+        fd.savePerPixelData = this->savePerPixel;
+        fd.saveAutoAlignData = this->saveAutoAlign;
+        fd.saveLMAlignData = this->saveLMAlign;
         // Read, opportunistically
         try {
             morph::HdfData d(this->datafile, true); // true for read
@@ -348,6 +350,11 @@ public:
     //! A subtraction offset used when subtracting blurred background signal from image
     float bgBlurSubtractionOffset = 255.0;
 
+    //! Flags to control what data gets saved.
+    bool savePerPixel = false;
+    bool saveAutoAlign = true;
+    bool saveLMAlign = true;
+
     //! Application setup
     void setup (const std::string& paramsfile)
     {
@@ -396,6 +403,10 @@ public:
         // luminosity linear fit parameters
         this->luminosity_cutoff = conf.getFloat ("luminosity_cutoff", 255.0f);
         this->luminosity_factor = conf.getFloat ("luminosity_factor", -0.00392f); // -1/255
+
+        this->savePerPixel = conf.getBool ("save_per_pixel_data", false);
+        this->saveAutoAlign = conf.getBool ("save_auto_align_data", true);
+        this->saveLMAlign = conf.getBool ("save_landmark_align_data", true);
 
         // Loop over slices, creating a FrameData object for each.
         const Json::Value slices = conf.getArray ("slices");

@@ -401,15 +401,9 @@ public:
     void fillFL (cv::Point& firstSquare, const cv::Point& endSquare)
     {
         // Finished when the last element of FL is pt.
-        if (!this->FL.empty() && this->FL.back() == endSquare) {
-            return;
-        }
-
+        if (!this->FL.empty() && this->FL.back() == endSquare) { return; }
         // Start at firstSquare
-        if (firstSquare == endSquare) {
-            // There's nothing to do
-            return;
-        }
+        if (firstSquare == endSquare) { return; }
 
         // firstSquare is not the same as endSquare, so fill in between them.  Which of the 8
         // adjoining squares contains the line specified by firstSquare.xy and m?  What's
@@ -533,18 +527,10 @@ public:
         extents[0] =  {10000000, 10000000};   // MIN values for x and y
         extents[1] = {-10000000,-10000000}; // MAX values for x and y
         for (auto p : loop) {
-            if (p.x < extents[0].x) {
-                extents[0].x = p.x;
-            }
-            if (p.y < extents[0].y) {
-                extents[0].y = p.y;
-            }
-            if (p.x > extents[1].x) {
-                extents[1].x = p.x;
-            }
-            if (p.y > extents[1].y) {
-                extents[1].y = p.y;
-            }
+            if (p.x < extents[0].x) { extents[0].x = p.x; }
+            if (p.y < extents[0].y) { extents[0].y = p.y; }
+            if (p.x > extents[1].x) { extents[1].x = p.x; }
+            if (p.y > extents[1].y) { extents[1].y = p.y; }
         }
         return extents;
     }
@@ -812,6 +798,13 @@ public:
         // thus changes in json will override the h5 file.
     }
 
+    //! If false, then don't save the per-pixel data
+    bool savePerPixelData = false;
+    //! If true, save data relating to the autoaligned slices
+    bool saveAutoAlignData = true;
+    //! If true, save data relating to the landmark-aligned slices
+    bool saveLMAlignData = true;
+
     //! Write the data out to an HdfData file \a df.
     void write (morph::HdfData& df)
     {
@@ -924,11 +917,13 @@ public:
          * FrameData::read method (these would all be re-computed before being
          * re-written in a later run of the program).
          */
-        for (size_t bi = 0; bi < this->boxes_pixels.size(); ++bi) {
-            dname = frameName + "/signal/bits8/boxes/box" + std::to_string(bi);
-            df.add_contained_vals (dname.c_str(), this->boxes_pixels[bi]);
-            dname = frameName + "/signal/postproc/boxes/box" + std::to_string(bi);
-            df.add_contained_vals (dname.c_str(), this->boxes_signal[bi]);
+        if (this->savePerPixelData == true) {
+            for (size_t bi = 0; bi < this->boxes_pixels.size(); ++bi) {
+                dname = frameName + "/signal/bits8/boxes/box" + std::to_string(bi);
+                df.add_contained_vals (dname.c_str(), this->boxes_pixels[bi]);
+                dname = frameName + "/signal/postproc/boxes/box" + std::to_string(bi);
+                df.add_contained_vals (dname.c_str(), this->boxes_signal[bi]);
+            }
         }
         dname = frameName + "/nboxes";
         df.add_val (dname.c_str(), static_cast<unsigned int>(this->boxes_pixels.size()));
@@ -938,6 +933,8 @@ public:
         dname = frameName + "/signal/bits8/boxes/means";
         df.add_contained_vals (dname.c_str(), this->box_pixel_means);
 
+        // FIXME add boxes std?
+
         // Autoscale box_signal_means and save a copy
         dname = frameName + "/signal/postproc/boxes/means_autoscaled";
         // this->means is vector<double>
@@ -946,32 +943,46 @@ public:
 
         // Save box_coords_pixels, box_coords_autoalign, box_coords_lmalign
         // Inflates the output files significantly. May be worth making this optional.
-        for (size_t bi = 0; bi < this->boxes_pixels.size(); ++bi) {
-            dname = frameName + "/pixels/coords/box" + std::to_string(bi);
-            df.add_contained_vals (dname.c_str(), this->box_coords_pixels[bi]);
-            dname = frameName + "/autoalign/coords/box" + std::to_string(bi);
-            df.add_contained_vals (dname.c_str(), this->box_coords_autoalign[bi]);
-            dname = frameName + "/lmalign/coords/box" + std::to_string(bi);
-            df.add_contained_vals (dname.c_str(), this->box_coords_lmalign[bi]);
-            // Plus also box_depths, where box_depths = (box_coords_* - fitted_*) . (unit normal_*)
-            std::vector<double> box_depth_autoalign (this->box_coords_pixels[bi].size());
-            for (size_t p_i = 0; p_i < box_depth_autoalign.size(); ++p_i) {
-                cv::Point2d diffvec = box_coords_autoalign[bi][p_i] - fitted_autoaligned[bi];
-                box_depth_autoalign[p_i] = diffvec.dot(this->normals[bi]); // Should have length 1, so ok
-            }
-            dname = frameName + "/autoalign/depth/box" + std::to_string(bi);
-            df.add_contained_vals (dname.c_str(), box_depth_autoalign);
+        if (this->savePerPixelData == true) {
+            for (size_t bi = 0; bi < this->boxes_pixels.size(); ++bi) {
 
-            std::vector<double> box_depth_lmalign (this->box_coords_pixels[bi].size());
-            for (size_t p_i = 0; p_i < box_depth_lmalign.size(); ++p_i) {
-                cv::Point2d diffvec = fitted_lmaligned[bi] - box_coords_lmalign[bi][p_i];
-                box_depth_lmalign[p_i] = diffvec.dot(this->normals[bi]); // Should have length 1, so ok
+                dname = frameName + "/pixels/coords/box" + std::to_string(bi);
+                df.add_contained_vals (dname.c_str(), this->box_coords_pixels[bi]);
+
+                if (this->saveAutoAlignData == true) {
+                    dname = frameName + "/autoalign/coords/box" + std::to_string(bi);
+                    df.add_contained_vals (dname.c_str(), this->box_coords_autoalign[bi]);
+                }
+
+                if (this->saveLMAlignData == true) {
+                    dname = frameName + "/lmalign/coords/box" + std::to_string(bi);
+                    df.add_contained_vals (dname.c_str(), this->box_coords_lmalign[bi]);
+                }
+
+                if (this->saveAutoAlignData == true) {
+                    // Plus also box_depths, where box_depths = (box_coords_* - fitted_*) . (unit normal_*)
+                    std::vector<double> box_depth_autoalign (this->box_coords_pixels[bi].size());
+                    for (size_t p_i = 0; p_i < box_depth_autoalign.size(); ++p_i) {
+                        cv::Point2d diffvec = box_coords_autoalign[bi][p_i] - fitted_autoaligned[bi];
+                        box_depth_autoalign[p_i] = diffvec.dot(this->normals[bi]); // Should have length 1, so ok
+                    }
+                    dname = frameName + "/autoalign/depth/box" + std::to_string(bi);
+                    df.add_contained_vals (dname.c_str(), box_depth_autoalign);
+                }
+                // LM aligned
+                if (this->saveLMAlignData == true) {
+                    std::vector<double> box_depth_lmalign (this->box_coords_pixels[bi].size());
+                    for (size_t p_i = 0; p_i < box_depth_lmalign.size(); ++p_i) {
+                        cv::Point2d diffvec = fitted_lmaligned[bi] - box_coords_lmalign[bi][p_i];
+                        box_depth_lmalign[p_i] = diffvec.dot(this->normals[bi]); // Should have length 1, so ok
+                    }
+                    dname = frameName + "/lmalign/depth/box" + std::to_string(bi);
+                    df.add_contained_vals (dname.c_str(), box_depth_lmalign);
+                }
             }
-            dname = frameName + "/lmalign/depth/box" + std::to_string(bi);
-            df.add_contained_vals (dname.c_str(), box_depth_lmalign);
+
+            // FIXME: add freehand coordinates: frameName + "/autoalign/coords/freehand"N etc
         }
-
-        // FIXME: add freehand coordinates: frameName + "/autoalign/coords/freehand"N etc
 
         // Record the normal vectors
         dname = frameName + "/unit_normals";
@@ -1005,21 +1016,17 @@ public:
             cv::Point2d cntroid_autoaligned = this->transform (cntroid_scaled, this->autoalign_translation, this->autoalign_theta);
             cv::Point2d cntroid_lmaligned = this->transform (cntroid_scaled, this->lm_translation, this->lm_theta);
 
-#if 0
-            // Offset and scale cntroid suitably (from screen pixels to mm in the slice
-            // plane), before saving
-            cv::Point2d coff = this->offsetPoint (cntroid);
-            std::cout << "centroid in scaled pix: " << coff << std::endl;
-            cv::Point2d coffrot = this->rotate (coff, this->autoalign_theta);
-            std::cout << "centroid in scaled pix, rotated: " << coffrot << std::endl;
-#endif
-            std::stringstream cntss1;
-            cntss1 << frameName + "/autoalign/freehand/loop" << std::to_string(i) << "_centroid";
-            df.add_contained_vals (cntss1.str().c_str(), cntroid_autoaligned);
+            if (this->saveAutoAlignData == true) {
+                std::stringstream cntss1;
+                cntss1 << frameName + "/autoalign/freehand/loop" << std::to_string(i) << "_centroid";
+                df.add_contained_vals (cntss1.str().c_str(), cntroid_autoaligned);
+            }
 
-            std::stringstream cntss2;
-            cntss2 << frameName + "/lmalign/freehand/loop" << std::to_string(i) << "_centroid";
-            df.add_contained_vals (cntss2.str().c_str(), cntroid_lmaligned);
+            if (this->saveLMAlignData == true) {
+                std::stringstream cntss2;
+                cntss2 << frameName + "/lmalign/freehand/loop" << std::to_string(i) << "_centroid";
+                df.add_contained_vals (cntss2.str().c_str(), cntroid_lmaligned);
+            }
         }
 
         // I'm storing all coordinates of the fitted points here.
@@ -1030,51 +1037,62 @@ public:
         dname = frameName + "/scaled/fitted";
         df.add_contained_vals (dname.c_str(), this->fitted_scaled);
 
-        // These are the fitted points in the final coordinate system for the
-        // auto-rotated (and transformed) slices
-        dname = frameName + "/autoalign/fitted";
-        df.add_contained_vals (dname.c_str(), this->fitted_autoaligned);
+        if (this->saveAutoAlignData == true) {
+            // These are the fitted points in the final coordinate system for the
+            // auto-rotated (and transformed) slices
+            dname = frameName + "/autoalign/fitted";
+            df.add_contained_vals (dname.c_str(), this->fitted_autoaligned);
+            dname = frameName + "/autoalign/computed";
+            df.add_val (dname.c_str(), this->autoalignComputed);
+        }
 
-        // Fitted points where slices have been landmark aligned
-        dname = frameName + "/lmalign/fitted";
-        df.add_contained_vals (dname.c_str(), this->fitted_lmaligned);
+        if (this->saveLMAlignData == true) {
+            // Fitted points where slices have been landmark aligned
+            dname = frameName + "/lmalign/fitted";
+            df.add_contained_vals (dname.c_str(), this->fitted_lmaligned);
+            // Was the landmark alignment computed?
+            dname = frameName + "/lmalign/computed";
+            df.add_val (dname.c_str(), this->lmalignComputed);
+        }
 
-        // Was the landmark alignment computed?
-        dname = frameName + "/lmalign/computed";
-        df.add_val (dname.c_str(), this->lmalignComputed);
-        dname = frameName + "/autoalign/computed";
-        df.add_val (dname.c_str(), this->autoalignComputed);
+        if (this->saveAutoAlignData == true) {
+            // The parameters of the translation which takes us from (fitted/LM)_scaled to (fitted/LM)_autoaligned
+            dname = frameName + "/autoalign/translation";
+            std::pair<double, double> aa_t = std::make_pair(this->autoalign_translation.x, this->autoalign_translation.y);
+            df.add_contained_vals (dname.c_str(), aa_t);
+            dname = frameName + "/autoalign/theta";
+            df.add_val (dname.c_str(), this->autoalign_theta);
+        }
 
-        // The parameters of the translation which takes us from (fitted/LM)_scaled to (fitted/LM)_autoaligned
-        dname = frameName + "/autoalign/translation";
-        std::pair<double, double> aa_t = std::make_pair(this->autoalign_translation.x, this->autoalign_translation.y);
-        df.add_contained_vals (dname.c_str(), aa_t);
-        dname = frameName + "/autoalign/theta";
-        df.add_val (dname.c_str(), this->autoalign_theta);
-
-        // The parameters of the translation which takes us from (fitted/LM)_scaled to (fitted/LM)_autoaligned
-        dname = frameName + "/lmalign/translation";
-        std::pair<double, double> lm_t = std::make_pair(this->lm_translation.x, this->lm_translation.y);
-        df.add_contained_vals (dname.c_str(), lm_t);
-        dname = frameName + "/lmalign/theta";
-        df.add_val (dname.c_str(), this->lm_theta);
+        if (this->saveLMAlignData == true) {
+            // The parameters of the translation which takes us from (fitted/LM)_scaled to (fitted/LM)_autoaligned
+            dname = frameName + "/lmalign/translation";
+            std::pair<double, double> lm_t = std::make_pair(this->lm_translation.x, this->lm_translation.y);
+            df.add_contained_vals (dname.c_str(), lm_t);
+            dname = frameName + "/lmalign/theta";
+            df.add_val (dname.c_str(), this->lm_theta);
+        }
 
         // Save autoalign and lmalign translated landmark coordinates.
-        std::vector<std::array<float,3>> LM_autoaligned_3d (this->LM_autoaligned.size(), {this->layer_x,0.0f,0.0f});
-        for (size_t i = 0; i < this->LM_autoaligned.size(); ++i) {
-            LM_autoaligned_3d[i][1] = static_cast<float>(this->LM_autoaligned[i].x);
-            LM_autoaligned_3d[i][2] = static_cast<float>(this->LM_autoaligned[i].y);
+        if (this->saveAutoAlignData == true) {
+            std::vector<std::array<float,3>> LM_autoaligned_3d (this->LM_autoaligned.size(), {this->layer_x,0.0f,0.0f});
+            for (size_t i = 0; i < this->LM_autoaligned.size(); ++i) {
+                LM_autoaligned_3d[i][1] = static_cast<float>(this->LM_autoaligned[i].x);
+                LM_autoaligned_3d[i][2] = static_cast<float>(this->LM_autoaligned[i].y);
+            }
+            dname = frameName + "/autoalign/landmarks";
+            df.add_contained_vals (dname.c_str(), LM_autoaligned_3d);
         }
-        dname = frameName + "/autoalign/landmarks";
-        df.add_contained_vals (dname.c_str(), LM_autoaligned_3d);
 
-        std::vector<std::array<float,3>> LM_lmaligned_3d(this->LM_lmaligned.size(), {this->layer_x,0.0f,0.0f});
-        for (size_t i = 0; i < this->LM_lmaligned.size(); ++i) {
-            LM_lmaligned_3d[i][1] = static_cast<float>(this->LM_lmaligned[i].x);
-            LM_lmaligned_3d[i][2] = static_cast<float>(this->LM_lmaligned[i].y);
+        if (this->saveLMAlignData == true) {
+            std::vector<std::array<float,3>> LM_lmaligned_3d(this->LM_lmaligned.size(), {this->layer_x,0.0f,0.0f});
+            for (size_t i = 0; i < this->LM_lmaligned.size(); ++i) {
+                LM_lmaligned_3d[i][1] = static_cast<float>(this->LM_lmaligned[i].x);
+                LM_lmaligned_3d[i][2] = static_cast<float>(this->LM_lmaligned[i].y);
+            }
+            dname = frameName + "/lmalign/landmarks";
+            df.add_contained_vals (dname.c_str(), LM_lmaligned_3d);
         }
-        dname = frameName + "/lmalign/landmarks";
-        df.add_contained_vals (dname.c_str(), LM_lmaligned_3d);
 
         // Need to get from fitted to y and z. Note that fitted is in (integer) pixels...
         // vector<cv::Point> fitted;
@@ -1152,20 +1170,24 @@ public:
             surface_box_centroids_scaled.push_back (sbox_centroid);
         }
 
-        // sboxes are 'surface boxes' - they lie in the plane of the cortical surface
-        // and are not to be confused with the yellow boxes drawn in the UI in the y-z
-        // plane.
-        dname = frameName + "/autoalign/sboxes";
-        df.add_contained_vals (dname.c_str(), surface_boxes_autoaligned);
+        if (this->saveAutoAlignData == true) {
+            // sboxes are 'surface boxes' - they lie in the plane of the cortical surface
+            // and are not to be confused with the yellow boxes drawn in the UI in the y-z
+            // plane.
+            dname = frameName + "/autoalign/sboxes";
+            df.add_contained_vals (dname.c_str(), surface_boxes_autoaligned);
 
-        dname = frameName + "/autoalign/sbox_centers";
-        df.add_contained_vals (dname.c_str(), surface_box_centroids_autoaligned);
+            dname = frameName + "/autoalign/sbox_centers";
+            df.add_contained_vals (dname.c_str(), surface_box_centroids_autoaligned);
+        }
 
-        dname = frameName + "/lmalign/sboxes";
-        df.add_contained_vals (dname.c_str(), surface_boxes_lmaligned);
+        if (this->saveLMAlignData == true) {
+            dname = frameName + "/lmalign/sboxes";
+            df.add_contained_vals (dname.c_str(), surface_boxes_lmaligned);
 
-        dname = frameName + "/lmalign/sbox_centers";
-        df.add_contained_vals (dname.c_str(), surface_box_centroids_lmaligned);
+            dname = frameName + "/lmalign/sbox_centers";
+            df.add_contained_vals (dname.c_str(), surface_box_centroids_lmaligned);
+        }
 
         dname = frameName + "/scaled/sboxes";
         df.add_contained_vals (dname.c_str(), surface_boxes_scaled);
