@@ -159,7 +159,10 @@ public:
 
     //! A vector of user-supplied points for the Freehand drawn loop
     std::vector<cv::Point> FL;
-    std::array<cv::Point, 2> extents_FL; // Extents of the loop FL
+    //! All loops - boundary pixels
+    std::vector<std::vector<cv::Point>> FLB;
+    //! Extents of the loop FL
+    std::array<cv::Point, 2> extents_FL;
     //! vector of vectors containing the points enclosed by the path FL
     std::vector<std::vector<cv::Point>> FLE; // FL_coords_pixels
     //! To hold the  points enclosed by the path FL transformed according to autoalign
@@ -540,19 +543,18 @@ public:
     {
         // FIXME: Prefer not to have to uniquify here:
         auto last = std::unique(this->FL.begin(), this->FL.end());
-        this->FL.erase(last, this->FL.end());
-
-        std::vector<cv::Point> rtn;
+        this->FL.erase (last, this->FL.end());
 
         // First, find extents of the loop
         this->extents_FL = this->getExtents (this->FL);
 
         // Create a winder object to compute winding numbers
-        // FL is: std::vector<cv::Point> FL;
         morph::Winder w (this->FL);
 
         // It's perhaps inefficient to compute the winding number of EVERY pixel here,
         // but I'll leave it for now (computers are fast).
+        std::vector<cv::Point> rtn;
+        std::vector<cv::Point> bdry;
         for (int x = this->extents_FL[0].x; x <= this->extents_FL[1].x; ++x) {
             for (int y = this->extents_FL[0].y; y <= this->extents_FL[1].y; ++y) {
                 cv::Point px (x, y);
@@ -564,9 +566,19 @@ public:
                     if (winding_number != 0) {
                         rtn.push_back (px);
                     }
-                } // else current pixel is a member of the loop itself.
+                } else {
+                    // else current pixel is a member of the loop itself.
+                    int winding_number = w.wind (px);
+                    //std::cout << "Winding number of BOUNDARY pixel " << px << " = " << winding_number << std::endl;
+                    if (winding_number != 0) {
+                        bdry.push_back (px);
+                    }
+                }
             }
         }
+
+        // push the boundary onto FLB and return the enclosed pixels
+        this->FLB.push_back (bdry);
         return rtn;
     }
 
@@ -650,10 +662,9 @@ public:
         if (!this->FL.empty()) {
             this->FL.clear();
         } else {
-            // Otherwise, remove the last completed freehand drawn region
-            if (!this->FLE.empty()) {
-                this->FLE.pop_back();
-            }
+            // Otherwise, remove the last completed freehand drawn region (enclosed pixels and boundary pixels)
+            if (!this->FLE.empty()) { this->FLE.pop_back(); }
+            if (!this->FLB.empty()) { this->FLB.pop_back(); }
         }
     }
 
@@ -762,6 +773,7 @@ public:
         unsigned int fle_size = 0;
         df.read_val (dname.c_str(), fle_size);
         this->FLE.resize(fle_size);
+        this->FLB.resize(fle_size);
         for (size_t i = 0; i<fle_size; ++i) {
             std::stringstream ss;
             ss << frameName + "/class/FLE";
@@ -769,6 +781,13 @@ public:
             ss.fill('0');
             ss << i;
             df.read_contained_vals (ss.str().c_str(), this->FLE[i]);
+
+            std::stringstream ss1;
+            ss1 << frameName + "/class/FLB";
+            ss1.width(3);
+            ss1.fill('0');
+            ss1 << i;
+            df.read_contained_vals (ss1.str().c_str(), this->FLB[i]);
         }
 
         // Landmark points
@@ -846,6 +865,13 @@ public:
             ss.fill('0');
             ss << i;
             df.add_contained_vals (ss.str().c_str(), this->FLE[i]);
+
+            std::stringstream ss1;
+            ss1 << frameName + "/class/FLB";
+            ss1.width(3);
+            ss1.fill('0');
+            ss1 << i;
+            df.add_contained_vals (ss1.str().c_str(), this->FLB[i]);
         }
 
         // The landmark points

@@ -578,6 +578,17 @@ public:
         putText (*_pImg, flm.str(), tpt, cv::FONT_HERSHEY_SIMPLEX, 0.5, SF_BLACK, 1, cv::LINE_AA);
     }
 
+    void draw_boundary (const std::vector<cv::Point>& vp, cv::Mat* _pImg, const cv::Scalar& colour)
+    {
+        double alpha = 0.8;
+        for (size_t ii=0; ii<vp.size(); ii++) {
+            cv::Point cur = vp[ii];
+            cv::Mat roi = (*_pImg)(cv::Rect(cur.x, cur.y, 1, 1));
+            cv::Mat color(roi.size(), CV_8UC3, colour);
+            cv::addWeighted (color, alpha, roi, 1.0 - alpha , 0.0, roi, CV_8UC3);
+        }
+    }
+
     //! Draw freehand loops when in InputMode::Freehand mode
     void draw_freehand (const cv::Point& pt)
     {
@@ -593,6 +604,9 @@ public:
 
         // Draw the existing regions
         for (size_t j=0; j<cf->FLE.size(); j++) {
+            if (!cf->FLB[j].empty()) {
+                draw_boundary (cf->FLB[j], pImg, SF_BLUE);
+            }
             if (!cf->FLE[j].empty()) {
                 float themean = cf->FL_signal_means.size() > j ? cf->FL_signal_means[j] : 0.0f;
                 float thepixelmean = cf->FL_pixel_means.size() > j ? cf->FL_pixel_means[j] : 0;
