@@ -76,9 +76,9 @@ int main (int argc, char** argv)
 
         // Check first frame for alignments
         bool lmalignComputed = false;
-        d.read_val ("Frame001/lmalign_computed", lmalignComputed);
+        d.read_val ("Frame001/lmalign/computed", lmalignComputed);
         bool autoalignComputed = false;
-        d.read_val ("Frame001/autoalign_computed", autoalignComputed);
+        d.read_val ("Frame001/autoalign/computed", autoalignComputed);
 
         string frameName("");
         for (int i = 1; i<=nf; ++i) {
@@ -99,12 +99,12 @@ int main (int argc, char** argv)
             vector<morph::Vector<float>> framePoints_scaled;
 
             // Read quads and data for each frame and add to an overall pair of vectors...
-            string str = frameName+"/sboxes_autoaligned";
+            string str = frameName+"/autoalign/sboxes";
             d.read_contained_vals (str.c_str(), frameQuads_autoaligned);
-            str = frameName+"/sboxes_lmaligned";
+            str = frameName+"/lmalign/sboxes";
             d.read_contained_vals (str.c_str(), frameQuads_lmaligned);
             // Un-transformed:
-            str = frameName+"/sboxes_scaled";
+            str = frameName+"/scaled/sboxes";
             d.read_contained_vals (str.c_str(), frameQuads_scaled);
 
             for (auto fq : frameQuads_autoaligned) {
@@ -124,9 +124,9 @@ int main (int argc, char** argv)
             // Landmarks
             vector<array<float, 3>> LM_autoaligned;
             vector<array<float, 3>> LM_lmaligned;
-            str = frameName+"/LM_autoaligned";
+            str = frameName+"/autoalign/landmarks";
             d.read_contained_vals (str.c_str(), LM_autoaligned);
-            str = frameName+"/LM_lmaligned";
+            str = frameName+"/lmalign/landmarks";
             d.read_contained_vals (str.c_str(), LM_lmaligned);
             size_t lmcount = 0;
             float lmid = 0.0f;
@@ -145,11 +145,11 @@ int main (int argc, char** argv)
             vector<double> frameMeans;
             if (autoscale_per_slice) {
                 // Use the auto-scaled version of the means, with each slice autoscaled to [0,1]
-                str = frameName+"/box_signal_means_autoscaled";
+                str = frameName+"/signal/postproc/boxes/means_autoscaled";
                 d.read_contained_vals (str.c_str(), frameMeans);
             } else {
                 // Use the raw means and autoscale them as an entire group
-                str = frameName+"/box_signal_means";
+                str = frameName+"/signal/postproc/boxes/means";
                 d.read_contained_vals (str.c_str(), frameMeans);
                 // The morph::Scale object scale with autoscale the who thing.
                 scale.do_autoscale = true;
@@ -172,7 +172,7 @@ int main (int argc, char** argv)
 
             // Load in linear stuff as well, to make up flat boxes? Or easier to do at source?
             vector<float> linbins;
-            str = frameName+"/sbox_linear_distance";
+            str = frameName+"/scaled/flattened/sbox_linear_distance";
             d.read_contained_vals (str.c_str(), linbins);
 
             vector<array<float,12>> flatsurf_boxes;
