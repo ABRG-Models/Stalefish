@@ -161,11 +161,11 @@ public:
     std::vector<cv::Point> FL;
     std::array<cv::Point, 2> extents_FL; // Extents of the loop FL
     //! vector of vectors containing the points enclosed by the path FL
-    std::vector<std::vector<cv::Point>> FLE;
+    std::vector<std::vector<cv::Point>> FLE; // FL_coords_pixels
     //! To hold the  points enclosed by the path FL transformed according to autoalign
-    std::vector<std::vector<cv::Point2d>> FLE_autoaligned;
+    std::vector<std::vector<cv::Point2d>> FLE_autoalign;
     //! To hold the  points enclosed by the path FL transformed according to lmalign
-    std::vector<std::vector<cv::Point2d>> FLE_lmaligned;
+    std::vector<std::vector<cv::Point2d>> FLE_lmalign;
 
     //! The mean luminance of each freehand loop enclosed region in FLE.
     std::vector<float> FL_signal_means;
@@ -846,27 +846,6 @@ public:
             ss.fill('0');
             ss << i;
             df.add_contained_vals (ss.str().c_str(), this->FLE[i]);
-
-            // Now transform FLE[i] according to autoalign and lmalign and save
-            std::stringstream ss1;
-            ss1 << frameName + "/FLE_autoalign";
-            ss1.width(3);
-            ss1.fill('0');
-            ss1 << i;
-            std::vector<cv::Point2d> FLE_scaled (this->FLE[i].size());
-            this->scalePoints (this->FLE[i], FLE_scaled);
-            std::vector<cv::Point2d> FLE_aa;
-            this->transform (FLE_scaled, FLE_aa, this->autoalign_translation, this->autoalign_theta);
-            df.add_contained_vals (ss1.str().c_str(), FLE_aa);
-
-            std::stringstream ss2;
-            ss2 << frameName + "/FLE_lmalign";
-            ss2.width(3);
-            ss2.fill('0');
-            ss2 << i;
-            std::vector<cv::Point2d> FLE_lm;
-            this->transform (FLE_scaled, FLE_lm, this->lm_translation, this->lm_theta);
-            df.add_contained_vals (ss2.str().c_str(), FLE_lm);
         }
 
         // The landmark points
@@ -946,16 +925,16 @@ public:
         if (this->savePerPixelData == true) {
             for (size_t bi = 0; bi < this->boxes_pixels.size(); ++bi) {
 
-                dname = frameName + "/pixels/coords/box" + std::to_string(bi);
+                dname = frameName + "/pixels/coords/boxes/box" + std::to_string(bi);
                 df.add_contained_vals (dname.c_str(), this->box_coords_pixels[bi]);
 
                 if (this->saveAutoAlignData == true) {
-                    dname = frameName + "/autoalign/coords/box" + std::to_string(bi);
+                    dname = frameName + "/autoalign/coords/boxes/box" + std::to_string(bi);
                     df.add_contained_vals (dname.c_str(), this->box_coords_autoalign[bi]);
                 }
 
                 if (this->saveLMAlignData == true) {
-                    dname = frameName + "/lmalign/coords/box" + std::to_string(bi);
+                    dname = frameName + "/lmalign/coords/boxes/box" + std::to_string(bi);
                     df.add_contained_vals (dname.c_str(), this->box_coords_lmalign[bi]);
                 }
 
@@ -966,7 +945,7 @@ public:
                         cv::Point2d diffvec = box_coords_autoalign[bi][p_i] - fitted_autoaligned[bi];
                         box_depth_autoalign[p_i] = diffvec.dot(this->normals[bi]); // Should have length 1, so ok
                     }
-                    dname = frameName + "/autoalign/depth/box" + std::to_string(bi);
+                    dname = frameName + "/autoalign/box_depth/box" + std::to_string(bi);
                     df.add_contained_vals (dname.c_str(), box_depth_autoalign);
                 }
                 // LM aligned
@@ -976,12 +955,33 @@ public:
                         cv::Point2d diffvec = fitted_lmaligned[bi] - box_coords_lmalign[bi][p_i];
                         box_depth_lmalign[p_i] = diffvec.dot(this->normals[bi]); // Should have length 1, so ok
                     }
-                    dname = frameName + "/lmalign/depth/box" + std::to_string(bi);
+                    dname = frameName + "/lmalign/box_depth/box" + std::to_string(bi);
                     df.add_contained_vals (dname.c_str(), box_depth_lmalign);
                 }
             }
 
-            // FIXME: add freehand coordinates: frameName + "/autoalign/coords/freehand"N etc
+            // Transform FLE[i] according to autoalign and lmalign and save
+            for (size_t i = 0; i<this->FLE.size(); ++i) {
+
+                std::vector<cv::Point2d> FLE_scaled (this->FLE[i].size());
+                if (this->saveAutoAlignData == true || this->saveLMAlignData == true) {
+                    this->scalePoints (this->FLE[i], FLE_scaled);
+                }
+
+                if (this->saveAutoAlignData == true) {
+                    std::string s1 = frameName + "/autoalign/coords/freehand/loop" + std::to_string(i);
+                    std::vector<cv::Point2d> FLE_aa;
+                    this->transform (FLE_scaled, FLE_aa, this->autoalign_translation, this->autoalign_theta);
+                    df.add_contained_vals (s1.c_str(), FLE_aa);
+                }
+
+                if (this->saveLMAlignData == true) {
+                    std::string s2 = frameName + "/lmalign/coords/freehand/loop" + std::to_string(i);
+                    std::vector<cv::Point2d> FLE_lm;
+                    this->transform (FLE_scaled, FLE_lm, this->lm_translation, this->lm_theta);
+                    df.add_contained_vals (s2.c_str(), FLE_lm);
+                }
+            }
         }
 
         // Record the normal vectors
@@ -989,7 +989,7 @@ public:
         df.add_contained_vals (dname.c_str(), this->normals);
 
         // Freehand drawn regions - results
-        for (size_t ri = 0; ri < this->FL_pixels.size(); ++ri) {
+        for (size_t ri = 0; ri < this->FL_pixels.size(); ++ri) { // FL_pixels.size() is the outer container: num loops
             dname = frameName + "/signal/bits8/freehand/loop" + std::to_string(ri);
             df.add_contained_vals (dname.c_str(), this->FL_pixels[ri]);
             dname = frameName + "/signal/postproc/freehand/loop" + std::to_string(ri);
