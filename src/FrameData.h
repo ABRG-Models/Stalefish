@@ -1240,6 +1240,29 @@ public:
         }
         df.add_contained_vals (dname.c_str(), linear_distances);
 
+        // From 3D data, compute a 2D map. 3D data always centred around 0! Cool.
+        // So, for each slice, compute each surface box's angle from the centroid and save these values.
+        if (this->saveAutoAlignData == true && !this->fitted_autoaligned.empty()) {
+            std::vector<double> autoalign_angles (this->fitted_autoaligned.size()-1, 0.0);
+            for (size_t i = 1; i < this->fitted_autoaligned.size(); ++i) {
+                autoalign_angles[i-1] = std::atan2(0.5 * (this->fitted_autoaligned[i].x + this->fitted_autoaligned[i-1].x),
+                                                   -0.5 * (this->fitted_autoaligned[i].y + this->fitted_autoaligned[i-1].y));
+            }
+            dname = frameName + "/autoalign/flattened/sbox_angles";
+            df.add_contained_vals (dname.c_str(), autoalign_angles);
+        }
+
+        if (this->saveLMAlignData == true && !this->fitted_lmaligned.empty()) {
+            std::vector<double> lmalign_angles (this->fitted_lmaligned.size()-1, 0.0);
+            for (size_t i = 1; i < this->fitted_lmaligned.size(); ++i) {
+                lmalign_angles[i-1] = std::atan2(0.5 * (this->fitted_lmaligned[i].x + this->fitted_lmaligned[i-1].x),
+                                                 -0.5 * (this->fitted_lmaligned[i].y + this->fitted_lmaligned[i-1].y));
+
+            }
+            dname = frameName + "/lmalign/flattened/sbox_angles";
+            df.add_contained_vals (dname.c_str(), lmalign_angles);
+        }
+
         std::cout << "write() completed for one frame." << std::endl;
     }
 

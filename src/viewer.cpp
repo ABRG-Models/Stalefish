@@ -165,6 +165,7 @@ int main (int argc, char** argv)
             quads_lmaligned.insert (quads_lmaligned.end(), frameQuads_lmaligned.begin(), frameQuads_lmaligned.end());
             quads_scaled.insert (quads_scaled.end(), frameQuads_scaled.begin(), frameQuads_scaled.end());
             means.insert (means.end(), frameMeansF.begin(), frameMeansF.end());
+            cout << "means.size: " << means.size() << endl;
 
             points_lmaligned.insert (points_lmaligned.end(), framePoints_lmaligned.begin(), framePoints_lmaligned.end());
             points_autoaligned.insert (points_autoaligned.end(), framePoints_autoaligned.begin(), framePoints_autoaligned.end());
@@ -172,7 +173,9 @@ int main (int argc, char** argv)
 
             // Load in linear stuff as well, to make up flat boxes? Or easier to do at source?
             vector<float> linbins;
-            str = frameName+"/scaled/flattened/sbox_linear_distance";
+            //str = frameName+"/scaled/flattened/sbox_linear_distance";
+            // Better:
+            str = frameName+"/autoalign/flattened/sbox_angles";
             d.read_contained_vals (str.c_str(), linbins);
 
             vector<array<float,12>> flatsurf_boxes;
@@ -200,8 +203,11 @@ int main (int argc, char** argv)
 
             fquads.insert (fquads.end(), flatsurf_boxes.begin(), flatsurf_boxes.end());
             fmeans.insert (fmeans.end(), frameMeansF.begin(), --frameMeansF.end());
+            cout << "fmeans.size: " << fmeans.size() << endl;
             xx += thickness;
         }
+        cout << "fquads size: " << fquads.size() << ", fmeans size: " << fmeans.size() << endl;
+        cout << "fmeans min/max: " << fmeans.size() << endl;
 
         cout << "landmarks_autoaligned.size(): " << landmarks_autoaligned.size() << endl;
 
