@@ -25,7 +25,7 @@
 // alignment.
 enum class InputMode {
     Bezier,    // Cubic Bezier: "curve drawing mode"
-    Freehand,  // A freehand drawn loop enclosing a region // This will go - Freehand loops to be visible over curve.
+    Freehand,  // A freehand drawn loop enclosing a region
     Landmark   // User provides alignment landmark locations on each slice
 };
 
@@ -953,8 +953,27 @@ public:
             df.add_contained_vals (dname.c_str(), this->box_coords_autoalign[bi]);
             dname = frameName + "/box_coords_lmalign" + std::to_string(bi);
             df.add_contained_vals (dname.c_str(), this->box_coords_lmalign[bi]);
-            // Plus also box_depths, where box_depths = (box_coords_* - fitted_*) . (normal_*)
+            // Plus also box_depths, where box_depths = (box_coords_* - fitted_*) . (unit normal_*)
+            std::vector<double> box_depth_autoalign (this->box_coords_pixels[bi].size());
+            for (size_t p_i = 0; p_i < box_depth_autoalign.size(); ++p_i) {
+                cv::Point2d diffvec = box_coords_autoalign[bi][p_i] - fitted_autoaligned[bi];
+                box_depth_autoalign[p_i] = diffvec.dot(this->normals[bi]); // Should have length 1, so ok
+            }
+            dname = frameName + "/box_depth_autoalign" + std::to_string(bi);
+            df.add_contained_vals (dname.c_str(), box_depth_autoalign);
+
+            std::vector<double> box_depth_lmalign (this->box_coords_pixels[bi].size());
+            for (size_t p_i = 0; p_i < box_depth_lmalign.size(); ++p_i) {
+                cv::Point2d diffvec = fitted_lmaligned[bi] - box_coords_lmalign[bi][p_i];
+                box_depth_lmalign[p_i] = diffvec.dot(this->normals[bi]); // Should have length 1, so ok
+            }
+            dname = frameName + "/box_depth_lmalign" + std::to_string(bi);
+            df.add_contained_vals (dname.c_str(), box_depth_lmalign);
         }
+
+        // Record the normal vectors
+        dname = frameName + "/normals";
+        df.add_contained_vals (dname.c_str(), this->normals);
 
         // Freehand drawn regions - results
         for (size_t ri = 0; ri < this->FL_pixels.size(); ++ri) {
@@ -1595,9 +1614,7 @@ private:
                 morph::MathAlgo::compute_mean_sd<float> (this->boxes_signal[i], this->box_signal_means[i]);
                 // transform box_coords_pixels into box_coords_autoalign and box_coords_lmalign
                 std::vector<cv::Point2d> bcpix(this->box_coords_pixels[i].size());
-                for (size_t j = 0; j < bcpix.size(); ++j) {
-                    bcpix[j] = cv::Point2d(this->box_coords_pixels[i][j]);
-                }
+                this->scalePoints (this->box_coords_pixels[i], bcpix);
                 this->transform (bcpix, this->box_coords_autoalign[i], this->autoalign_translation, this->autoalign_theta);
                 this->transform (bcpix, this->box_coords_lmalign[i], this->lm_translation, this->lm_theta);
             }
@@ -1652,6 +1669,7 @@ private:
         // Update this->fitted
         this->bcp.computePoints (static_cast<unsigned int>(this->nFit));
         std::vector<morph::BezCoord<double>> coords = this->bcp.getPoints();
+        // tangents and normals coming out of bcp are already unit-normalized.
         std::vector<morph::BezCoord<double>> tans = this->bcp.getTangents();
         std::vector<morph::BezCoord<double>> norms = this->bcp.getNormals();
         // Point2d fitsum;
@@ -1683,9 +1701,11 @@ private:
         return rtn;
     }
 
-    //! vertex contains x,y,theta values and should have size 3 translate coords by
-    //! vertex[0],vertex[1] and rotate by vertex[2]. Compute SOS compared with target
-    //! coordinates
+    /*!
+     * vertex contains x,y,theta values and should have size 3 translate coords by
+     * vertex[0],vertex[1] and rotate by vertex[2]. Compute SOS compared with target
+     * coordinates
+     */
     double computeSos3d (const std::vector<cv::Point2d> target_coords,
                          const std::vector<cv::Point2d> coords,
                          const std::vector<double>& vertex)
