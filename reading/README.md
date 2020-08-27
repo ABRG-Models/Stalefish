@@ -31,33 +31,34 @@ what you'll find in the HDF5 files.
 
 ### Root level
 
-At the root level of the data file, you'll find lots of 'Frames'. A
-frame is the information about a single brain slice preparation. It
+At the root level of the data file, you'll find lots of 'frames'. Each
+frame contains the information about a single brain slice preparation. It
 includes the filename of the image that was used, the points that the
 user set to define the curve, the parameters for the gene expression
 sampling bins and so
 on. So, at the root level there are several data structures called
-'Frame001', 'Frame002' and so on, as well as an integer 'nframes'
+**Frame001**, **Frame002** and so on, as well as an integer *nframes*
 which makes it easy to write a loop through all the frames in an
 analysis script.
 
- * Frame001, Frame002 etc: One Frame object for each brain slice.
- * nframes: The number of Frame objects in this data file.
+ * **Frame001**, **Frame002** etc: One Frame object for each brain slice.
+ * **nframes**: The number of Frame objects in this data file.
 
 ### Frame level
 
-Each frame contains a number of objects, most of which are
-'sub-containers'. The class object contains data which wouldn't
-typically be required for analysis, but which enables the application
-to re-open a project.
+Each **FrameNNN** contains a number of objects, most of which are
+'sub-containers' which hold the information you'll need for your
+analysis. The **class** object contains data which wouldn't typically be
+required for analysis, but which enables the application to re-open a
+project.
 
- * nboxes Contains the number of sample boxes (the yellow boxes
+ * **nboxes**: Contains the number of sample boxes (the yellow boxes
    arranged around the curve) in this frame.
 
- * nfreehand Contains the number of freehand drawn loops in this
+ * **nfreehand**: Contains the number of freehand drawn loops in this
    frame.
 
- * unit_normals Array containing the 2D unit normal vectors on the
+ * **unit_normals**: Array containing the 2D unit normal vectors on the
    fitted curve.
 
 #### FrameNNN/class
@@ -68,32 +69,32 @@ for a description of the objects which you will find inside class.
 
 Each frame's class object contains:
 
- * P: Coordinates of the user points which have not yet be 'finalised'
+ * **P**: Coordinates of the user points which have not yet be 'finalised'
   as a complete 'curve set'. These are the points which appear green
   in the application.
- * PP000, PP001, etc: 2D Coordinate 'curve sets' - the red and blue
+ * **PP000**, **PP001**, etc: 2D Coordinate 'curve sets' - the red and blue
   'user points'.
- * PP_n: The number of PP* curve sets.
- * binA: The distance from the fitted curve, along a normal to the curve, at which the bins start.
- * binB: The distance from the fitted curve, along a normal to the curve, at which the bins stop.
- * filename: The name of the image file of the brain slice
- * flags: Some flags which specify how the application should
+ * **PP_n**: The number of PP* curve sets.
+ * **binA**: The distance from the fitted curve, along a normal to the curve, at which the bins start.
+ * **binB**: The distance from the fitted curve, along a normal to the curve, at which the bins stop.
+ * **filename**: The name of the image file of the brain slice
+ * **flags**: Some flags which specify how the application should
   visualise the curve
- * idx: The frame's index number
- * layer_x: The position of the brain slice along the x axis.
- * nBinsTarg: The number of bins along the fitted curve.
- * pixels_per_mm: The scale for the brain slice image.
- * polyOrder: The order of the polynomial curve, if used.
- * pp_idx: A state variable for the program (not useful for analysis).
- * thickness: The thickness of the brain slice, as copied from the
+ * **idx**: The frame's index number
+ * **layer_x**: The position of the brain slice along the x axis.
+ * **nBinsTarg**: The number of bins along the fitted curve.
+ * **pixels_per_mm**: The scale for the brain slice image.
+ * **polyOrder**: The order of the polynomial curve, if used.
+ * **pp_idx**: A state variable for the program (not useful for analysis).
+ * **thickness**: The thickness of the brain slice, as copied from the
   JSON config file.
- * FLE000, FLE001, etc: 2D coordinates of the pixels enclosed in each
+ * **FLE000**, **FLE001**, etc: 2D coordinates of the pixels enclosed in each
   freehand loop.
- * FLB000, FLB001, etc: 2D coordinates of the pixels which make up the
+ * **FLB000**, **FLB001**, etc: 2D coordinates of the pixels which make up the
   boundary of each freehand loop. Stored only so that the boundary can
   be drawn in the user interface. The boundary pixels are not used when
   computing signal inside the boundary.
- * FLE_n: The number of freehand loops
+ * **FLE_n**: The number of freehand loops
 
 ### Location information
 
@@ -101,96 +102,98 @@ The following set of frame objects all contain location
 information. The four containers refer to location information in four
 possible frames of reference.
 
- * **pixels** All coordinates represent original location information
-     in screen pixels.
+ * **FrameNNN/pixels**: In here, all coordinates represent original
+     location information in screen pixels.
 
- * **scaled** Location information given in mm, scaled from screen
-     pixels. No transformation is applied to individual frames.
+ * **FrameNNN/scaled**: In *scaled*, location information is given in
+     mm, scaled from screen pixels. No transformation is applied to
+     individual frames.
 
- * **autoalign** Location info in mm, with each brain slice
-   auto-aligned with its neighbours, using the user-provided curve
-   points to determine the best possible translation and rotation to
-   align the slice.
+ * **FrameNNN/autoalign**: Location info given in mm, with each brain
+   slice auto-aligned with its neighbours, using the user-provided
+   curve points to determine the best possible translation and
+   rotation to align the slice.
 
- * **lmalign** Location info in mm, with each brain slice aligned with
-   its neighbours making use of the user-supplied tissue landmarks.
+ * **FrameNNN/lmalign**: Location info in mm, with each brain slice
+   aligned with its neighbours making use of the user-supplied tissue
+   landmarks.
 
 #### Location objects
 
 Each of autoalign or lmalign may contain:
 
- * *box_depth* Contains *FrameNNN/n_boxes* array of values, for each
+ * **box_depth** Contains **FrameNNN/n_boxes** array of values, for each
      sample box
 
- * *computed* A boolean. If 0, then the autoalign (or lmalign) process
+ * **computed** A boolean. If 0, then the autoalign (or lmalign) process
      was not computed.
 
- * *coords* Contains vectors of the 2D coordinates of each pixel in
+ * **coords** Contains vectors of the 2D coordinates of each pixel in
      sample boxes and freehand drawn loops.
 
- * * *coords/boxes* Contains box0, box1, etc, containing 2D coords of
+ * * **coords/boxes** Contains box0, box1, etc, containing 2D coords of
      pixels in sample boxes
 
- * * *coords/freehand* Contains loop0, loop1, etc, containing 2D
+ * * **coords/freehand** Contains loop0, loop1, etc, containing 2D
      coords of pixels in freehand drawn loops
 
- *   *fitted* A 2 by FrameNNN/nboxes matrix containing 2D coordinates of
+ *   **fitted** A 2 by FrameNNN/nboxes matrix containing 2D coordinates of
      the FrameNNN/nboxes evenly spaced points on the Bezier curve
      created with user-supplied points.
 
- * *flattened* This contains *sbox_angles*, which is an array of the
+ * **flattened** This contains **sbox_angles**, which is an array of the
      angles (in radians) about the origin at which the surface boxes
      for this frame lie. This can be used to create a flat, two
      dimensional heatmap plot of the signal. A 'surface box' is the
      box which is a long as the corresponding sample box is wide, and
      as wide as the slice is thick.
 
- * *freehand* Contains location data relating to the freehand-drawn
+ * **freehand** Contains location data relating to the freehand-drawn
      loops. This may contain loop0_centroid, loop1_centroid, etc,
      giving the location of each loop. For the boundary of each loop,
      see FrameNNN/class/FBE000 etc.
 
- * *landmarks* This is a two column matrix containing the 2D locations
+ * **landmarks** This is a two column matrix containing the 2D locations
       of the user-supplied landmark positions which are the black dots
       numbered 1, 2, etc in the user interface.
 
- * *sbox_centers* 3D coordinates of the centers of the surface
+ * **sbox_centers** 3D coordinates of the centers of the surface
     boxes. The y-z coordinates are in the plane of each brain slice;
     the x coordinate is derived from the json config file, which
     should provide a x coordinate (in mm) for each slice.
 
- * *sboxes* 3D coordinates of the vertices of the surface boxes.
+ * **sboxes** 3D coordinates of the vertices of the surface boxes.
 
- * translation The translation applied to this slice
+ * **translation** The translation applied to this slice
 
- * *theta* The rotational transformation applied to this slice after
+ * **theta** The rotational transformation applied to this slice after
     the *translation* was applied.
 
-*FrameNNN/scaled* may contain *fitted*, *flattened*, *sbox_centers*
- and *signal*, only.
+**FrameNNN/scaled** may contain **fitted**, **flattened**, **sbox_centers**
+ and **signal**, only.
 
-*FrameNNN.ppixels may contain *coords* and *fitted* only.
+**FrameNNN.ppixels** may contain **coords** and **fitted** only.
 
 #### Signal information
 
-*FrameNNN/signal* contains both 8-bit data - the original R (or G or
+**FrameNNN/signal** contains both 8-bit data - the original R (or G or
  B) values from the (usually monochrome) brain slice image and also
  'post-processed' data, which has had the blurred background subtracted
  from it and been transformed linearly into the range 0 to
- 1. *signal/bits8* contains the 8 bit data; *signal/postproc* contains
- the post processed data. Each of these contains *boxes* and
- *freehand*, inside which are lists of the signal values for the
+ 1. **signal/bits8** contains the 8 bit data; **signal/postproc** contains
+ the post processed data. Each of these contains **boxes** and
+ **freehand**, inside which are lists of the signal values for the
  sample boxes and the freehand drawn loops.
 
- * signal/*/boxes/box0, box1, etc - The signal values for each pixel
+ * **signal/*/boxes/box0**, **box1**, etc - The signal values for each pixel
    in each sample box
 
- * signal/*/boxes/means - The mean signal value for each sample box
+ * **signal/*/boxes/means** - The mean signal value for each sample box
 
- * signal/*/boxes/means_autoscaled - The mean signal value for each
+ * **signal/*/boxes/means_autoscaled** - The mean signal value for each
    sample box autoscaled to lie in the range [0, 1].
 
- * signal/*/freehand/loop0, loop1, etc - The signal values for each pixel
+ * **signal/*/freehand/loop0**, **loop1**, etc - The signal values for each pixel
    in each freehand loop.
 
- * signal/*/freehand/means - The mean signal value for each freehand loop
+ * **signal/*/freehand/means** - The mean signal value for each freehand loop
