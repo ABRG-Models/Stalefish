@@ -763,6 +763,9 @@ public:
             putText (*pImg, std::string("c:   Cancel last point/freehand region"),
                      cv::Point(xh,yh), cv::FONT_HERSHEY_SIMPLEX, fontsz, SF_BLACK, 1, cv::LINE_AA);
             yh += yinc;
+            putText (*pImg, std::string("C:   Delete ALL curves"),
+                     cv::Point(xh,yh), cv::FONT_HERSHEY_SIMPLEX, fontsz, SF_BLACK, 1, cv::LINE_AA);
+            yh += yinc;
             putText (*pImg, std::string("f:   Update the fit"),
                      cv::Point(xh,yh), cv::FONT_HERSHEY_SIMPLEX, fontsz, SF_BLACK, 1, cv::LINE_AA);
             yh += yinc;
