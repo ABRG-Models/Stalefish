@@ -105,14 +105,14 @@ possible frames of reference.
  * **FrameNNN/pixels**: In here, all coordinates represent original
      location information in screen pixels.
 
- * **FrameNNN/scaled**: In *scaled*, location information is given in
+ * **FrameNNN/scaled**: In **scaled**, location information is given in
      mm, scaled from screen pixels. No transformation is applied to
      individual frames.
 
- * **FrameNNN/autoalign**: Location info given in mm, with each brain
-   slice auto-aligned with its neighbours, using the user-provided
-   curve points to determine the best possible translation and
-   rotation to align the slice.
+ * **FrameNNN/autoalign**: Locations here are given in mm, with each
+   brain slice auto-aligned with its neighbours, using the
+   user-provided curve points to determine the best possible
+   translation and rotation to align the slice.
 
  * **FrameNNN/lmalign**: Location info in mm, with each brain slice
    aligned with its neighbours making use of the user-supplied tissue
@@ -169,12 +169,12 @@ Each of **FrameNNN/autoalign** or **FrameNNN/lmalign** may contain:
  * **theta**: The rotational transformation applied to this slice after
     the *translation* was applied.
 
-**FrameNNN/scaled** may contain **fitted**, **flattened**, **sbox_centers**
- and **signal**, only.
+From the list above, **FrameNNN/scaled** may contain **fitted**,
+ **flattened**, **sbox_centers** and **signal**, only.
 
-**FrameNNN.ppixels** may contain **coords** and **fitted** only.
+**FrameNNN.pixels** may contain **coords** and **fitted** only.
 
-#### Signal information
+### Signal information
 
 **FrameNNN/signal** contains both 8-bit data - the original R (or G or
  B) values from the (usually monochrome) brain slice image and also
