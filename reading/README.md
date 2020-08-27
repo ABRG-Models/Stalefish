@@ -52,13 +52,13 @@ analysis. The **class** object contains data which wouldn't typically be
 required for analysis, but which enables the application to re-open a
 project.
 
- * **nboxes**: Contains the number of sample boxes (the yellow boxes
+ * **FrameNNN/nboxes**: Contains the number of sample boxes (the yellow boxes
    arranged around the curve) in this frame.
 
- * **nfreehand**: Contains the number of freehand drawn loops in this
+ * **FrameNNN/nfreehand**: Contains the number of freehand drawn loops in this
    frame.
 
- * **unit_normals**: Array containing the 2D unit normal vectors on the
+ * **FrameNNN/unit_normals**: Array containing the 2D unit normal vectors on the
    fitted curve.
 
 #### FrameNNN/class
@@ -172,18 +172,20 @@ Each of **FrameNNN/autoalign** or **FrameNNN/lmalign** may contain:
 From the list above, **FrameNNN/scaled** may contain **fitted**,
  **flattened**, **sbox_centers** and **signal**, only.
 
-**FrameNNN.pixels** may contain **coords** and **fitted** only.
+**FrameNNN/pixels** may contain **coords** and **fitted** only.
 
 ### Signal information
 
 **FrameNNN/signal** contains both 8-bit data - the original R (or G or
  B) values from the (usually monochrome) brain slice image and also
  'post-processed' data, which has had the blurred background subtracted
- from it and been transformed linearly into the range 0 to
- 1. **signal/bits8** contains the 8 bit data; **signal/postproc** contains
- the post processed data. Each of these contains **boxes** and
- **freehand**, inside which are lists of the signal values for the
- sample boxes and the freehand drawn loops.
+ from it and been transformed linearly into the range 0 to 1.
+
+**FrameNNN/signal/bits8** contains the 8 bit data;
+ **FrameNNN/signal/postproc** contains the post processed data. Each
+ of these contains **boxes** and **freehand**, inside which are lists
+ of the signal values for the sample boxes and the freehand drawn
+ loops.
 
  * **signal/*/boxes/box0**, **box1**, etc - The signal values for each pixel
    in each sample box
