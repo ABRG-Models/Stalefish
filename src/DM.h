@@ -154,6 +154,9 @@ public:
             // No problem, just carry on
         }
 
+        // So that freehand loops show up their pixel/signal values in the UI:
+        fd.computeFreehandMeans();
+
         this->vFrameData.push_back (fd);
     }
 

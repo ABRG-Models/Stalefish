@@ -1454,6 +1454,34 @@ public:
         this->boxes.clear();
     }
 
+    //! For each freehand drawn loop, compute the mean luminance within the loop,
+    //! storing in this->FL_signal_means
+    void computeFreehandMeans()
+    {
+        // Loop through FLE. For each set of points, output the points as a list and
+        // also compute the mean.
+        this->FL_pixel_means.resize (this->FLE.size());
+        this->FL_signal_means.resize (this->FLE.size());
+        this->FL_pixels.resize (this->FLE.size());
+        this->FL_signal.resize (this->FLE.size());
+        this->FL_pixels_bgr.resize (this->FLE.size());
+        for (size_t i=0; i<this->FLE.size(); i++) {
+            // region is FLE[i]
+            this->FL_signal_means[i] = 0.0;
+            this->FL_pixel_means[i] = 0;
+
+            if (this->cmodel == ColourModel::AllenDevMouse) {
+                throw std::runtime_error ("AllenDevMouse ColourModel is not implemented for freehand regions");
+
+            } else { // Default is ColourModel::Greyscale
+                this->FL_pixels[i] = this->getRegionPixelVals (this->FLE[i]);
+                this->FL_signal[i] = this->getRegionSignalVals (this->FLE[i]);
+                morph::MathAlgo::compute_mean_sd<unsigned int> (this->FL_pixels[i], FL_pixel_means[i]);
+                morph::MathAlgo::compute_mean_sd<float> (this->FL_signal[i], FL_signal_means[i]);
+            }
+        }
+    }
+
     // Toggle controls
 
     void toggleShowBoxes() { this->flags[ShowBoxes] = this->flags.test(ShowBoxes) ? false : true; }
@@ -1581,34 +1609,6 @@ private:
         }
 
         return boxedPixelVals;
-    }
-
-    //! For each freehand drawn loop, compute the mean luminance within the loop,
-    //! storing in this->FL_signal_means
-    void computeFreehandMeans()
-    {
-        // Loop through FLE. For each set of points, output the points as a list and
-        // also compute the mean.
-        this->FL_pixel_means.resize (this->FLE.size());
-        this->FL_signal_means.resize (this->FLE.size());
-        this->FL_pixels.resize (this->FLE.size());
-        this->FL_signal.resize (this->FLE.size());
-        this->FL_pixels_bgr.resize (this->FLE.size());
-        for (size_t i=0; i<this->FLE.size(); i++) {
-            // region is FLE[i]
-            this->FL_signal_means[i] = 0.0;
-            this->FL_pixel_means[i] = 0;
-
-            if (this->cmodel == ColourModel::AllenDevMouse) {
-                throw std::runtime_error ("AllenDevMouse ColourModel is not implemented for freehand regions");
-
-            } else { // Default is ColourModel::Greyscale
-                this->FL_pixels[i] = this->getRegionPixelVals (this->FLE[i]);
-                this->FL_signal[i] = this->getRegionSignalVals (this->FLE[i]);
-                morph::MathAlgo::compute_mean_sd<unsigned int> (this->FL_pixels[i], FL_pixel_means[i]);
-                morph::MathAlgo::compute_mean_sd<float> (this->FL_signal[i], FL_signal_means[i]);
-            }
-        }
     }
 
     //! Compute the mean values for the bins. Not const. But means don't need to be a
