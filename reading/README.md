@@ -120,53 +120,53 @@ possible frames of reference.
 
 #### Location objects
 
-Each of autoalign or lmalign may contain:
+Each of **FrameNNN/autoalign** or **FrameNNN/lmalign** may contain:
 
- * **box_depth** Contains **FrameNNN/n_boxes** array of values, for each
+ * **box_depth**: Contains **FrameNNN/n_boxes** array of values, for each
      sample box
 
- * **computed** A boolean. If 0, then the autoalign (or lmalign) process
+ * **computed**: A boolean. If 0, then the autoalign (or lmalign) process
      was not computed.
 
- * **coords** Contains vectors of the 2D coordinates of each pixel in
+ * **coords**: Contains vectors of the 2D coordinates of each pixel in
      sample boxes and freehand drawn loops.
 
- * * **coords/boxes** Contains box0, box1, etc, containing 2D coords of
+  - **coords/boxes**: Contains box0, box1, etc, containing 2D coords of
      pixels in sample boxes
 
- * * **coords/freehand** Contains loop0, loop1, etc, containing 2D
+  - **coords/freehand**: Contains loop0, loop1, etc, containing 2D
      coords of pixels in freehand drawn loops
 
- *   **fitted** A 2 by FrameNNN/nboxes matrix containing 2D coordinates of
-     the FrameNNN/nboxes evenly spaced points on the Bezier curve
+ * **fitted**: A 2 by FrameNNN/nboxes matrix containing 2D coordinates
+     of the FrameNNN/nboxes evenly spaced points on the Bezier curve
      created with user-supplied points.
 
- * **flattened** This contains **sbox_angles**, which is an array of the
+ * **flattened**: This contains **sbox_angles**, which is an array of the
      angles (in radians) about the origin at which the surface boxes
      for this frame lie. This can be used to create a flat, two
      dimensional heatmap plot of the signal. A 'surface box' is the
      box which is a long as the corresponding sample box is wide, and
      as wide as the slice is thick.
 
- * **freehand** Contains location data relating to the freehand-drawn
+ * **freehand**: Contains location data relating to the freehand-drawn
      loops. This may contain loop0_centroid, loop1_centroid, etc,
      giving the location of each loop. For the boundary of each loop,
      see FrameNNN/class/FBE000 etc.
 
- * **landmarks** This is a two column matrix containing the 2D locations
+ * **landmarks**: This is a two column matrix containing the 2D locations
       of the user-supplied landmark positions which are the black dots
       numbered 1, 2, etc in the user interface.
 
- * **sbox_centers** 3D coordinates of the centers of the surface
+ * **sbox_centers**: 3D coordinates of the centers of the surface
     boxes. The y-z coordinates are in the plane of each brain slice;
     the x coordinate is derived from the json config file, which
     should provide a x coordinate (in mm) for each slice.
 
- * **sboxes** 3D coordinates of the vertices of the surface boxes.
+ * **sboxes**: 3D coordinates of the vertices of the surface boxes.
 
- * **translation** The translation applied to this slice
+ * **translation**: The translation applied to this slice
 
- * **theta** The rotational transformation applied to this slice after
+ * **theta**: The rotational transformation applied to this slice after
     the *translation* was applied.
 
 **FrameNNN/scaled** may contain **fitted**, **flattened**, **sbox_centers**
