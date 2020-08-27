@@ -46,114 +46,25 @@ analysis script.
 
 ### Frame level
 
-Each frame contains:
+Each frame contains a number of objects, most of which are
+'sub-containers'. The class object contains data which wouldn't
+typically be required for analysis, but which enables the application
+to re-open a project.
 
- * boxes_pixel0, boxs_pixel1, boxs_pixel2, etc, each of which is a
-   list of the pixel values for the "sampling boxes" - the yellow
-   boxes that are visible in the user interface main window (and which
-   are black on the signal window). Range: 0 to 255.
+ * nboxes Contains the number of sample boxes (the yellow boxes
+   arranged around the curve) in this frame.
 
- * boxes_signal0, boxs_signal1, boxs_signal2, etc, each of which is a
-   list of the signal values for the sampling boxes. The signal is
-   derived from the pixel values, with compensation for any systematic
-   variation in the background illumination. Range: Approx 0 to 1
-   (floating point).
+ * nfreehand Contains the number of freehand drawn loops in this
+   frame.
 
- * FIXME: Need corresponding lists of coordinates in pixels and in
-   autoaligned/lmaligned coordinates.
+ * unit_normals Array containing the 2D unit normal vectors on the
+   fitted curve.
 
- * class - a structure containing all the data required to re-open a
-   Stalefish project, some of which may be useful in analysis. See
-   below for a description of the objects which you will find inside
-   class.
+#### FrameNNN/class
 
- * fitted - a list of the fitted points for the curve fitted to the
-   user-supplied points. What coordinate system? Pixels? FIXME
-
- * autoalign_computed A true/false flag. If true (>0) then
-   the brain slice auto-alignment algorithm based on the curves was
-   computed and stored in fitted_autoaligned.
-
- * autoalign_translation y/z coordinates of the translation applied to
-   fitted_scaled and LM_scaled (autoalign).
-
- * lm_translation y/z coordinates of the translation applied to
-   fitted_scaled and LM_scaled (landmark align).
-
- * autoalign_theta Rotation (about x) applied to fitted_scaled and
-   LM_scaled (autoalign).
-
- * lm_theta Rotation (about x) applied to fitted_scaled and LM_scaled
-   (landmark align).
-
- * fitted_autoaligned - a list of the fitted points for the curve fitted to the
-   user-supplied points. Auto-aligned coordinates (mm)
-
- * lmalign_computed A true/false flag. If true (>0) then
-   the brain slice landmark alignment algorithm based on user-supplied
-   landmarks was
-   computed and stored in fitted_lmaligned
-
- * fitted_lmaligned - a list of the fitted points for the curve fitted to the
-   user-supplied points. Landmark-aligned 2D coordinates (mm)
-
- * LM_autoaligned - 3d coordinates of the landmarks for this slice,
-   transformed as per the other _autoaligned points.
-
- * LM_lmaligned - 3d coordinates of the landmarks for this slice,
-   transformed as per the other landmark aligned points.
-
- * box_pixel_means - The mean pixel value for each box. Can be re-created by
-   computing the means of boxes_pixel0, boxes_pixel1, etc.
-
- * box_signal_means - The mean signal
-
- * box_signal_means_autoscaled - ??
-
- * sbox_centers_autoaligned - The "surface box" centers, as 3D coordinates. A
-   'surface box' is the box which is a long as the corresponding bin
-   is wide, and as wide as the slice is thick. This used the
-   2D coordinates from fitted_autoalign to construct these 3D
-   coordinates.
-
- * sboxes_autoaligned - The surface boxes, all four corners for the
-   auto-aligned slices. Each element of this list
-   contains 12 numbers, which specify 4 coordinates in 3D space; the
-   corners of the surface boxes.
-
-* sbox_centers_lmaligned - The "surface box" centers, as 3D coordinates. A
-   'surface box' is the box which is a long as the corresponding bin
-   is wide, and as wide as the slice is thick. This used the
-   2D coordinates from fitted_autoalign to construct these 3D
-   coordinates.
-
- * sboxes_lmaligned - The surface boxes, all four corners for the
-   landmark-aligned slices.
-
- * sbox_centers_scaled - The surface box centers scaled from pixels to
-   mm, but with no other alignments. These are saved for debugging
-   purposes.
-
- * sboxes_scaled - The four corners of the
-   scaled-but-otherwise-untranslated surface boxes.
-
- * sbox_linear_distance - The linear distance along the curve of each
-   **autoaligned** surface box. These distances are centered so that the
-   middle surface box should have a value of 0 for the
-   sbox_linear_distance.
-
- * nboxes: The number of box objects.
-
- * freehand0, freehand1, etc, each of which is a list of the pixel
-   values in freehand drawn regions (drawn in 'freehand' mode)
-
- * freehand_means The mean pixel value in each freehand drawn region.
-
- * FIXME: Need to store the freehand pixel coordinates.
-
- * nfreehand The number of freehand drawn regions.
-
-### Class level
+**class** is structure containing all the data required to re-open a
+Stalefish project, some of which may be useful in analysis. See below
+for a description of the objects which you will find inside class.
 
 Each frame's class object contains:
 
@@ -178,4 +89,108 @@ Each frame's class object contains:
   JSON config file.
  * FLE000, FLE001, etc: 2D coordinates of the pixels enclosed in each
   freehand loop.
+ * FLB000, FLB001, etc: 2D coordinates of the pixels which make up the
+  boundary of each freehand loop. Stored only so that the boundary can
+  be drawn in the user interface. The boundary pixels are not used when
+  computing signal inside the boundary.
  * FLE_n: The number of freehand loops
+
+### Location information
+
+The following set of frame objects all contain location
+information. The four containers refer to location information in four
+possible frames of reference.
+
+ * **pixels** All coordinates represent original location information
+     in screen pixels.
+
+ * **scaled** Location information given in mm, scaled from screen
+     pixels. No transformation is applied to individual frames.
+
+ * **autoalign** Location info in mm, with each brain slice
+   auto-aligned with its neighbours, using the user-provided curve
+   points to determine the best possible translation and rotation to
+   align the slice.
+
+ * **lmalign** Location info in mm, with each brain slice aligned with
+   its neighbours making use of the user-supplied tissue landmarks.
+
+#### Location objects
+
+Each of autoalign or lmalign may contain:
+
+ * *box_depth* Contains *FrameNNN/n_boxes* array of values, for each
+     sample box
+
+ * *computed* A boolean. If 0, then the autoalign (or lmalign) process
+     was not computed.
+
+ * *coords* Contains vectors of the 2D coordinates of each pixel in
+     sample boxes and freehand drawn loops.
+
+ * * *coords/boxes* Contains box0, box1, etc, containing 2D coords of
+     pixels in sample boxes
+
+ * * *coords/freehand* Contains loop0, loop1, etc, containing 2D
+     coords of pixels in freehand drawn loops
+
+ *   *fitted* A 2 by FrameNNN/nboxes matrix containing 2D coordinates of
+     the FrameNNN/nboxes evenly spaced points on the Bezier curve
+     created with user-supplied points.
+
+ * *flattened* This contains *sbox_angles*, which is an array of the
+     angles (in radians) about the origin at which the surface boxes
+     for this frame lie. This can be used to create a flat, two
+     dimensional heatmap plot of the signal. A 'surface box' is the
+     box which is a long as the corresponding sample box is wide, and
+     as wide as the slice is thick.
+
+ * *freehand* Contains location data relating to the freehand-drawn
+     loops. This may contain loop0_centroid, loop1_centroid, etc,
+     giving the location of each loop. For the boundary of each loop,
+     see FrameNNN/class/FBE000 etc.
+
+ * *landmarks* This is a two column matrix containing the 2D locations
+      of the user-supplied landmark positions which are the black dots
+      numbered 1, 2, etc in the user interface.
+
+ * *sbox_centers* 3D coordinates of the centers of the surface
+    boxes. The y-z coordinates are in the plane of each brain slice;
+    the x coordinate is derived from the json config file, which
+    should provide a x coordinate (in mm) for each slice.
+
+ * *sboxes* 3D coordinates of the vertices of the surface boxes.
+
+ * translation The translation applied to this slice
+
+ * *theta* The rotational transformation applied to this slice after
+    the *translation* was applied.
+
+*FrameNNN/scaled* may contain *fitted*, *flattened*, *sbox_centers*
+ and *signal*, only.
+
+*FrameNNN.ppixels may contain *coords* and *fitted* only.
+
+#### Signal information
+
+*FrameNNN/signal* contains both 8-bit data - the original R (or G or
+ B) values from the (usually monochrome) brain slice image and also
+ 'post-processed' data, which has had the blurred background subtracted
+ from it and been transformed linearly into the range 0 to
+ 1. *signal/bits8* contains the 8 bit data; *signal/postproc* contains
+ the post processed data. Each of these contains *boxes* and
+ *freehand*, inside which are lists of the signal values for the
+ sample boxes and the freehand drawn loops.
+
+ * signal/*/boxes/box0, box1, etc - The signal values for each pixel
+   in each sample box
+
+ * signal/*/boxes/means - The mean signal value for each sample box
+
+ * signal/*/boxes/means_autoscaled - The mean signal value for each
+   sample box autoscaled to lie in the range [0, 1].
+
+ * signal/*/freehand/loop0, loop1, etc - The signal values for each pixel
+   in each freehand loop.
+
+ * signal/*/freehand/means - The mean signal value for each freehand loop
