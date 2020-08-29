@@ -1349,7 +1349,7 @@ public:
         this->autoalignComputed = false;
         this->lmalignComputed = false;
 
-#if 1
+#if 0
         // The autoalign translation is the centroid of the scaled fitted points
         this->autoalign_translation = -morph::MathAlgo::centroid (this->fitted_scaled);
         // Apply offset
@@ -1369,7 +1369,9 @@ public:
 
         } else {
             size_t alignment_slice = 0; // Align to the 0th slice
-            this->alignOptimally (this->fitted_scaled, (*this->parentStack)[alignment_slice].fitted_autoaligned,
+            this->alignOptimally (this->fitted_scaled,
+                                  (*this->parentStack)[alignment_slice].fitted_autoaligned,
+                                  (*this->parentStack)[this->previous].fitted_autoaligned,
                                   this->autoalign_translation, this->autoalign_theta);
         }
         this->transform (this->fitted_scaled, this->fitted_autoaligned, this->autoalign_translation, this->autoalign_theta);
@@ -1395,7 +1397,9 @@ public:
 
         } else {
             size_t alignment_slice = 0; // Align to the 0th slice
-            this->alignOptimally (this->LM_scaled, (*this->parentStack)[alignment_slice].LM_lmaligned,
+            this->alignOptimally (this->LM_scaled,
+                                  (*this->parentStack)[alignment_slice].LM_lmaligned,
+                                  (*this->parentStack)[this->previous].LM_lmaligned,
                                   this->lm_translation, this->lm_theta);
         }
 
@@ -1812,6 +1816,55 @@ private:
         return sos;
     }
 
+    /*!
+     * vertex contains x,y,theta values and should have size 3 translate coords by
+     * vertex[0],vertex[1] and rotate by vertex[2]. Compute SOS compared with target
+     * coordinates AND neighbour coords.
+     */
+    double computeSos3d (const std::vector<cv::Point2d> target_coords,
+                         const std::vector<cv::Point2d> neighbour_coords,
+                         const std::vector<cv::Point2d> coords,
+                         const std::vector<double>& vertex)
+    {
+        if (this->previous < 0) { return std::numeric_limits<double>::max(); }
+
+        if (coords.size() != target_coords.size()) {
+            throw std::runtime_error ("computeSos3d: Number of elements in coords and target_coords must be the same");
+        }
+
+        //std::cout << "computeSos3d: x,y,theta = (" << vertex[0] << "," << vertex[1] << "," << vertex[2] << ")" << std::endl;
+
+        // Transform coords
+        std::vector<cv::Point2d> tmp_coords (coords);
+        cv::Point2d tr(vertex[0], vertex[1]);
+        this->translate (coords, tmp_coords, tr);
+        this->rotate (tmp_coords, tmp_coords, vertex[2]);
+
+        // Compute SOS wrt to target_coords
+        double sos = 0.0;
+        for (size_t i = 0; i < target_coords.size(); ++i) {
+            double xdiff = tmp_coords[i].x - target_coords[i].x;
+            double ydiff = tmp_coords[i].y - target_coords[i].y;
+            double d_ = (xdiff*xdiff + ydiff*ydiff);
+            sos += d_;
+        }
+
+        // Make weight bigger than 1 to fabvour neihghbour, smaller than 1 to favour target
+        double w_targ = 0.5;
+        sos *= w_targ;
+        double w_neigh = 1.0;
+
+        // Compute SOS wrt to neighbour_coords
+        for (size_t i = 0; i < neighbour_coords.size(); ++i) {
+            double xdiff = tmp_coords[i].x - neighbour_coords[i].x;
+            double ydiff = tmp_coords[i].y - neighbour_coords[i].y;
+            double d_ = (xdiff*xdiff + ydiff*ydiff);
+            sos += w_neigh * d_;
+        }
+
+        return sos;
+    }
+
     //! Compute a sum of squared distances between the points in this fit and the
     //! points in the previous fit
     double computeSosWithPrev (double _theta)
@@ -1906,6 +1959,115 @@ private:
         rtn.y = xi * sin_theta + yi * cos_theta;
 
         return rtn;
+    }
+
+    /*!
+     * By optimally aligning (by 2d translate and rotate only) the \a alignment_coords
+     * with \a target_aligned_alignment_coords, find a translation and rotation to
+     * transform \a alignment_coords into \a aligned_alignment_coords and \a coords into
+     * \a aligned_coords.
+     *
+     * \param alignment_coords The coordinates which will be aligned by the
+     * optimization. These could be user-supplied landmarks or the Bezier curve points.
+     *
+     * \param target_aligned_alignment_coords The target for alignment. alignment_coords
+     * should be transformed until they match target_aligned_alignment_coords as closely
+     * as possible.
+     *
+     * \param neighbour_aligned_alignment_coords The neighbouring slice alignment coords.
+     *
+     * \param translation Output. The x/y translation applied to alignment_coords and
+     * coords to give (after \a rotation has also been applied) \a aligned_alignment_coords
+     * and \a aligned_coords
+     *
+     * \param rotation Output. The rotation (theta) applied to alignment_coords and
+     * coords to give (as long as translation was applied)
+     * aligned_alignment_coords and aligned_coords
+     */
+    void alignOptimally (const std::vector<cv::Point2d>& alignment_coords,
+                         const std::vector<cv::Point2d>& target_aligned_alignment_coords,
+                         const std::vector<cv::Point2d>& neighbour_aligned_alignment_coords,
+                         cv::Point2d& translation,
+                         double& rotation)
+    {
+        // Check that target frame has same number of coords, if not throw exception
+        if (target_aligned_alignment_coords.size() != alignment_coords.size()
+            || neighbour_aligned_alignment_coords.size() != alignment_coords.size()) {
+            std::stringstream ee;
+            ee << "Same number of alignment coords in both frames please! target_aligned..: "
+               << target_aligned_alignment_coords.size() << ", alignment_coords: " << alignment_coords.size();
+            throw std::runtime_error (ee.str());
+        }
+
+        // Now we have a fit which has same number of bins as the previous frame,
+        // this means we can compute SOS objective function
+
+        // Store initial_vertices elements in order (x,y,theta). Note: Would like to
+        // apply a limit on theta to avoid degenerate solutions; to avoid rotating by
+        // anywhere close to 2pi, then rotation limit should be pi. So far this has not
+        // been addressed.
+        //
+        // Use some proportion of the distance between the first landmark and its
+        // equivalent on the previous slice to determine the values for the initial
+        // vertices.
+        cv::Point2d l1_offset = alignment_coords[0] - target_aligned_alignment_coords[0];
+        double d = 0.3 * std::sqrt (l1_offset.x * l1_offset.x + l1_offset.y * l1_offset.y);
+        std::cout << "distance used for initial vertices in xytheta space: " << d << std::endl;
+        std::vector<std::vector<double>> initial_vertices;
+        initial_vertices.push_back ({0.0, 0.0, 0.0});
+        initial_vertices.push_back ({d, 0.0, 0.0});
+        initial_vertices.push_back ({d, d, 0.0});
+        initial_vertices.push_back ({d, 0.0, 0.1});
+
+        morph::NM_Simplex<double> simp (initial_vertices);
+        // Set a termination threshold for the SD of the vertices of the simplex
+        simp.termination_threshold = 2.0 * std::numeric_limits<double>::epsilon();
+        // Set an operation limit, in case the above threshold can't be reached
+        simp.too_many_operations = 1000;
+
+        while (simp.state != morph::NM_Simplex_State::ReadyToStop) {
+
+            if (simp.state == morph::NM_Simplex_State::NeedToComputeThenOrder) {
+                // 1. apply objective to each vertex
+                for (unsigned int i = 0; i <= simp.n; ++i) {
+                    simp.values[i] = this->computeSos3d (target_aligned_alignment_coords,
+                                                         neighbour_aligned_alignment_coords,
+                                                         alignment_coords, simp.vertices[i]);
+                }
+                simp.order();
+
+            } else if (simp.state == morph::NM_Simplex_State::NeedToOrder) {
+                simp.order();
+
+            } else if (simp.state == morph::NM_Simplex_State::NeedToComputeReflection) {
+                double val = this->computeSos3d (target_aligned_alignment_coords,
+                                                 neighbour_aligned_alignment_coords,
+                                                 alignment_coords, simp.xr);
+                simp.apply_reflection (val);
+
+            } else if (simp.state == morph::NM_Simplex_State::NeedToComputeExpansion) {
+                double val = this->computeSos3d (target_aligned_alignment_coords,
+                                                 neighbour_aligned_alignment_coords,
+                                                 alignment_coords, simp.xe);
+                simp.apply_expansion (val);
+
+            } else if (simp.state == morph::NM_Simplex_State::NeedToComputeContraction) {
+                double val = this->computeSos3d (target_aligned_alignment_coords,
+                                                 neighbour_aligned_alignment_coords,
+                                                 alignment_coords, simp.xc);
+                simp.apply_contraction (val);
+            }
+        }
+        std::vector<double> vP = simp.best_vertex();
+        double min_sos = simp.best_value();
+
+        std::cout << "After " << simp.operation_count << " operations, best sos value: " << min_sos
+                  << " and best x,y,theta: (" << vP[0] << "," << vP[1] << "," << vP[2] << ")" << std::endl;
+
+        // Set translation and rotation
+        translation.x = vP[0];
+        translation.y = vP[1];
+        rotation = vP[2];
     }
 
     /*!
