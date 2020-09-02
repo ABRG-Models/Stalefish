@@ -1359,7 +1359,9 @@ public:
         this->rotateFitOptimally();
 #else
         // Possible alternative to allow optimization to tweak the translation as well as the rotation:
-        // Write function to ensure same number of bins in each frame (temporarily), then:
+
+        // FIXME: Write function to ensure same number of bins in each frame (temporarily), then:
+
         if (this->previous < 0) {
             // get centroid of this->fitted_scaled (the 0th slice
             cv::Point2d slice0centroid = morph::MathAlgo::centroid (this->fitted_scaled);
@@ -1368,12 +1370,17 @@ public:
             this->autoalign_theta = 0.0;
 
         } else {
-            size_t alignment_slice = 0; // Align to the 0th slice
+            // How many slices?
+            //size_t alignment_slice = 0; // Align to the 0th slice
+            size_t alignment_slice = this->parentStack->size()/2; // align to mid slice
+            std::cout << "Alignment slice: " << alignment_slice << std::endl;
             this->alignOptimally (this->fitted_scaled,
                                   (*this->parentStack)[alignment_slice].fitted_autoaligned,
                                   (*this->parentStack)[this->previous].fitted_autoaligned,
                                   this->autoalign_translation, this->autoalign_theta);
         }
+        std::cout << "Translating slice " << (this->previous+1) << " by "
+                  << this->autoalign_translation << " and rotating " << this->autoalign_theta << std::endl;
         this->transform (this->fitted_scaled, this->fitted_autoaligned, this->autoalign_translation, this->autoalign_theta);
         this->transform (this->LM_scaled, this->LM_autoaligned, this->autoalign_translation, this->autoalign_theta);
 
@@ -1399,7 +1406,7 @@ public:
             size_t alignment_slice = 0; // Align to the 0th slice
             this->alignOptimally (this->LM_scaled,
                                   (*this->parentStack)[alignment_slice].LM_lmaligned,
-                                  (*this->parentStack)[this->previous].LM_lmaligned,
+                                  //(*this->parentStack)[this->previous].LM_lmaligned, // keep landmark aligning simple
                                   this->lm_translation, this->lm_theta);
         }
 
@@ -1832,37 +1839,61 @@ private:
             throw std::runtime_error ("computeSos3d: Number of elements in coords and target_coords must be the same");
         }
 
-        //std::cout << "computeSos3d: x,y,theta = (" << vertex[0] << "," << vertex[1] << "," << vertex[2] << ")" << std::endl;
-
         // Transform coords
         std::vector<cv::Point2d> tmp_coords (coords);
         cv::Point2d tr(vertex[0], vertex[1]);
         this->translate (coords, tmp_coords, tr);
         this->rotate (tmp_coords, tmp_coords, vertex[2]);
 
+        // Alternative: take centroid of target_coords and use centroid of this coord
         // Compute SOS wrt to target_coords
-        double sos = 0.0;
+        double cost = 0.0;
+
+        // Output debug messages about cost?
+        constexpr bool debug_cost = false;
+
+        // This computes sos for coords wrt target coords (probably the first slice, but
+        // maybe the central slice).
         for (size_t i = 0; i < target_coords.size(); ++i) {
             double xdiff = tmp_coords[i].x - target_coords[i].x;
             double ydiff = tmp_coords[i].y - target_coords[i].y;
             double d_ = (xdiff*xdiff + ydiff*ydiff);
-            sos += d_;
+            cost += d_;
         }
+        cost /= (double)target_coords.size();
 
-        // Make weight bigger than 1 to fabvour neihghbour, smaller than 1 to favour target
-        double w_targ = 0.5;
-        sos *= w_targ;
-        double w_neigh = 1.0;
+        // Weighting this by a number determined from looking at relative contribution
+        // to cost
+        double w_targ = 0.01;
+        cost *= w_targ;
 
-        // Compute SOS wrt to neighbour_coords
-        for (size_t i = 0; i < neighbour_coords.size(); ++i) {
+        if constexpr (debug_cost==true) { std::cout << "Costs. AlignTarg: " << cost; }
+
+        size_t sz = neighbour_coords.size();
+        double sos_  = 0.0;
+        for (size_t i = 0; i < sz; ++i) {
             double xdiff = tmp_coords[i].x - neighbour_coords[i].x;
             double ydiff = tmp_coords[i].y - neighbour_coords[i].y;
-            double d_ = (xdiff*xdiff + ydiff*ydiff);
-            sos += w_neigh * d_;
+            double d_ = xdiff*xdiff + ydiff*ydiff;
+            sos_ += d_;
         }
+        if constexpr (debug_cost==true) { std::cout << " AlignNeighbour: " << (sos_/(double)sz); }
 
-        return sos;
+        // Weight for aligning vs. neighbour coordinates
+        double w_neigh = 1;
+        cost += w_neigh * sos_ / (double)(sz);
+
+        // If theta is big (in either dirn), then penalize this.
+        double w_thet = 0.1;
+        // Parameters of sigmoid cause ramp in cost around 0.2 rads
+        double kxminusx0 = 30.0 * (std::abs(vertex[2]) - 0.2);
+        double sigthet = (w_thet / (1.0 + std::exp(-kxminusx0)));
+
+        if constexpr (debug_cost==true) { std::cout << " Angle: " << sigthet << std::endl; }
+
+        cost += sigthet;
+
+        return cost;
     }
 
     //! Compute a sum of squared distances between the points in this fit and the
@@ -1995,17 +2026,16 @@ private:
             || neighbour_aligned_alignment_coords.size() != alignment_coords.size()) {
             std::stringstream ee;
             ee << "Same number of alignment coords in both frames please! target_aligned..: "
-               << target_aligned_alignment_coords.size() << ", alignment_coords: " << alignment_coords.size();
+               << target_aligned_alignment_coords.size()
+               << ", alignment_coords: " << alignment_coords.size()
+               << ", neighbour_aligned_alignment_coords: " << neighbour_aligned_alignment_coords.size();
             throw std::runtime_error (ee.str());
         }
 
         // Now we have a fit which has same number of bins as the previous frame,
-        // this means we can compute SOS objective function
-
-        // Store initial_vertices elements in order (x,y,theta). Note: Would like to
-        // apply a limit on theta to avoid degenerate solutions; to avoid rotating by
-        // anywhere close to 2pi, then rotation limit should be pi. So far this has not
-        // been addressed.
+        // this means we can compute an objective function
+        //
+        // Store initial_vertices elements in order (x,y,theta).
         //
         // Use some proportion of the distance between the first landmark and its
         // equivalent on the previous slice to determine the values for the initial
@@ -2028,6 +2058,7 @@ private:
         while (simp.state != morph::NM_Simplex_State::ReadyToStop) {
 
             if (simp.state == morph::NM_Simplex_State::NeedToComputeThenOrder) {
+
                 // 1. apply objective to each vertex
                 for (unsigned int i = 0; i <= simp.n; ++i) {
                     simp.values[i] = this->computeSos3d (target_aligned_alignment_coords,

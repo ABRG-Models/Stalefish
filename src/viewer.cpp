@@ -19,30 +19,40 @@ int main (int argc, char** argv)
     int rtn = -1;
 
     if (argc < 2) {
-        cout << "Usage: " << argv[0] << " /path/to/data.h5 [perslice|overall]\n"
-             << "  where perslice (the default) autoscales the signal for each slice before\n"
+        cout << "Usage: " << argv[0] << " /path/to/data.h5 [perslice|overall*] [landmark*|auto]\n"
+             << "  where 'perslice' autoscales the signal for each slice before\n"
              << "  assembling them together, and 'overall' autoscales the signal AFTER the\n"
-             << "  slices have been assembled together.\n";
+             << "  slices have been assembled together. Third arg ofr 'auto' will show the\n"
+             << "  'curve-autoaligned' alignment, even if landmark alignment has been carried out.\n";
         return rtn;
     }
 
-    morph::Visual v(1024, 768, "Visualization");
+    string datafile (argv[1]);
+
+    morph::Visual v(1024, 768, datafile);
     v.zNear = 0.001;
     v.zFar = 40.0;
     v.setZDefault (-15.4);
 
-    bool autoscale_per_slice = true;
+    bool autoscale_per_slice = false;
     if (argc > 2) {
         string autoscale_str (argv[2]);
-        if (autoscale_str == "overall") {
-            cout << "Autoscaling the whole signal dataset\n";
-            autoscale_per_slice = false;
+        if (autoscale_str == "perslice") {
+            autoscale_per_slice = true;
         } else {
-            cout << "Autoscaling per-slice\n";
+            autoscale_per_slice = false;
         }
     }
 
-    string datafile (argv[1]);
+    bool align_lm = true;
+    if (argc > 3) {
+        string align_str (argv[3]);
+        if (align_str == "auto") {
+            align_lm = false;
+        } else {
+            align_lm = true;
+        }
+    }
 
     try {
         morph::Vector<float> offset = { 0.0, 0.0, 0.0 };
@@ -165,7 +175,6 @@ int main (int argc, char** argv)
             quads_lmaligned.insert (quads_lmaligned.end(), frameQuads_lmaligned.begin(), frameQuads_lmaligned.end());
             quads_scaled.insert (quads_scaled.end(), frameQuads_scaled.begin(), frameQuads_scaled.end());
             means.insert (means.end(), frameMeansF.begin(), frameMeansF.end());
-            cout << "means.size: " << means.size() << endl;
 
             points_lmaligned.insert (points_lmaligned.end(), framePoints_lmaligned.begin(), framePoints_lmaligned.end());
             points_autoaligned.insert (points_autoaligned.end(), framePoints_autoaligned.begin(), framePoints_autoaligned.end());
@@ -203,7 +212,6 @@ int main (int argc, char** argv)
 
             fquads.insert (fquads.end(), flatsurf_boxes.begin(), flatsurf_boxes.end());
             fmeans.insert (fmeans.end(), frameMeansF.begin(), --frameMeansF.end());
-            cout << "fmeans.size: " << fmeans.size() << endl;
             xx += thickness;
         }
         cout << "fquads size: " << fquads.size() << ", fmeans size: " << fmeans.size() << endl;
@@ -242,7 +250,7 @@ int main (int argc, char** argv)
         offset[0]=0.0;
 
         // Show landmark aligned for preference:
-        if (lmalignComputed == true) {
+        if (lmalignComputed == true && align_lm == true) {
             visId = v.addVisualModel (new morph::PointRowsVisual<float> (v.shaderprog,
                                                                          &points_lmaligned, offset,
                                                                          &means, scale,

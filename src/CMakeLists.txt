@@ -4,3 +4,5 @@ target_link_libraries(stalefish ${OpenCV_LIBS} ${MORPH_LDFLAGS} ${ARMADILLO_LIBR
 
 add_executable(viewer viewer.cpp)
 target_link_libraries(viewer ${OpenCV_LIBS} ${MORPH_LDFLAGS} ${ARMADILLO_LIBRARIES} ${GLFW_LIBRARIES} ${OPENGL_LIBRARIES} ${X11_LIBRARIES})
+
+install(TARGETS viewer stalefish DESTINATION ${CMAKE_INSTALL_PREFIX}/bin)
