@@ -2081,7 +2081,8 @@ private:
                << target_aligned_alignment_coords.size()
                << ", alignment_coords: " << alignment_coords.size()
                << ", neighbour_aligned_alignment_coords: " << neighbour_aligned_alignment_coords.size();
-            throw std::runtime_error (ee.str());
+            std::cout << ee.str() << std::endl;
+            return;
         }
 
         // Now we have a fit which has same number of bins as the previous frame,
@@ -2184,7 +2185,8 @@ private:
             std::stringstream ee;
             ee << "Same number of alignment coords in both frames please! target_aligned..: "
                << target_aligned_alignment_coords.size() << ", alignment_coords: " << alignment_coords.size();
-            throw std::runtime_error (ee.str());
+            std::cout << ee.str() << std::endl;
+            return;
         }
 
         // Now we have a fit which has same number of bins as the previous frame,
