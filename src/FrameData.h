@@ -1224,21 +1224,23 @@ public:
         // From surface_box_centroids, can compute linear distance along curve. Could
         // be useful for making naive maps that unroll the cortex in one dimension.
         dname = frameName + "/scaled/flattened/sbox_linear_distance";
-        float total_linear_distance = 0.0f;
-        std::vector<float> linear_distances (this->nBins, 0.0f);
-        for (int i=1; i<this->nBins; ++i) {
-            // Compute distance from Previous to current
-            float d = morph::MathAlgo::distance<float> (surface_box_centroids_autoaligned[i-1],
-                                                        surface_box_centroids_autoaligned[i]);
-            total_linear_distance += d;
-            linear_distances[i] = total_linear_distance;
+        {
+            float total_linear_distance = 0.0f;
+            std::vector<float> linear_distances (this->nBins, 0.0f);
+            for (int i=1; i<this->nBins; ++i) {
+                // Compute distance from Previous to current
+                float d = morph::MathAlgo::distance<float> (surface_box_centroids_autoaligned[i-1],
+                                                            surface_box_centroids_autoaligned[i]);
+                total_linear_distance += d;
+                linear_distances[i] = total_linear_distance;
+            }
+            // Now offset the linear distances so that the middle is 0.
+            float halftotal = total_linear_distance / 2.0f;
+            for (int i=0; i<this->nBins; ++i) {
+                linear_distances[i] -= halftotal;
+            }
+            df.add_contained_vals (dname.c_str(), linear_distances);
         }
-        // Now offset the linear distances so that the middle is 0.
-        float halftotal = total_linear_distance / 2.0f;
-        for (int i=0; i<this->nBins; ++i) {
-            linear_distances[i] -= halftotal;
-        }
-        df.add_contained_vals (dname.c_str(), linear_distances);
 
         // From 3D data, compute a 2D map. 3D data always centred around 0! Cool.
         // So, for each slice, compute each surface box's angle from the centroid and save these values.
@@ -1250,6 +1252,31 @@ public:
             }
             dname = frameName + "/autoalign/flattened/sbox_angles";
             df.add_contained_vals (dname.c_str(), autoalign_angles);
+
+            // Linear distance, but centered using the auto aligned slices
+            float total_linear_distance = 0.0f;
+            float middle_distance = 0.0f;
+            double min_ang = 1e10;
+            std::vector<float> linear_distances (this->nBins, 0.0f);
+            for (int i=1; i<this->nBins; ++i) {
+                // Compute distance from Previous to current
+                float d = morph::MathAlgo::distance<float> (surface_box_centroids_autoaligned[i-1],
+                                                            surface_box_centroids_autoaligned[i]);
+                total_linear_distance += d;
+                linear_distances[i] = total_linear_distance;
+                double angle = std::atan2 (0.5 * (surface_box_centroids_autoaligned[i][0] + surface_box_centroids_autoaligned[i-1][0]),
+                                           -0.5 * (surface_box_centroids_autoaligned[i][1] + surface_box_centroids_autoaligned[i-1][1]));
+                // If we got to the zero-angle location, then mark the middle distance
+                if (std::abs(angle) < min_ang) {
+                    middle_distance = total_linear_distance;
+                    min_ang = std::abs(this->fitted_autoaligned[i].x);
+                }
+            }
+            // Now offset the linear distances so that the middle is the 0 degree location
+            for (int i=0; i<this->nBins; ++i) { linear_distances[i] -= middle_distance; }
+
+            dname = frameName + "/autoalign/flattened/sbox_linear_distance";
+            df.add_contained_vals (dname.c_str(), linear_distances);
         }
 
         if (this->saveLMAlignData == true && !this->fitted_lmaligned.empty()) {
@@ -1261,6 +1288,33 @@ public:
             }
             dname = frameName + "/lmalign/flattened/sbox_angles";
             df.add_contained_vals (dname.c_str(), lmalign_angles);
+
+            // Linear distance, but centered using the landmark aligned slices
+            float total_linear_distance = 0.0f;
+            float middle_distance = 0.0f;
+            double min_ang = 1e10;
+            std::vector<float> linear_distances (this->nBins, 0.0f);
+            for (int i=1; i<this->nBins; ++i) {
+                // Compute distance from Previous to current
+                float d = morph::MathAlgo::distance<float> (surface_box_centroids_lmaligned[i-1],
+                                                            surface_box_centroids_lmaligned[i]);
+                total_linear_distance += d;
+                linear_distances[i] = total_linear_distance;
+
+                double angle = std::atan2 (0.5 * (surface_box_centroids_lmaligned[i][0] + surface_box_centroids_lmaligned[i-1][0]),
+                                           -0.5 * (surface_box_centroids_lmaligned[i][1] + surface_box_centroids_lmaligned[i-1][1]));
+
+                // If we got to the zero-angle location, then mark the middle distance
+                if (std::abs(angle) < min_ang) {
+                    middle_distance = total_linear_distance;
+                    min_ang = std::abs(this->fitted_autoaligned[i].x);
+                }
+            }
+            // Now offset the linear distances so that the middle is the 0 degree location
+            for (int i=0; i<this->nBins; ++i) { linear_distances[i] -= middle_distance; }
+
+            dname = frameName + "/lmalign/flattened/sbox_linear_distance";
+            df.add_contained_vals (dname.c_str(), linear_distances);
         }
 
         std::cout << "write() completed for one frame." << std::endl;

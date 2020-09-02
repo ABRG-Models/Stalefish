@@ -185,7 +185,13 @@ int main (int argc, char** argv)
                 vector<float> linbins;
                 //str = frameName+"/scaled/flattened/sbox_linear_distance";
                 // Better:
-                str = frameName+"/lmalign/flattened/sbox_angles";
+                //str = frameName+"/lmalign/flattened/sbox_angles";
+                // Even better:
+                if (lmalignComputed == true && align_lm == true) {
+                    str = frameName+"/lmalign/flattened/sbox_linear_distance";
+                } else {
+                    str = frameName+"/autoalign/flattened/sbox_linear_distance";
+                }
                 d.read_contained_vals (str.c_str(), linbins);
 
                 vector<array<float,12>> flatsurf_boxes;
