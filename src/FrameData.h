@@ -1379,8 +1379,6 @@ public:
                                   (*this->parentStack)[this->previous].fitted_autoaligned,
                                   this->autoalign_translation, this->autoalign_theta);
         }
-        std::cout << "Translating slice " << (this->previous+1) << " by "
-                  << this->autoalign_translation << " and rotating " << this->autoalign_theta << std::endl;
         this->transform (this->fitted_scaled, this->fitted_autoaligned, this->autoalign_translation, this->autoalign_theta);
         this->transform (this->LM_scaled, this->LM_autoaligned, this->autoalign_translation, this->autoalign_theta);
 
@@ -2042,7 +2040,7 @@ private:
         // vertices.
         cv::Point2d l1_offset = alignment_coords[0] - target_aligned_alignment_coords[0];
         double d = 0.3 * std::sqrt (l1_offset.x * l1_offset.x + l1_offset.y * l1_offset.y);
-        std::cout << "distance used for initial vertices in xytheta space: " << d << std::endl;
+        //std::cout << "distance used for initial vertices in xytheta space: " << d << std::endl;
         std::vector<std::vector<double>> initial_vertices;
         initial_vertices.push_back ({0.0, 0.0, 0.0});
         initial_vertices.push_back ({d, 0.0, 0.0});
