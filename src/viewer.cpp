@@ -22,8 +22,9 @@ int main (int argc, char** argv)
         cout << "Usage: " << argv[0] << " /path/to/data.h5 [perslice|overall*] [landmark*|auto]\n"
              << "  where 'perslice' autoscales the signal for each slice before\n"
              << "  assembling them together, and 'overall' autoscales the signal AFTER the\n"
-             << "  slices have been assembled together. Third arg ofr 'auto' will show the\n"
-             << "  'curve-autoaligned' alignment, even if landmark alignment has been carried out.\n";
+             << "  slices have been assembled together. providing a third arg of 'auto' will\n"
+             << "  show the curve-autoaligned' alignment, even if landmark alignment has been\n"
+             << "  carried out.\n";
         return rtn;
     }
 
