@@ -26,7 +26,8 @@
 enum class InputMode {
     Bezier,    // Cubic Bezier: "curve drawing mode"
     Freehand,  // A freehand drawn loop enclosing a region
-    Landmark   // User provides alignment landmark locations on each slice
+    Landmark,  // User provides alignment landmark locations on each slice
+    ReverseBezier // Curve drawing mode but adding/deleting points at the start of the curve
 };
 
 // What sort of colour model is in use?
@@ -70,10 +71,12 @@ public:
 
     //! A Bezier curve path to fit the cortex.
     morph::BezCurvePath<double> bcp;
-    //! The vector of user-supplied points from which to make a curve fit.
-    std::vector<cv::Point> P;
-    //! A vector of vectors of points for multi-section Bezier curves
-    std::vector<std::vector<cv::Point>> PP;
+    //! The user-supplied points from which to make a curve fit. Added to end of PP.
+    std::deque<cv::Point> P;
+    //! user-supplied points for potential addition to PP at its *start*.
+    std::deque<cv::Point> sP;
+    //! A deque or deques of points for multi-section Bezier curves
+    std::deque<std::deque<cv::Point>> PP;
     //! Index into PP
     int pp_idx = 0;
 
@@ -384,6 +387,8 @@ public:
 
         if (this->ct == InputMode::Bezier) {
             ss << ". Curve mode";
+        } else if (this->ct == InputMode::ReverseBezier) {
+            ss << ". Curve mode (R)";
         } else if (this->ct == InputMode::Freehand) {
             // Get any fit info for a freehand loop (e.g. is it contiguous; how many pixels)
             ss << ". Freehand mode";
@@ -650,6 +655,8 @@ public:
             this->removeLastRegion();
         } else if (this->ct == InputMode::Landmark) {
             this->removeLastLandmark();
+        } else if (this->ct == InputMode::ReverseBezier) {
+            this->removeFirstPoint();
         } else {
             this->removeLastPoint();
         }
@@ -685,6 +692,38 @@ public:
         if (!this->P.empty()) { this->P.clear(); }
         if (!this->PP.empty()) { this->PP.clear(); }
         this->pp_idx = 0;
+    }
+
+    //! Remove the first user point
+    void removeFirstPoint()
+    {
+        if (this->PP.empty() && this->sP.size() == 1) {
+            // Normal behaviour, just remove point from sP
+            this->sP.pop_back(); // don't need to pop_front.
+
+        } else if (!this->PP.empty() && this->P.size() == 1) {
+            // Remove point from sP and...
+            this->sP.pop_back();
+            // Because it is the same locn, the first point from PP.front(), too
+            this->removeFirstPoint();
+
+        } else if (!this->sP.empty()) {
+            this->sP.pop_front();
+
+        } else {
+            // sP is empty, go to first curve in PP and remove a point from that
+            if (this->ct == InputMode::Bezier && this->pp_idx>0) {
+                if (!this->PP.empty()) {
+                    this->sP = this->PP[0];
+                    this->PP.pop_front();
+                    this->pp_idx--;
+                    this->sP.pop_front();
+                } else {
+                    // Catch pathological case where PP is empty, but pp_idx != 0
+                    this->pp_idx = 0;
+                }
+            }
+        }
     }
 
     //! Remove the last user point
@@ -724,14 +763,22 @@ public:
     //! In Bezier mode, store the current set of user points (P) into PP and clear P.
     void nextCurve()
     {
-        // Don't add unless at least 3 points to fit:
-        if (this->P.size() < 3) {
-            return;
+        // Or if "cursor was closest to start of curve?"
+        if (this->ct == InputMode::ReverseBezier) {
+            if (this->sP.size() < 3) { return; }
+            this->PP.push_front (this->sP);
+            this->sP.clear();
+            this->sP.push_front (this->PP.front().front());
+            this->pp_idx++;
+
+        } else {
+            // Don't add unless at least 3 points to fit:
+            if (this->P.size() < 3) { return; }
+            this->PP.push_back (this->P);
+            this->P.clear();
+            this->P.push_back (this->PP.back().back());
+            this->pp_idx++;
         }
-        this->PP.push_back (this->P);
-        this->P.clear();
-        this->P.push_back (this->PP.back().back());
-        this->pp_idx++;
     }
 
     //! Read important data from file

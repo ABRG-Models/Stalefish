@@ -76,13 +76,13 @@ int main (int argc, char** argv)
             break;
         }
         // Apply bin values across all frames
-        case('B'):
+        case ('B'):
         {
             DM::i()->updateAllBins();
             break;
         }
         // Clear all Curves
-        case('C'):
+        case ('C'):
         {
             if (DM::i()->clearAllPending == true) {
                 DM::i()->clearAllCurves();
@@ -93,19 +93,19 @@ int main (int argc, char** argv)
             break;
         }
         // Cancel a pending 'clear all curves'. char(27) is the Esc key.
-        case(char(27)):
+        case (char(27)):
         {
             DM::i()->clearAllPending = false;
             break;
         }
         // Perform all fits
-        case('F'):
+        case ('F'):
         {
             DM::i()->updateAllFits();
             break;
         }
         // Perform a fit
-        case('f'):
+        case ('f'):
         {
             DM::i()->gcf()->setShowFits (true);
             DM::i()->gcf()->setShowBoxes (true);
@@ -113,8 +113,8 @@ int main (int argc, char** argv)
             DM::i()->gcf()->refreshBoxes (-DM::i()->gcf()->binA, DM::i()->gcf()->binB);
             break;
         }
-        // Remove last point or freehand region
-        case('c'):
+        // Remove last point or freehand region (or first point if in 'work at the start' mode)
+        case ('c'):
         {
             DM::i()->gcf()->removeLastThing();
             break;

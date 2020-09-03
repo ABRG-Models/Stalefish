@@ -166,12 +166,14 @@ public:
     //! Toggle between curve fitting, freehand loop drawing or alignment mark (landmark) input.
     void cycleInputMode()
     {
-        if (this->input_mode == InputMode::Landmark) {
+        if (this->input_mode == InputMode::ReverseBezier) {
             this->input_mode = InputMode::Bezier;
         } else if (this->input_mode == InputMode::Bezier) {
             this->input_mode = InputMode::Freehand;
         } else if (this->input_mode == InputMode::Freehand) {
             this->input_mode = InputMode::Landmark;
+        } else if (this->input_mode == InputMode::Landmark) {
+            this->input_mode = InputMode::ReverseBezier;
         } else {
             // Shouldn't get here...
             this->input_mode = InputMode::Bezier;
