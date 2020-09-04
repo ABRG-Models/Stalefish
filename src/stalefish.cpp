@@ -142,9 +142,12 @@ int main (int argc, char** argv)
         {
             // Change input mode
             DM::i()->cycleInputMode(); // cycle globally
-            DM::i()->gcf()->ct = DM::i()->input_mode;
-            DM::i()->gcf()->updateFit();
-            DM::i()->gcf()->refreshBoxes (-DM::i()->gcf()->binA, DM::i()->gcf()->binB);
+            break;
+        }
+        case ('s'):
+        {
+            // Toggle to 's'tart of curve - add/remove points there, instead
+            DM::i()->toggleStartEnd();
             break;
         }
         case ('h'):

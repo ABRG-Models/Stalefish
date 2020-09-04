@@ -386,9 +386,9 @@ public:
         ss << "Bezier order: " << bb.str() << ", Bins: " << this->nBins;
 
         if (this->ct == InputMode::Bezier) {
-            ss << ". Curve mode";
+            ss << ". Curve mode (end)";
         } else if (this->ct == InputMode::ReverseBezier) {
-            ss << ". Curve mode (R)";
+            ss << ". Curve mode (start)";
         } else if (this->ct == InputMode::Freehand) {
             // Get any fit info for a freehand loop (e.g. is it contiguous; how many pixels)
             ss << ". Freehand mode";

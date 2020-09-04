@@ -164,21 +164,40 @@ public:
     //! Return the size of vFrameData
     unsigned int getNumFrames() const { return this->vFrameData.size(); }
 
+    //! After changing DM::input_mode, apply this to the current frame
+    void updateInputMode()
+    {
+        this->gcf()->ct = this->input_mode;
+        this->gcf()->updateFit();
+        this->gcf()->refreshBoxes (-this->gcf()->binA, this->gcf()->binB);
+    }
+
     //! Toggle between curve fitting, freehand loop drawing or alignment mark (landmark) input.
     void cycleInputMode()
     {
-        if (this->input_mode == InputMode::ReverseBezier) {
-            this->input_mode = InputMode::Bezier;
-        } else if (this->input_mode == InputMode::Bezier) {
+        if (this->input_mode == InputMode::Bezier || this->input_mode == InputMode::ReverseBezier) {
             this->input_mode = InputMode::Freehand;
         } else if (this->input_mode == InputMode::Freehand) {
             this->input_mode = InputMode::Landmark;
         } else if (this->input_mode == InputMode::Landmark) {
-            this->input_mode = InputMode::ReverseBezier;
+            this->input_mode = InputMode::Bezier;
         } else {
             // Shouldn't get here...
             this->input_mode = InputMode::Bezier;
         }
+        this->updateInputMode();
+    }
+
+    //! If on curve mode, toggle between "insert at end" and "insert at start" mode
+    void toggleStartEnd()
+    {
+        if (this->input_mode == InputMode::ReverseBezier) {
+            this->input_mode = InputMode::Bezier;
+            this->updateInputMode();
+        } else if (this->input_mode == InputMode::Bezier) {
+            this->input_mode = InputMode::ReverseBezier;
+            this->updateInputMode();
+        } // else do nothing
     }
 
     void clearAllCurves()
@@ -519,28 +538,20 @@ public:
         // This is the set of green user points that will be the next Bezier curve section
         if ((cf->ct == InputMode::Bezier || cf->ct == InputMode::ReverseBezier)
             && cf->flags.test(ShowUsers) == true) {
-            // Then draw the current point set:
+            // draw the "candidate" point set (for adding to the end of the curve):
             if (cf->PP.empty() || (!cf->PP.empty() && cf->P.size() > 1)) {
                 for (size_t ii=0; ii<cf->P.size(); ii++) {
                     circle (*pImg, cf->P[ii], 5, SF_GREEN, -1);
                     if (ii) { line (*pImg, cf->P[ii-1], cf->P[ii], SF_GREEN, 1, cv::LINE_AA); }
                 }
             }
-            if (cf->PP.empty() || (!cf->PP.empty() && cf->sP.size() > 0)) {
+            // draw the "candidate" point set (for adding to the *start* of the curve):
+            if (cf->PP.empty() || (!cf->PP.empty() && cf->sP.size() > 1)) {
                 for (size_t ii=0; ii<cf->sP.size(); ii++) {
                     circle (*pImg, cf->sP[ii], 5, SF_GREEN, -1);
                     if (ii) { line (*pImg, cf->sP[ii-1], cf->sP[ii], SF_GREEN, 1, cv::LINE_AA); }
                 }
             }
-
-            // Then draw the current point set:
-            if (cf->PP.empty() || (!cf->PP.empty() && cf->P.size() > 1)) {
-                for (size_t ii=0; ii<cf->P.size(); ii++) {
-                    circle (*pImg, cf->P[ii], 5, SF_GREEN, -1);
-                    if (ii) { line (*pImg, cf->P[ii-1], cf->P[ii], SF_GREEN, 1, cv::LINE_AA); }
-                }
-            }
-
             // also draw a thin line to the cursor position
             if (cf->ct == InputMode::Bezier) {
                 if ((cf->PP.empty() && cf->P.size() > 0)
@@ -813,6 +824,9 @@ public:
                      cv::Point(xh,yh), cv::FONT_HERSHEY_SIMPLEX, fontsz, SF_BLACK, 1, cv::LINE_AA);
             yh += yinc;
             putText (*pImg, std::string("o:   Draw mode (Curve/freehand/landmark)"),
+                     cv::Point(xh,yh), cv::FONT_HERSHEY_SIMPLEX, fontsz, SF_BLACK, 1, cv::LINE_AA);
+            yh += yinc;
+            putText (*pImg, std::string("s:   Toggle add points to curve at start/end"),
                      cv::Point(xh,yh), cv::FONT_HERSHEY_SIMPLEX, fontsz, SF_BLACK, 1, cv::LINE_AA);
             yh += yinc;
             putText (*pImg, std::string("n:   Next frame"),
