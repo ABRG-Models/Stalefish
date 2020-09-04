@@ -701,7 +701,7 @@ public:
             // Normal behaviour, just remove point from sP
             this->sP.pop_back(); // don't need to pop_front.
 
-        } else if (!this->PP.empty() && this->P.size() == 1) {
+        } else if (!this->PP.empty() && this->sP.size() == 1) {
             // Remove point from sP and...
             this->sP.pop_back();
             // Because it is the same locn, the first point from PP.front(), too
@@ -712,7 +712,7 @@ public:
 
         } else {
             // sP is empty, go to first curve in PP and remove a point from that
-            if (this->ct == InputMode::Bezier && this->pp_idx>0) {
+            if (this->ct == InputMode::ReverseBezier && this->pp_idx>0) {
                 if (!this->PP.empty()) {
                     this->sP = this->PP[0];
                     this->PP.pop_front();
@@ -795,10 +795,13 @@ public:
 
         std::string dname = frameName + "/class/P";
         df.read_contained_vals (dname.c_str(), this->P);
+        dname = frameName + "/class/sP";
+        df.read_contained_vals (dname.c_str(), this->sP);
 
         dname = frameName + "/class/PP_n";
         unsigned int pp_size = 0;
         df.read_val (dname.c_str(), pp_size);
+        std::cout << "pp_size = " << pp_size << std::endl;
 
         this->PP.resize(pp_size);
         for (size_t i = 0; i<pp_size; ++i) {
@@ -886,6 +889,8 @@ public:
         // user's work saving points etc.
         std::string dname = frameName + "/class/P";
         df.add_contained_vals (dname.c_str(), this->P);
+        dname = frameName + "/class/sP";
+        df.add_contained_vals (dname.c_str(), this->sP);
 
         dname = frameName + "/class/PP_n";
         unsigned int pp_size = this->PP.size();

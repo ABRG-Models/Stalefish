@@ -150,8 +150,9 @@ public:
             // Update the Bezier fit so that the boxes can be drawn
             fd.updateFit();
 
-        } catch (...) {
+        } catch (const std::exception& e) {
             // No problem, just carry on
+            std::cout << "Caught: " << e.what() << std::endl;
         }
 
         // So that freehand loops show up their pixel/signal values in the UI:
@@ -478,7 +479,7 @@ public:
         cv::Mat* sImg = _this->getSImg();
 
         // green circle under the cursor indicates curve mode
-        if (cf->ct == InputMode::Bezier) {
+        if (cf->ct == InputMode::Bezier || cf->ct == InputMode::ReverseBezier) {
             circle (*pImg, pt, 5, SF_GREEN, 1);
         }
 
@@ -516,7 +517,8 @@ public:
         }
 
         // This is the set of green user points that will be the next Bezier curve section
-        if (cf->ct == InputMode::Bezier && cf->flags.test(ShowUsers) == true) {
+        if ((cf->ct == InputMode::Bezier || cf->ct == InputMode::ReverseBezier)
+            && cf->flags.test(ShowUsers) == true) {
             // Then draw the current point set:
             if (cf->PP.empty() || (!cf->PP.empty() && cf->P.size() > 1)) {
                 for (size_t ii=0; ii<cf->P.size(); ii++) {
@@ -524,10 +526,32 @@ public:
                     if (ii) { line (*pImg, cf->P[ii-1], cf->P[ii], SF_GREEN, 1, cv::LINE_AA); }
                 }
             }
+            if (cf->PP.empty() || (!cf->PP.empty() && cf->sP.size() > 0)) {
+                for (size_t ii=0; ii<cf->sP.size(); ii++) {
+                    circle (*pImg, cf->sP[ii], 5, SF_GREEN, -1);
+                    if (ii) { line (*pImg, cf->sP[ii-1], cf->sP[ii], SF_GREEN, 1, cv::LINE_AA); }
+                }
+            }
+
+            // Then draw the current point set:
+            if (cf->PP.empty() || (!cf->PP.empty() && cf->P.size() > 1)) {
+                for (size_t ii=0; ii<cf->P.size(); ii++) {
+                    circle (*pImg, cf->P[ii], 5, SF_GREEN, -1);
+                    if (ii) { line (*pImg, cf->P[ii-1], cf->P[ii], SF_GREEN, 1, cv::LINE_AA); }
+                }
+            }
+
             // also draw a thin line to the cursor position
-            if ((cf->PP.empty() && cf->P.size() > 0)
-                || (!cf->PP.empty() && cf->P.size() > 1)) {
-                line (*pImg, cf->P[cf->P.size()-1], pt, SF_GREEN, 1, cv::LINE_AA);
+            if (cf->ct == InputMode::Bezier) {
+                if ((cf->PP.empty() && cf->P.size() > 0)
+                    || (!cf->PP.empty() && cf->P.size() > 1)) {
+                    line (*pImg, cf->P[cf->P.size()-1], pt, SF_GREEN, 1, cv::LINE_AA);
+                }
+            } else if (cf->ct == InputMode::ReverseBezier) {
+                if ((cf->PP.empty() && cf->sP.size() > 0)
+                    || (!cf->PP.empty() && cf->sP.size() > 1)) {
+                    line (*pImg, cf->sP[0], pt, SF_GREEN, 1, cv::LINE_AA);
+                }
             }
         }
 
@@ -690,6 +714,12 @@ public:
         if (event == cv::EVENT_LBUTTONDOWN) {
             if (cf->ct == InputMode::Bezier) {
                 cf->P.push_back (pt);
+                cf->setShowUsers(true);
+            } else if (cf->ct == InputMode::ReverseBezier) {
+                // If we have some already-registered curves in PP, and sP is empty, we
+                // have to add *2* points.
+                if (!cf->PP.empty() && cf->sP.empty()) { cf->sP.push_front (cf->PP.front().front()); }
+                cf->sP.push_front (pt);
                 cf->setShowUsers(true);
             } else if (cf->ct == InputMode::Freehand) {
                 cf->addToFL (pt);
