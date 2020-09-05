@@ -302,17 +302,17 @@ public:
         this->refreshAllBoxes();
 
         // Before writing, apply the slice alignment algorithms
-        for (auto& f : this->vFrameData) {
-            f.updateAlignments();
-        }
+        for (auto& f : this->vFrameData) { f.updateAlignments(); }
 
         morph::HdfData d(this->datafile);
-        for (auto f : this->vFrameData) {
-            f.write (d);
-            // Also build up an "overall" data store of the bins
-        }
+        for (auto f : this->vFrameData) { f.write (d); }
+
         int nf = this->vFrameData.size();
         d.add_val("/nframes", nf);
+
+        // Save the JSON into /config
+        d.add_string("/config", this->conf.str());
+
         std::cout << "writeFrames complete: All frames written to HDF5" << std::endl;
     }
 
