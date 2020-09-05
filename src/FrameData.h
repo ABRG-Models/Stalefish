@@ -94,8 +94,12 @@ public:
 
     //! The means computed for the boxes. This is "mean_signal".
     std::vector<float> box_signal_means;
+    //! And corresponding standard deviations
+    std::vector<float> box_signal_sds;
     //! Mean pixel value in a box.
     std::vector<unsigned int> box_pixel_means;
+    //! And corresponding standard deviations
+    std::vector<unsigned int> box_pixel_sds;
     //! The raw pixel values for each box as a vector of unsigned ints for each box.
     std::vector<std::vector<unsigned int>> boxes_pixels;
     //! The coordinates, in pixels, of the pixels in each box.
@@ -989,6 +993,10 @@ public:
         df.add_contained_vals (dname.c_str(), this->box_signal_means);
         dname = frameName + "/signal/bits8/boxes/means";
         df.add_contained_vals (dname.c_str(), this->box_pixel_means);
+        dname = frameName + "/signal/postproc/boxes/sds";
+        df.add_contained_vals (dname.c_str(), this->box_signal_sds);
+        dname = frameName + "/signal/bits8/boxes/sds";
+        df.add_contained_vals (dname.c_str(), this->box_pixel_sds);
 
         // FIXME add boxes std?
 
@@ -1740,12 +1748,16 @@ private:
         this->boxes_pixels_bgr.resize (this->boxes.size());
         this->box_signal_means.resize (this->boxes.size());
         this->box_pixel_means.resize (this->boxes.size());
+        this->box_signal_sds.resize (this->boxes.size());
+        this->box_pixel_sds.resize (this->boxes.size());
 
         for (size_t i=0; i<this->boxes.size(); i++) {
 
             // Zero the means value
             this->box_pixel_means[i] = 0;
             this->box_signal_means[i] = 0.0;
+            this->box_pixel_sds[i] = 0;
+            this->box_signal_sds[i] = 0.0;
 
             // if luminance value only/greyscale:
             if (this->cmodel == ColourModel::AllenDevMouse) {
@@ -1802,8 +1814,8 @@ private:
                 // We get the box pixel VALUES in the return value and the COORDS in the output argument
                 this->boxes_pixels[i] = this->getBoxedPixelVals (this->boxes[i], this->box_coords_pixels[i]);
                 this->boxes_signal[i] = this->getBoxedSignalVals (this->boxes[i]);
-                morph::MathAlgo::compute_mean_sd<unsigned int> (this->boxes_pixels[i], this->box_pixel_means[i]);
-                morph::MathAlgo::compute_mean_sd<float> (this->boxes_signal[i], this->box_signal_means[i]);
+                this->box_pixel_sds[i] = morph::MathAlgo::compute_mean_sd<unsigned int> (this->boxes_pixels[i], this->box_pixel_means[i]);
+                this->box_signal_sds[i] = morph::MathAlgo::compute_mean_sd<float> (this->boxes_signal[i], this->box_signal_means[i]);
                 // transform box_coords_pixels into box_coords_autoalign and box_coords_lmalign
                 std::vector<cv::Point2d> bcpix(this->box_coords_pixels[i].size());
                 this->scalePoints (this->box_coords_pixels[i], bcpix);
