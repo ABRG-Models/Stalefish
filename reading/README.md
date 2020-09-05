@@ -146,7 +146,10 @@ Each of **FrameNNN/autoalign** or **FrameNNN/lmalign** may contain:
      for this frame lie. This can be used to create a flat, two
      dimensional heatmap plot of the signal. A 'surface box' is the
      box which is a long as the corresponding sample box is wide, and
-     as wide as the slice is thick.
+     as wide as the slice is thick. It also contains
+     **sbox_linear_distance** which is takes the distance along each
+     curve using the zero angle in sbox_angles as the start point for
+     each linear distance.
 
  * **freehand**: Contains location data relating to the freehand-drawn
      loops. This may contain loop0_centroid, loop1_centroid, etc,
@@ -191,6 +194,8 @@ From the list above, **FrameNNN/scaled** may contain **fitted**,
    in each sample box
 
  * **signal/*/boxes/means** - The mean signal value for each sample box
+
+ * **signal/*/boxes/sds** - The standard deviation value for each sample box
 
  * **signal/*/boxes/means_autoscaled** - The mean signal value for each
    sample box autoscaled to lie in the range [0, 1].
