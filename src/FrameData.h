@@ -1321,7 +1321,7 @@ public:
                 // If we got to the zero-angle location, then mark the middle distance
                 if (std::abs(angle) < min_ang) {
                     middle_distance = total_linear_distance;
-                    min_ang = std::abs(this->fitted_autoaligned[i].x);
+                    min_ang = std::abs(angle);
                 }
             }
             // Now offset the linear distances so that the middle is the 0 degree location
@@ -1359,7 +1359,7 @@ public:
                 // If we got to the zero-angle location, then mark the middle distance
                 if (std::abs(angle) < min_ang) {
                     middle_distance = total_linear_distance;
-                    min_ang = std::abs(this->fitted_autoaligned[i].x);
+                    min_ang = std::abs(angle);
                 }
             }
             // Now offset the linear distances so that the middle is the 0 degree location
