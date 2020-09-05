@@ -1407,23 +1407,22 @@ public:
     }
 
     //! Check landmarks on each slice. If there are n landmarks on every slice, and n >=
-    //! 2, return true, else return false.
-    bool landmarkCheck()
+    //! 1, return n, else return 0 (or perhaps -n where n is the median number of landmarks).
+    int landmarkCheck()
     {
-        bool rtn = false;
-        size_t n = this->LM.size();
+        int n = static_cast<int>(this->LM.size());
         // Only if we have at least 2 landmarks is it worth checking any further
-        if (n >= 2) {
+        if (n >= 1) {
             // Ok, so now see if all the other frames have n landmarks. If so, then we
             // could apply the landmark based alignment (and should return true)
-            rtn = true;
             for (auto fr : (*this->parentStack)) {
-                if (fr.LM.size() != n) {
-                    rtn = false;
+                if (static_cast<int>(fr.LM.size()) != n) {
+                    n = 0;
+                    break;
                 }
             }
         }
-        return rtn;
+        return n;
     }
 
     //! Compute the align-centroid-and-rotate slice alignments and if possible, the
@@ -1438,7 +1437,7 @@ public:
 
         // Need to resize the container for the autoalign-translated copies of any landmarks:
         // Re-size landmark containers.
-        if (this->landmarkCheck() == true) {
+        if (this->landmarkCheck() > 0) {
             std::cout << "LM (landmark container) size: " << this->LM.size() << std::endl;
             this->LM_scaled.resize(this->LM.size());
             this->LM_lmaligned.resize(this->LM.size());
@@ -1494,7 +1493,10 @@ public:
         // Landmark scheme, if we have >=2 landmarks on each slice and same number of
         // landmarks on each slice the we can compute alignment with the landmarks.
         // FIXME: If 1 landmark, then do an "align-on-the-landmark-and-rotate-optimally-thereafter" process
-        if (this->landmarkCheck() == false) {
+        if (this->landmarkCheck() == 1) {
+            // FIXME: Implement align-by-single-landmark and rotate to fit
+            return;
+        } else if (this->landmarkCheck() < 2) { // 0. If 2
             return;
         }
 
