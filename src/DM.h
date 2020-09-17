@@ -915,11 +915,11 @@ public:
         std::string tbBinB = "Box B";
         std::string tbNBins = "Num bins";
         DM* _this = DM::i();
-        //std::cout << "createTrackbars: _this->binA=" << _this->binA << std::endl;
+        // binA slider goes from -200 to +200
         cv::createTrackbar (tbBinA, _this->winName, &_this->binA, 400, ontrackbar_boxes);
         cv::setTrackbarPos (tbBinA, _this->winName, _this->binA);
-        //std::cout << "createTrackbars: _this->binB=" << _this->binB << std::endl;
-        cv::createTrackbar (tbBinB, _this->winName, &_this->binB, 200, ontrackbar_boxes);
+        // binB slider from 0 to 300
+        cv::createTrackbar (tbBinB, _this->winName, &_this->binB, 300, ontrackbar_boxes);
         cv::setTrackbarPos (tbBinB, _this->winName, _this->binB);
         cv::createTrackbar (tbNBins, _this->winName, &_this->nBinsTarg, 200, ontrackbar_nbins);
         cv::setTrackbarPos (tbNBins, _this->winName, _this->nBinsTarg);
