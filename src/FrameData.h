@@ -989,6 +989,8 @@ public:
         dname = frameName + "/nboxes";
         df.add_val (dname.c_str(), static_cast<unsigned int>(this->boxes_pixels.size()));
 
+        // Save the mean and standard deviation of the signal values AND the pixel
+        // values for each sampling box in the frame.
         dname = frameName + "/signal/postproc/boxes/means";
         df.add_contained_vals (dname.c_str(), this->box_signal_means);
         dname = frameName + "/signal/bits8/boxes/means";
@@ -997,8 +999,6 @@ public:
         df.add_contained_vals (dname.c_str(), this->box_signal_sds);
         dname = frameName + "/signal/bits8/boxes/sds";
         df.add_contained_vals (dname.c_str(), this->box_pixel_sds);
-
-        // FIXME add boxes std?
 
         // Autoscale box_signal_means and save a copy
         dname = frameName + "/signal/postproc/boxes/means_autoscaled";
@@ -1038,7 +1038,7 @@ public:
                 if (this->saveLMAlignData == true) {
                     std::vector<double> box_depth_lmalign (this->box_coords_pixels[bi].size());
                     for (size_t p_i = 0; p_i < box_depth_lmalign.size(); ++p_i) {
-                        cv::Point2d diffvec = fitted_lmaligned[bi] - box_coords_lmalign[bi][p_i];
+                        cv::Point2d diffvec = box_coords_lmalign[bi][p_i] - fitted_lmaligned[bi];
                         box_depth_lmalign[p_i] = diffvec.dot(this->normals[bi]); // Should have length 1, so ok
                     }
                     dname = frameName + "/lmalign/box_depth/box" + std::to_string(bi);
