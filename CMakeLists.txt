@@ -64,7 +64,7 @@ add_subdirectory(allen)
 # add_subdirectory(tests)
 
 # For debugging of variables:
-set(DEBUG_VARIABLES ON)
+option(DEBUG_VARIABLES ON)
 if(DEBUG_VARIABLES)
   get_cmake_property(_variableNames VARIABLES)
   foreach (_variableName ${_variableNames})
