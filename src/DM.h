@@ -9,7 +9,10 @@
 #include <opencv2/imgproc.hpp>
 #include <morph/HdfData.h>
 #include <morph/Config.h>
+#include <morph/Random.h>
+#include <morph/tools.h>
 #include "FrameData.h"
+#include <fstream>
 
 // OpenCV functions mostly expect colours in Blue-Green-Red order
 #define SF_BLUE     cv::Scalar(255,0,0,10)
@@ -380,18 +383,74 @@ public:
     bool saveAutoAlign = true;
     bool saveLMAlign = true;
 
-    //! Application setup
+    //! Adapted from Seb's futil library. Create unique file name for temporary file
+    std::string generateRandomFilename (const std::string& prefixPath, const unsigned int numChars = 0)
+    {
+        std::string rtn(prefixPath);
+        unsigned int nc = 8;
+        if (numChars > 0) { nc = numChars; }
+        morph::RandString rs((size_t)nc, morph::CharGroup::HexLowerCase);
+        rtn.append (rs.get());
+        return rtn;
+    }
+
+    /*!
+     * Application setup
+     *
+     * \param paramsfile Either a path to a .json config file or a path to an HDF5
+     * file. If HDF5, then the saved JSON config is searched for within the HDF as
+     * '/config'
+     */
     void setup (const std::string& paramsfile)
     {
+        std::string jsonfile (paramsfile);
         // Set the HDF5 data file path based on the .json file path
         std::string::size_type jsonpos = paramsfile.find(".json");
         if (jsonpos == std::string::npos) {
-            this->datafile = paramsfile + ".h5";
+            // If no '.json' in the filename, then test if there's '.h5'. FIXME - should
+            // really ID the file content using libmagic, rather than relying on file suffices.
+            std::string::size_type h5pos = paramsfile.find(".h5");
+            if (h5pos == std::string::npos) {
+                std::cerr << paramsfile << " seems to be neither json nor h5; exiting." << std::endl;
+                exit (1);
+            } else {
+                this->datafile = paramsfile;
+
+                // Now get config from h5. Make a temporary file. Fill it with JSON
+                // config. Put the path to the tmp file in jsonfile.
+                std::string jsoncontent("");
+                try {
+                    morph::HdfData d(this->datafile, true); // true for read
+                    d.read_string ("/config", jsoncontent);
+                    // What about on Apple. Tmp location there?
+                    // Strip directories off paramsfile for tmp file
+                    std::string only_paramsfile(paramsfile);
+                    morph::Tools::stripUnixPath (only_paramsfile);
+                    std::string prefix = "/tmp/json_" + only_paramsfile + "_";
+                    jsonfile = "";
+                    jsonfile = this->generateRandomFilename (prefix);
+                    jsonfile.append(".json");
+                    std::ofstream jf;
+                    jf.open (jsonfile.c_str(), std::ios::out|std::ios::trunc);
+                    if (!jf.is_open()) {
+                        std::stringstream ee;
+                        ee << "Failed to open temporary file '" << jsonfile << "' for writing.";
+                        throw std::runtime_error (ee.str());
+                    }
+                    jf << jsoncontent;
+                    jf.close();
+
+                } catch (const std::exception& e) {
+                    std::cerr << "Could not read a configuration from that h5 file (is it too old?): " << e.what() << std::endl;
+                    exit (1);
+                }
+            }
+
         } else {
             this->datafile = paramsfile.substr (0,jsonpos) + ".h5";
         }
 
-        this->conf.init (paramsfile);
+        this->conf.init (jsonfile);
         if (!this->conf.ready) {
             std::cerr << "Error setting up JSON config: "
                       << this->conf.emsg << ", exiting." << std::endl;
