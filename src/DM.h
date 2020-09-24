@@ -544,6 +544,8 @@ public:
             } else {
                 if (scaleFactor != 1.0f) {
                     std::cout << "rescaling frame to scaleFactor: " << scaleFactor << std::endl;
+                    // NB: Have to change pixels_per_mm, too.
+                    this->pixels_per_mm *= scaleFactor;
 
                     cv::Size scaledSize = cv::Size(std::round(frame.cols * scaleFactor),
                                                    std::round(frame.rows * scaleFactor));
