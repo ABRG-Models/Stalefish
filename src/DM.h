@@ -105,14 +105,9 @@ public:
     //! Initialize by clearing out vFrameData.
     void init() { this->vFrameData.clear(); }
 
-    /*!
-     * Add frame \a frameImg to vFrameData, setting the metadata attributes
-     * \a frameImgFilename (The filename for the image), \a slice_x (position in the x
-     * dimension) and \a ppm (pixels per mm; the scale).
-     */
-    void addFrame (cv::Mat& frameImg, const std::string& frameImgFilename, const float& slice_x)
+    //! Set up, and add the FramdData object \a fd
+    void addFrame (FrameData& fd, const std::string& frameImgFilename, const float& slice_x)
     {
-        FrameData fd(frameImg, this->bgBlurScreenProportion, this->bgBlurSubtractionOffset);
         fd.ct = this->default_mode;
         fd.filename = frameImgFilename;
         fd.setParentStack (&this->vFrameData);
@@ -162,6 +157,29 @@ public:
         fd.computeFreehandMeans();
 
         this->vFrameData.push_back (fd);
+    }
+
+    /*!
+     * Add frame to vFrameData, setting the metadata attributes
+     * \a frameImgFilename (The filename for the image), \a slice_x (position in the x
+     * dimension)
+     */
+    void addFrame (const std::string& frameImgFilename, const float& slice_x)
+    {
+        // Create an empty FrameData, with no image data as yet.
+        FrameData fd(this->bgBlurScreenProportion, this->bgBlurSubtractionOffset);
+        this->addFrame (fd, frameImgFilename, slice_x);
+    }
+
+    /*!
+     * Add frame \a frameImg to vFrameData, setting the metadata attributes
+     * \a frameImgFilename (The filename for the image), \a slice_x (position in the x
+     * dimension)
+     */
+    void addFrame (cv::Mat& frameImg, const std::string& frameImgFilename, const float& slice_x)
+    {
+        FrameData fd(frameImg, this->bgBlurScreenProportion, this->bgBlurSubtractionOffset);
+        this->addFrame (fd, frameImgFilename, slice_x);
     }
 
     //! Return the size of vFrameData
@@ -491,8 +509,18 @@ public:
         this->savePerPixel = conf.getBool ("save_per_pixel_data", false);
         this->saveAutoAlign = conf.getBool ("save_auto_align_data", true);
         this->saveLMAlign = conf.getBool ("save_landmark_align_data", true);
+        // this->saveFrameData = conf.getBool ("save_frame_data", true);
 
-        // Loop over slices, creating a FrameData object for each.
+        // scaling routine (pull scale factor from config json)
+        const float scaleFactor = conf.getFloat("scaleFactor", 1.0f);
+
+        // Set false, try to open frames from json; if that fails, then set this
+        // true. At that point, we'll try to add frames using in-hdf5 saved data for the
+        // frame.
+        bool fallbackToInternalFrames = false;
+
+        // Loop over slices, creating a FrameData object for each. BUT if image not
+        // findable, allow system to fall back to the image saved in the frame.
         const Json::Value slices = conf.getArray ("slices");
         for (unsigned int i = 0; i < slices.size(); ++i) {
             Json::Value slice = slices[i];
@@ -502,29 +530,34 @@ public:
             std::cout << "imread " << fn << std::endl;
             cv::Mat frame = cv::imread (fn.c_str(), cv::IMREAD_COLOR);
             if (frame.empty()) {
-                std::cout <<  "Could not open or find the image '"
-                          << fn << "', exiting." << std::endl;
-                exit (1);
+                std::cout << "Could not open or find the image '"
+                          << fn << "'. Will attempt fall-back to image data stored in the h5 file." << std::endl;
+                fallbackToInternalFrames = true;
             }
 
-            // scaling routine (pull scale factor from config json)
-            float scaleFactor = conf.getFloat("scaleFactor", 1.0f);
+            if (fallbackToInternalFrames == true) {
+                // Try loading the frame exclusively from file
+                this->addFrame (fn, slice_x);
+                // Reset the bool, incase we can read the next one.
+                fallbackToInternalFrames = false;
 
-            if (scaleFactor != 1.0f) {
-                std::cout << "rescaling frame to scaleFactor: " << scaleFactor << std::endl;
-
-                cv::Size scaledSize = cv::Size(std::round(frame.cols * scaleFactor),
-                                               std::round(frame.rows * scaleFactor));
-                cv::Mat scaledFrame = cv::Mat(scaledSize, frame.type());
-                cv::resize (frame, scaledFrame, scaledSize,
-                            scaleFactor, scaleFactor, cv::INTER_LINEAR);
-
-                frame.release(); // free original frame since we have resized it
-
-                this->addFrame(scaledFrame, fn, slice_x);
             } else {
-                // if we are at the default scale factor do not do anything
-                this->addFrame(frame, fn, slice_x);
+                if (scaleFactor != 1.0f) {
+                    std::cout << "rescaling frame to scaleFactor: " << scaleFactor << std::endl;
+
+                    cv::Size scaledSize = cv::Size(std::round(frame.cols * scaleFactor),
+                                                   std::round(frame.rows * scaleFactor));
+                    cv::Mat scaledFrame = cv::Mat(scaledSize, frame.type());
+                    cv::resize (frame, scaledFrame, scaledSize,
+                                scaleFactor, scaleFactor, cv::INTER_LINEAR);
+
+                    frame.release(); // free original frame since we have resized it
+
+                    this->addFrame (scaledFrame, fn, slice_x);
+                } else {
+                    // if we are at the default scale factor do not do anything
+                    this->addFrame (frame, fn, slice_x);
+                }
             }
         }
 

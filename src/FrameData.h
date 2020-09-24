@@ -23,7 +23,8 @@
 // This is the "input mode". So in Bezier mode, you add points for the curve fitting; in
 // freehand mode you draw a loop, and in Landmark mode, you give landmarks for slice
 // alignment.
-enum class InputMode {
+enum class InputMode
+{
     Bezier,    // Cubic Bezier: "curve drawing mode"
     Freehand,  // A freehand drawn loop enclosing a region
     Landmark,  // User provides alignment landmark locations on each slice
@@ -31,12 +32,14 @@ enum class InputMode {
 };
 
 // What sort of colour model is in use?
-enum class ColourModel {
+enum class ColourModel
+{
     Greyscale,
     AllenDevMouse
 };
 
-enum FrameFlag {
+enum FrameFlag
+{
     ShowBoxes, // Show the yellow boxes?
     ShowUsers, // Show the user points?
     ShowCtrls, // Show the ctrl points of the fits?
@@ -194,6 +197,9 @@ public:
     std::bitset<8> flags;
     //! The image data, required when sampling the image in one of the boxes. CV_8UC3
     cv::Mat frame;
+    //! If set true, then the read() function will load FrameNNN/class/frame from the H5
+    //! file into this->frame and then call this->setupFrames()
+    bool loadFrameFromH5 = false;
     std::pair<int, int> frame_maxmin;
     //! A copy of the image data in float format (in range 0 to 1, rather than 0 to 255). CV_32FC3
     cv::Mat frameF;
@@ -247,7 +253,26 @@ public:
 
 public:
     FrameData() { throw std::runtime_error ("Default constructor is not allowed"); }
-    //! Constructor initializes default values
+
+    //! Constructor for creating a FrameData with NO image data. The image data is to be
+    //! read from the .h5 file.
+    FrameData (const double _bgBlurScreenProportion, const float _bgBlurSubtractionOffset)
+    {
+        this->previous = -1;
+        this->parentStack = (std::vector<FrameData>*)0;
+        // An offset so that we don't lose very small amounts of signal above the
+        // background when we subtract the blurred version of the image. To become a
+        // parameter for the user to modify at application level. Really? Want this here?
+        this->bgBlurScreenProportion = _bgBlurScreenProportion;
+        if (_bgBlurSubtractionOffset < 0.0f || _bgBlurSubtractionOffset > 255.0f) {
+            throw std::runtime_error ("The bg blur subtraction offset should be in range [0,255]");
+        }
+        this->bgBlurSubtractionOffset = _bgBlurSubtractionOffset;
+        // setupFrames will have to wait until later.
+        this->loadFrameFromH5 = true;
+    }
+
+    //! Constructor initializes default values and calls setupFrames()
     FrameData (const cv::Mat& fr,
                const double _bgBlurScreenProportion,
                const float _bgBlurSubtractionOffset)
@@ -256,6 +281,18 @@ public:
         this->previous = -1;
         this->parentStack = (std::vector<FrameData>*)0;
         this->frame = fr.clone();
+        this->bgBlurScreenProportion = _bgBlurScreenProportion;
+        if (_bgBlurSubtractionOffset < 0.0f || _bgBlurSubtractionOffset > 255.0f) {
+            throw std::runtime_error ("The bg blur subtraction offset should be in range [0,255]");
+        }
+        this->bgBlurSubtractionOffset = _bgBlurSubtractionOffset;
+        this->setupFrames();
+    }
+
+    //! From the initial frame, as loaded from an image file, or as retreived from the
+    //! .h5 file, generate the signal frame
+    void setupFrames()
+    {
         this->frame_maxmin = this->showMaxMinU (this->frame, "frame (original)");
         // Scale and convert frame to float format
         this->frame.convertTo (this->frameF, CV_32FC3, 1/255.0);
@@ -268,11 +305,8 @@ public:
         this->flags.set (ShowBoxes);
 
         // Make a blurred copy of the floating point format frame, for estimating lighting background
-        this->bgBlurScreenProportion = _bgBlurScreenProportion;
         this->blurred = cv::Mat::zeros (this->frameF.rows, this->frameF.cols, CV_32FC3);
         cv::Size ksz;
-        std::cout << "FrameData constructor: bgBlurScreenProportion = "
-                  << this->bgBlurScreenProportion << std::endl;
         ksz.width = this->frameF.cols * 2.0 * this->bgBlurScreenProportion;
         ksz.width += (ksz.width%2 == 1) ? 0 : 1; // ensure ksz.width is odd
         ksz.height = this->frameF.rows/3;
@@ -285,13 +319,6 @@ public:
 
         // Now subtract the blur from the original
         cv::Mat suboffset_minus_blurred;
-        // An offset so that we don't lose very small amounts of signal above the
-        // background when we subtract the blurred version of the image. To become a
-        // parameter for the user to modify at application level. Really? Want this here?
-        if (_bgBlurSubtractionOffset < 0.0f || _bgBlurSubtractionOffset > 255.0f) {
-            throw std::runtime_error ("The bg blur subtraction offset should be in range [0,255]");
-        }
-        this->bgBlurSubtractionOffset = _bgBlurSubtractionOffset;
         cv::subtract (this->bgBlurSubtractionOffset/255.0f, this->blurred,
                       suboffset_minus_blurred, cv::noArray(), CV_32FC3);
         // show max mins (For debugging)
@@ -867,6 +894,18 @@ public:
         dname = frameName + "/class/filename";
         df.read_string (dname.c_str(), this->filename);
 
+        if (this->loadFrameFromH5 == true) {
+            std::cout << "Attempting to read frame from H5 file...\n";
+            try {
+                dname = frameName + "/class/frame";
+                df.read_contained_vals (dname.c_str(), this->frame);
+            } catch (...) {
+                std::stringstream ee;
+                ee << "Failed to load frame image data from HDF5 file at path " << dname;
+                throw std::runtime_error (ee.str());
+            }
+            this->setupFrames();
+        }
         // NB: Don't read back from H5 file those variables which are specified in json,
         // thus changes in json will override the h5 file.
     }
@@ -972,6 +1011,10 @@ public:
             dname = frameName + "/class/luminosity_cutoff";
             df.add_val (dname.c_str(), this->luminosity_cutoff);
         }
+
+        // The frame data itself
+        dname = frameName + "/class/frame";
+        df.add_contained_vals (dname.c_str(), this->frame);
 
         /*
          * The rest of the methods write out data that WON'T be read by the
