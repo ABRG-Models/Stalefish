@@ -929,7 +929,7 @@ public:
         // Write out essential information to re-load state of the application and the
         // user's work saving points etc.
         std::string dname = frameName + "/class/P";
-        df.add_contained_vals (dname.c_str(), this->P);
+        df.add_contained_vals (dname.c_str(), this->P); // Crashes on Mac
         dname = frameName + "/class/sP";
         df.add_contained_vals (dname.c_str(), this->sP);
 
