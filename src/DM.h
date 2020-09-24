@@ -5,6 +5,8 @@
 #include <cmath>
 #include <stdexcept>
 #include <bitset>
+#include <fstream>
+#include <limits>
 #include <opencv2/opencv.hpp>
 #include <opencv2/imgproc.hpp>
 #include <morph/HdfData.h>
@@ -12,7 +14,6 @@
 #include <morph/Random.h>
 #include <morph/tools.h>
 #include "FrameData.h"
-#include <fstream>
 
 // OpenCV functions mostly expect colours in Blue-Green-Red order
 #define SF_BLUE     cv::Scalar(255,0,0,10)
@@ -123,7 +124,7 @@ public:
             fd.setPrevious (this->vFrameData.back().idx);
         }
         fd.layer_x = slice_x;
-        fd.pixels_per_mm = (double)this->pixels_per_mm;
+        fd.pixels_per_mm = (double)this->pixels_per_mm * this->scaleFactor;
         fd.thickness = this->thickness;
         if (this->colourmodel == "allen") {
             fd.cmodel = ColourModel::AllenDevMouse;
@@ -381,6 +382,8 @@ public:
     std::string datafile = "unset.h5";
     //! How many pixels in the image is 1mm?
     float pixels_per_mm = 100.0f;
+    //! What is the scaling factor to scale the images before saving them in FrameData objects?
+    float scaleFactor = 1.0f;
 
     //! Set true to read in old data format, to be written out in new format.
     bool readOldFormat = false;
@@ -512,7 +515,7 @@ public:
         // this->saveFrameData = conf.getBool ("save_frame_data", true);
 
         // scaling routine (pull scale factor from config json)
-        const float scaleFactor = conf.getFloat("scaleFactor", 1.0f);
+        this->scaleFactor = conf.getFloat ("scaleFactor", 1.0f);
 
         // Set false, try to open frames from json; if that fails, then set this
         // true. At that point, we'll try to add frames using in-hdf5 saved data for the
@@ -542,10 +545,8 @@ public:
                 fallbackToInternalFrames = false;
 
             } else {
-                if (scaleFactor != 1.0f) {
+                if (std::abs(this->scaleFactor - 1.0f) > std::numeric_limits<float>::epsilon()) {
                     std::cout << "rescaling frame to scaleFactor: " << scaleFactor << std::endl;
-                    // NB: Have to change pixels_per_mm, too.
-                    this->pixels_per_mm *= scaleFactor;
 
                     cv::Size scaledSize = cv::Size(std::round(frame.cols * scaleFactor),
                                                    std::round(frame.rows * scaleFactor));
