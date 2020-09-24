@@ -378,9 +378,7 @@ public:
     //! Set the number of bins and update the size of the various containers
     void setBins (int num)
     {
-        if (num > 5000) {
-            throw std::runtime_error ("Too many bins...");
-        }
+        if (num > 5000) { throw std::runtime_error ("Too many bins..."); }
         this->nBins = num;
         this->nFit = num + 1;
         this->fitted_scaled.resize (this->nFit);
@@ -1480,9 +1478,7 @@ public:
     //! landmark-based alignment.
     void updateAlignments()
     {
-        if (this->fitted.empty()) {
-            return;
-        }
+        if (this->fitted.empty()) { return; }
 
         this->scalePoints (this->fitted, this->fitted_scaled);
 
@@ -1516,8 +1512,6 @@ public:
 #else
         // Possible alternative to allow optimization to tweak the translation as well as the rotation:
 
-        // FIXME: Write function to ensure same number of bins in each frame (temporarily), then:
-
         if (this->previous < 0) {
             // get centroid of this->fitted_scaled (the 0th slice
             cv::Point2d slice0centroid = morph::MathAlgo::centroid (this->fitted_scaled);
@@ -1526,14 +1520,40 @@ public:
             this->autoalign_theta = 0.0;
 
         } else {
-            // How many slices?
-            //size_t alignment_slice = 0; // Align to the 0th slice
+            // now, if we're aligning partly to the mid slice, shouldn't we centroid it
+            // first? Perhaps that's why the computeSos3d function is heavily weighted
+            // to the neighbouring (i.e. to the previous) slice?
             size_t alignment_slice = this->parentStack->size()/2; // align to mid slice
             std::cout << "Alignment slice: " << alignment_slice << std::endl;
+
+            // set number of bins in the alignment_slice and in the previous slice to
+            // match the number of bins in this frame.
+            int alignment_slice_bins = (*this->parentStack)[alignment_slice].getBins();
+            int previous_slice_bins = (*this->parentStack)[this->previous].getBins();
+            if (alignment_slice_bins != this->nBins) {
+                (*this->parentStack)[alignment_slice].setBins (this->nBins);
+                (*this->parentStack)[alignment_slice].updateFit();
+            }
+            if (previous_slice_bins != this->nBins) {
+                (*this->parentStack)[this->previous].setBins (this->nBins);
+                (*this->parentStack)[this->previous].updateFit();
+            }
+
+            // Call the optimization function
             this->alignOptimally (this->fitted_scaled,
                                   (*this->parentStack)[alignment_slice].fitted_autoaligned,
                                   (*this->parentStack)[this->previous].fitted_autoaligned,
                                   this->autoalign_translation, this->autoalign_theta);
+
+            // Restore number of bins.
+            if (alignment_slice_bins != this->nBins) {
+                (*this->parentStack)[alignment_slice].setBins (alignment_slice_bins);
+                (*this->parentStack)[alignment_slice].updateFit();
+            }
+            if (previous_slice_bins != this->nBins) {
+                (*this->parentStack)[this->previous].setBins (previous_slice_bins);
+                (*this->parentStack)[this->previous].updateFit();
+            }
         }
         this->transform (this->fitted_scaled, this->fitted_autoaligned, this->autoalign_translation, this->autoalign_theta);
         this->transform (this->LM_scaled, this->LM_autoaligned, this->autoalign_translation, this->autoalign_theta);
@@ -1560,11 +1580,26 @@ public:
             this->lm_theta = 0.0;
 
         } else {
+            // NB: This is the landmark scheme
             size_t alignment_slice = 0; // Align to the 0th slice
+
+            // Unify the number of sample bins on the curves in the alignment_slice frame and in this frame.
+            int alignment_slice_bins = (*this->parentStack)[alignment_slice].getBins();
+            if (alignment_slice_bins != this->nBins) {
+                (*this->parentStack)[alignment_slice].setBins (this->nBins);
+                (*this->parentStack)[alignment_slice].updateFit();
+            }
+
             this->alignOptimally (this->LM_scaled,
                                   (*this->parentStack)[alignment_slice].LM_lmaligned,
                                   //(*this->parentStack)[this->previous].LM_lmaligned, // keep landmark aligning simple
                                   this->lm_translation, this->lm_theta);
+
+            // Restore number of bins.
+            if (alignment_slice_bins != this->nBins) {
+                (*this->parentStack)[alignment_slice].setBins (alignment_slice_bins);
+                (*this->parentStack)[alignment_slice].updateFit();
+            }
         }
 
         this->transform (this->LM_scaled, this->LM_lmaligned, this->lm_translation, this->lm_theta);
@@ -2155,9 +2190,8 @@ private:
 
     /*!
      * By optimally aligning (by 2d translate and rotate only) the \a alignment_coords
-     * with \a target_aligned_alignment_coords, find a translation and rotation to
-     * transform \a alignment_coords into \a aligned_alignment_coords and \a coords into
-     * \a aligned_coords.
+     * with \a target_aligned_alignment_coords, find a \a translation and \a rotation
+     * which are the outputs of this function.
      *
      * \param alignment_coords The coordinates which will be aligned by the
      * optimization. These could be user-supplied landmarks or the Bezier curve points.
@@ -2166,15 +2200,16 @@ private:
      * should be transformed until they match target_aligned_alignment_coords as closely
      * as possible.
      *
-     * \param neighbour_aligned_alignment_coords The neighbouring slice alignment coords.
+     * \param neighbour_aligned_alignment_coords The neighbouring slice alignment
+     * coords. These are passed into the cost function of the optimization.
      *
      * \param translation Output. The x/y translation applied to alignment_coords and
-     * coords to give (after \a rotation has also been applied) \a aligned_alignment_coords
-     * and \a aligned_coords
+     * coords to give (after \a rotation has also been applied) \a
+     * target_aligned_alignment_coords
      *
      * \param rotation Output. The rotation (theta) applied to alignment_coords and
      * coords to give (as long as translation was applied)
-     * aligned_alignment_coords and aligned_coords
+     * target_aligned_alignment_coords.
      */
     void alignOptimally (const std::vector<cv::Point2d>& alignment_coords,
                          const std::vector<cv::Point2d>& target_aligned_alignment_coords,
@@ -2182,7 +2217,7 @@ private:
                          cv::Point2d& translation,
                          double& rotation)
     {
-        // Check that target frame has same number of coords, if not throw exception
+        // Check that target frame has same number of coords, if not warn and return.
         if (target_aligned_alignment_coords.size() != alignment_coords.size()
             || neighbour_aligned_alignment_coords.size() != alignment_coords.size()) {
             std::stringstream ee;
@@ -2281,8 +2316,7 @@ private:
      * and \a aligned_coords
      *
      * \param rotation Output. The rotation (theta) applied to alignment_coords and
-     * coords to give (as long as translation was applied)
-     * aligned_alignment_coords and aligned_coords
+     * coords to give (as long as translation was applied) aligned_alignment_coords.
      */
     void alignOptimally (const std::vector<cv::Point2d>& alignment_coords,
                          const std::vector<cv::Point2d>& target_aligned_alignment_coords,
