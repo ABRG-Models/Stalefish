@@ -28,7 +28,9 @@ enum class InputMode
     Bezier,    // Cubic Bezier: "curve drawing mode"
     Freehand,  // A freehand drawn loop enclosing a region
     Landmark,  // User provides alignment landmark locations on each slice
-    ReverseBezier // Curve drawing mode but adding/deleting points at the start of the curve
+    ReverseBezier, // Curve drawing mode but adding/deleting points at the start of the curve
+    Circlemark // Circular landmarks that are large and require 3 points to estimate
+               // their centre. Developed to handle needle alignment holes.
 };
 
 // What sort of colour model is in use?
@@ -94,6 +96,14 @@ public:
     std::vector<cv::Point2d> LM_autoaligned;
     //! As part of alignment, have to hold a copy of the aligned landmarks
     std::vector<cv::Point2d> LM_lmaligned;
+
+    //! Circlemarks. For every 3 circlemarks, we effectively add a landmark. All four
+    //! are stored in each element of this vector. It would be nice to add these as
+    //! landmarks, because then all the align as landmarks stuff will work. Perhaps the
+    //! best way to do this is to store the groups of 3 circlemarks.
+    std::vector<std::array<cv::Point, 4>> CM;
+    //! Holds the centre of the circle points scaled by pixels_per_mm
+    std::vector<cv::Point2d> CM_scaled;
 
     //! The means computed for the boxes. This is "mean_signal".
     std::vector<float> box_signal_means;
@@ -423,6 +433,8 @@ public:
             ss << ". Freehand mode";
         } else if (this->ct == InputMode::Landmark) {
             ss << ". Landmark mode";
+        } else if (this->ct == InputMode::Circlemark) {
+            ss << ". Circlemark mode";
         } else {
             ss << ". unknown mode";
         }
@@ -686,6 +698,8 @@ public:
             this->removeLastLandmark();
         } else if (this->ct == InputMode::ReverseBezier) {
             this->removeFirstPoint();
+        } else if (this->ct == InputMode::Circlemark) {
+            this->removeLastCirclepoint();
         } else {
             this->removeLastPoint();
         }
