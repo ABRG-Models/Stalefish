@@ -991,14 +991,11 @@ public:
         df.read_contained_vals (dname.c_str(), this->LM);
 
         // Circlemarks
-        std::cout << "Circlemarks" << std::endl;
         for (size_t i = 0; i < this->LM.size(); ++i) {
             dname = frameName + "/class/CM/lm" + std::to_string(i);
-            std::cout << "Attempt to open " << dname << " in h5 file...\n";
             try {
                 std::vector<cv::Point> vpts;
-                df.read_val (dname.c_str(), vpts);
-                std::cout << "...success.\n";
+                df.read_contained_vals (dname.c_str(), vpts);
                 this->CM[i] = vpts;
             } catch (...) {
                 // Do nothing on exception. Move on to next.
