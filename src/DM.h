@@ -20,6 +20,7 @@
 #define SF_GREEN    cv::Scalar(0,255,0,10)
 #define SF_RED      cv::Scalar(0,0,255,10)
 #define SF_YELLOW   cv::Scalar(0,255,255,10)
+#define SF_PURPLE   cv::Scalar(238,121,159,50)
 #define SF_BLACK    cv::Scalar(0,0,0)
 #define SF_WHITE    cv::Scalar(255,255,255)
 #define SF_C1       cv::Scalar(238,121,159) // mediumpurple2
@@ -202,6 +203,8 @@ public:
         } else if (this->input_mode == InputMode::Freehand) {
             this->input_mode = InputMode::Landmark;
         } else if (this->input_mode == InputMode::Landmark) {
+            this->input_mode = InputMode::Circlemark;
+        } else if (this->input_mode == InputMode::Circlemark) {
             this->input_mode = InputMode::Bezier;
         } else {
             // Shouldn't get here...
@@ -798,6 +801,37 @@ public:
         }
     }
 
+    //! Input mode for entering landmarks by defining 3 points on a circle.
+    void draw_circlemarks (const cv::Point& pt)
+    {
+        DM* _this = DM::i();
+        cv::Mat* pImg = _this->getImg();
+        FrameData* cf = _this->gcf();
+
+        // circle under the cursor
+        if (cf->ct == InputMode::Circlemark) {
+            circle (*pImg, pt, 7, SF_PURPLE, 1);
+            // Cross hares too
+            line (*pImg, pt-cv::Point(0,6), pt+cv::Point(0,6), SF_BLACK, 1);
+            line (*pImg, pt-cv::Point(6,0), pt+cv::Point(6,0), SF_BLACK, 1);
+        }
+
+        // Draw any entries in CM
+        auto cmi = cf->CM.begin();
+        while (cmi != cf->CM.end()) {
+            std::vector<cv::Point> pts = cmi->second;
+            for (size_t i = 0; i < pts.size(); ++i) {
+                circle (*pImg, pts[i], 4, SF_PURPLE, -1);
+            }
+            ++cmi;
+        }
+
+        // Draw any entries in CM_points
+        for (size_t i = 0; i < cf->CM_points.size(); ++i) {
+            circle (*pImg, cf->CM_points[i], 4, SF_RED, -1);
+        }
+    }
+
     //! Actions to take on a mouse user-interface event
     static void onmouse (int event, int x, int y, int flags, void* param)
     {
@@ -831,6 +865,8 @@ public:
                 cf->addToFL (pt);
             } else if (cf->ct == InputMode::Landmark) {
                 cf->LM.push_back (pt);
+            } else if (cf->ct == InputMode::Circlemark) {
+                cf->addCirclepoint (pt);
             }
         } else if (event == cv::EVENT_LBUTTONUP) {
             cf->loopFinished = false;
@@ -851,6 +887,7 @@ public:
         _this->draw_curves (pt);
         _this->draw_freehand (pt);
         _this->draw_landmarks (pt);
+        _this->draw_circlemarks (pt);
 
         std::stringstream ss;
         int xh = 30;

@@ -28,7 +28,9 @@ enum class InputMode
     Bezier,    // Cubic Bezier: "curve drawing mode"
     Freehand,  // A freehand drawn loop enclosing a region
     Landmark,  // User provides alignment landmark locations on each slice
-    ReverseBezier // Curve drawing mode but adding/deleting points at the start of the curve
+    ReverseBezier, // Curve drawing mode but adding/deleting points at the start of the curve
+    Circlemark // Circular landmarks that are large and require 3 points to estimate
+               // their centre. Developed to handle needle alignment holes.
 };
 
 // What sort of colour model is in use?
@@ -94,6 +96,20 @@ public:
     std::vector<cv::Point2d> LM_autoaligned;
     //! As part of alignment, have to hold a copy of the aligned landmarks
     std::vector<cv::Point2d> LM_lmaligned;
+
+    // Circlemarks. For every 3 circlemarks, we effectively add a landmark. So
+    // circlemark mode simply adds landmarks, but by placing 3 points on a circle. The
+    // difference comes when deleting, I suppose. Usually don't expect to see more than
+    // 3 of these? Do I save the circle marks for each landmark or have the system
+    // re-set them each time? If I don't save, then the off-screen landmarks will be
+    // missing.
+
+    //! Current circle mark points, user-supplied
+    std::vector<cv::Point> CM_points;
+    //! Holds a collection of finished circlemark triplets, ordered by the key, which is
+    //! the index into LM for the associated landmark, which is the centre of the circle
+    //! defined by the triplets.
+    std::map<size_t, std::vector<cv::Point>> CM;
 
     //! The means computed for the boxes. This is "mean_signal".
     std::vector<float> box_signal_means;
@@ -423,6 +439,8 @@ public:
             ss << ". Freehand mode";
         } else if (this->ct == InputMode::Landmark) {
             ss << ". Landmark mode";
+        } else if (this->ct == InputMode::Circlemark) {
+            ss << ". Circlemark mode";
         } else {
             ss << ". unknown mode";
         }
@@ -686,6 +704,9 @@ public:
             this->removeLastLandmark();
         } else if (this->ct == InputMode::ReverseBezier) {
             this->removeFirstPoint();
+        } else if (this->ct == InputMode::Circlemark) {
+            // Also removes the associated landmark
+            this->removeLastCirclepoint();
         } else {
             this->removeLastPoint();
         }
@@ -787,7 +808,103 @@ public:
     }
 
     //! Remove the last landmark coordinate
-    void removeLastLandmark() { if (!this->LM.empty()) { this->LM.pop_back(); } }
+    void removeLastLandmark()
+    {
+        if (!this->LM.empty()) {
+            // If LM.back() is in this->CM, then delete those, too
+            size_t lm_last = this->LM.size()-1;
+            std::map<size_t, std::vector<cv::Point>>::iterator cmi = this->CM.find(lm_last);
+            if (cmi != this->CM.end()) {
+                this->CM.erase (cmi);
+            }
+            this->LM.pop_back();
+        }
+    }
+
+    //! Remove the last circlemark point. If there are no current circlepoints in
+    //! CM_points, then a) move the largest key entry in this->CM over to CM_points, b)
+    //! Remove the landmark associated with it and c) remove the 3rd circle point from
+    //! CM_points.
+    void removeLastCirclepoint()
+    {
+        if (this->CM_points.empty()) {
+            if (!this->CM.empty()) {
+                std::map<size_t, std::vector<cv::Point>>::reverse_iterator ei = this->CM.rbegin();
+                std::cout << "End entry in CM has key " << ei->first << std::endl;
+                std::vector<cv::Point>::iterator li = this->LM.begin();
+                li += ei->first;
+                if (li != this->LM.end()) {
+                    this->LM.erase (li);
+                }
+                this->CM_points = ei->second;
+                this->CM.erase (this->CM.find(ei->first));
+                this->CM_points.pop_back();
+            }
+        } else {
+            this->CM_points.pop_back();
+        }
+    }
+
+private:
+    //! Compute determinant for 3x3 matrix @cm arranged in col major format
+    double determinant3x3 (std::array<double, 9> cm) const {
+        double det = (cm[0]*cm[4]*cm[8])
+        + (cm[3]*cm[7]*cm[2])
+        + (cm[6]*cm[1]*cm[5])
+        - (cm[6]*cm[4]*cm[2])
+        - (cm[0]*cm[7]*cm[5])
+        - (cm[3]*cm[1]*cm[8]);
+        return det;
+    }
+
+    //! From 3 points, compute the centre of the circle which passes through all 3.
+    //! Matrix based recipe from https://mathworld.wolfram.com/Circumcircle.html
+    cv::Point circumcentre (const std::vector<cv::Point>& threepoints)
+    {
+        // zero is the centre
+        cv::Point2d zero;
+
+        cv::Point2d one = cv::Point2d(threepoints[0]);
+        cv::Point2d two = cv::Point2d(threepoints[1]);
+        cv::Point2d three = cv::Point2d(threepoints[2]);
+
+        std::array<double, 9> Dx, Dy, _a;
+
+        Dx[0] = one.x*one.x + one.y*one.y;         Dx[3] = one.y;   Dx[6] = 1.0;
+        Dx[1] = two.x*two.x + two.y*two.y;         Dx[4] = two.y;   Dx[7] = 1.0;
+        Dx[2] = three.x*three.x + three.y*three.y; Dx[5] = three.y; Dx[8] = 1.0;
+
+        Dy[0] = one.x*one.x + one.y*one.y;         Dy[3] = one.x;   Dy[6] = 1.0;
+        Dy[1] = two.x*two.x + two.y*two.y;         Dy[4] = two.x;   Dy[7] = 1.0;
+        Dy[2] = three.x*three.x + three.y*three.y; Dy[5] = three.x; Dy[8] = 1.0;
+
+        _a[0] = one.x; _a[3] = one.y; _a[6] = 1.0;
+        _a[1] = two.x; _a[4] = two.y; _a[7] = 1.0;
+        _a[2] = three.x; _a[5] = three.y; _a[8] = 1.0;
+
+        double minusbx = this->determinant3x3 (Dx);
+        double by = this->determinant3x3 (Dy);
+        double twoa = 2.0 * this->determinant3x3 (_a);
+
+        zero.x = minusbx / twoa;
+        zero.y = -by / twoa;
+
+        return cv::Point (zero);
+    }
+
+public:
+    void addCirclepoint (cv::Point& pt)
+    {
+        this->CM_points.push_back (pt);
+
+        if (this->CM_points.size() == 3) {
+            // We just added the last point to CM_points
+            cv::Point cent = this->circumcentre (this->CM_points);
+            this->LM.push_back (cent);
+            this->CM[this->LM.size()-1] = this->CM_points;
+            this->CM_points.clear();
+        }
+    }
 
     //! In Bezier mode, store the current set of user points (P) into PP and clear P.
     void nextCurve()
@@ -872,6 +989,26 @@ public:
         // Landmark points
         dname = frameName + "/class/LM";
         df.read_contained_vals (dname.c_str(), this->LM);
+
+        // Circlemarks
+        for (size_t i = 0; i < this->LM.size(); ++i) {
+            dname = frameName + "/class/CM/lm" + std::to_string(i);
+            try {
+                std::vector<cv::Point> vpts;
+                df.read_contained_vals (dname.c_str(), vpts);
+                this->CM[i] = vpts;
+            } catch (...) {
+                // Do nothing on exception. Move on to next.
+                std::cout << "Circlemarks exception1" << std::endl;
+            }
+        }
+        try {
+            dname = frameName + "/class/CM_points";
+            df.read_val (dname.c_str(), this->CM_points);
+        } catch (...) {
+            // Do nothing on exception. Move on to next.
+            std::cout << "Circlemarks exception2" << std::endl;
+        }
 
         dname = frameName + "/class/nBins";
         int _nBins;
@@ -973,6 +1110,19 @@ public:
         dname = frameName + "/class/LM_scaled";
         df.add_contained_vals (dname.c_str(), this->LM_scaled);
 
+        // Circlemark points
+        if (!this->CM_points.empty()) {
+            dname = frameName + "/class/CM_points";
+            df.add_contained_vals (dname.c_str(), this->CM_points);
+        }
+        // CM is map<size_t, vector<cv::Point>>. Unpack here and save.
+        std::map<size_t, std::vector<cv::Point>>::iterator cmi = this->CM.begin();
+        while (cmi != this->CM.end()) {
+            dname = frameName + "/class/CM/lm" + std::to_string(cmi->first);
+            df.add_contained_vals (dname.c_str(), cmi->second);
+            ++cmi;
+        }
+
         dname = frameName + "/class/pp_idx";
         df.add_val (dname.c_str(), this->pp_idx);
         dname = frameName + "/class/nBins";
@@ -985,10 +1135,6 @@ public:
         df.add_val (dname.c_str(), this->flags);
         dname = frameName + "/class/filename";
         df.add_string (dname.c_str(), this->filename);
-        // The cv::Mat image data could be saved in the h5 file, though at the cost of
-        // quite a bit of storage:
-        // dname = frameName + "/class/frame";
-        // df.add_contained_vals (dname.c_str(), this->frame);
         dname = frameName + "/class/layer_x";
         df.add_val (dname.c_str(), this->layer_x);
         dname = frameName + "/class/thickness";
