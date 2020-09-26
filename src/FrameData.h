@@ -121,8 +121,8 @@ public:
     //! Bin A sets the number of pixels along the normal to the fit to end the sample box
     int binB = 100;
 
-    //! A set of points created from the fit. Units: pixels.
-    std::vector<cv::Point> fitted;
+    //! A set of points created from the fit. Units: pixels, but stored in double precision.
+    std::vector<cv::Point2d> fitted;
     //! Take FrameData::fitted and scale by pixels_per_mm. Units: mm.
     std::vector<cv::Point2d> fitted_scaled;
 
@@ -1633,8 +1633,8 @@ public:
         for (int i=0; i<this->nFit; i++) {
             cv::Point2d normLenA = this->normals[i]*lenA;
             cv::Point2d normLenB = this->normals[i]*lenB;
-            this->pointsInner[i] = this->fitted[i] + cv::Point2i((int)normLenA.x, (int)normLenA.y);
-            this->pointsOuter[i] = this->fitted[i] + cv::Point2i((int)normLenB.x, (int)normLenB.y);
+            this->pointsInner[i] = cv::Point(this->fitted[i] + cv::Point2d(normLenA.x, normLenA.y));
+            this->pointsOuter[i] = cv::Point(this->fitted[i] + cv::Point2d(normLenB.x, normLenB.y));
         }
 
         // Make the boxes from pointsInner and pointsOuter
@@ -1959,7 +1959,7 @@ private:
         this->tangents.resize (this->nFit);
         this->normals.resize (this->nFit);
         for (int i = 0; i < this->nFit; ++i) {
-            this->fitted[i] = cv::Point(coords[i].x(),coords[i].y());
+            this->fitted[i] = cv::Point2d(coords[i].x(),coords[i].y());
             this->tangents[i] = cv::Point2d(tans[i].x(),tans[i].y());
             this->normals[i] = cv::Point2d(norms[i].x(),norms[i].y());
         }
@@ -1973,6 +1973,17 @@ private:
         if (sz != sz2) { throw std::runtime_error ("scalePoints: size mismatch"); }
         for (size_t i = 0; i < sz; ++i) {
             scaled_points[i] = cv::Point2d(points[i]) / this->pixels_per_mm;
+        }
+    }
+
+    //! Scale \a points by FrameData::pixels_per_mm to give \a scaled_points
+    void scalePoints (const std::vector<cv::Point2d>& points, std::vector<cv::Point2d>& scaled_points)
+    {
+        size_t sz = points.size();
+        size_t sz2 = scaled_points.size();
+        if (sz != sz2) { throw std::runtime_error ("scalePoints: size mismatch"); }
+        for (size_t i = 0; i < sz; ++i) {
+            scaled_points[i] = points[i] / this->pixels_per_mm;
         }
     }
 
