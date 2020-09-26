@@ -1634,17 +1634,6 @@ public:
 private:
     void updateAutoAlignments()
     {
-#if 0
-        // The autoalign translation is the centroid of the scaled fitted points
-        this->autoalign_translation = -morph::MathAlgo::centroid (this->fitted_scaled);
-        // Apply offset
-        this->translate (this->fitted_scaled, this->fitted_autoalign_translated, this->autoalign_translation);
-        // Also apply the translation to any landmarks
-        this->translate (this->LM_scaled, this->LM_autoalign_translated, this->autoalign_translation);
-        this->rotateFitOptimally();
-#else
-        // Possible alternative to allow optimization to tweak the translation as well as the rotation:
-
         if (this->previous < 0) {
             // get centroid of this->fitted_scaled (the 0th slice
             cv::Point2d slice0centroid = morph::MathAlgo::centroid (this->fitted_scaled);
@@ -1691,7 +1680,6 @@ private:
         this->transform (this->fitted_scaled, this->fitted_autoaligned, this->autoalign_translation, this->autoalign_theta);
         this->transform (this->LM_scaled, this->LM_autoaligned, this->autoalign_translation, this->autoalign_theta);
 
-#endif
         this->autoalignComputed = true;
     }
 
@@ -2127,7 +2115,7 @@ private:
         }
     }
 
-    //! Update the fit, scale and rotate by \a _theta. Used by rotateFitOptimally()
+    //! Update the fit, scale and rotate by \a _theta.
     void updateFit (double _theta)
     {
         this->updateFitBezier();
@@ -2726,86 +2714,6 @@ private:
         translation.x = vP[0];
         translation.y = vP[1];
         rotation = vP[2];
-    }
-
-    //! Rotate the fit until we get the best one.
-    void rotateFitOptimally()
-    {
-        // If there's no previous frame, then fitted_autoaligned should be same as fitted_autoalign_translated
-        if (this->previous < 0) {
-            // Using translate as copy here:
-            this->translate (this->fitted_autoalign_translated, this->fitted_autoaligned, cv::Point2d(0,0));
-            this->translate (this->LM_autoalign_translated, this->LM_autoaligned, cv::Point2d(0,0));
-            return;
-        }
-
-        std::cout << "rotateFitOptimally: DO have previous frame" << std::endl;
-
-        // Now check if the previous frame has different number of bins
-        int nBinsSave = this->nBins;
-        int nBinsTmp = (*this->parentStack)[this->previous].getBins();
-        std::cout << "  nBinsSave(this->nBins) = "<< nBinsSave << std::endl;
-        std::cout << "  nBinsTmp(this->previous->nBins) = "<< nBinsTmp << std::endl;
-        if (nBinsTmp != nBinsSave) {
-            // This temporarily re-computes THIS frame's fit with nBinsTmp
-            std::cout << "set bins to nBinsTmp = " << nBinsTmp << std::endl;
-            this->setBins (nBinsTmp);
-            this->updateFitBezier();
-        }
-
-        // Now we have a fit which has same number of bins as the previous frame,
-        // this means we can compute SOS objective function
-        double thet1 = 0.0;
-        double thet2 = 0.5;
-        morph::NM_Simplex<double> simp (thet1, thet2);
-        // Set a termination threshold for the SD of the vertices of the simplex
-        simp.termination_threshold = 2.0 * std::numeric_limits<double>::epsilon();
-        // Set a 10000 operation limit, in case the above threshold can't be reached
-        simp.too_many_operations = 1000;
-
-        while (simp.state != morph::NM_Simplex_State::ReadyToStop) {
-
-            if (simp.state == morph::NM_Simplex_State::NeedToComputeThenOrder) {
-                // 1. apply objective to each vertex
-                for (unsigned int i = 0; i <= simp.n; ++i) {
-                    simp.values[i] = this->computeSosWithPrev (simp.vertices[i][0]);
-                }
-                simp.order();
-
-            } else if (simp.state == morph::NM_Simplex_State::NeedToOrder) {
-                simp.order();
-
-            } else if (simp.state == morph::NM_Simplex_State::NeedToComputeReflection) {
-                double val = this->computeSosWithPrev (simp.xr[0]);
-                simp.apply_reflection (val);
-
-            } else if (simp.state == morph::NM_Simplex_State::NeedToComputeExpansion) {
-                double val = this->computeSosWithPrev (simp.xe[0]);
-                simp.apply_expansion (val);
-
-            } else if (simp.state == morph::NM_Simplex_State::NeedToComputeContraction) {
-                double val = this->computeSosWithPrev (simp.xc[0]);
-                simp.apply_contraction (val);
-            }
-        }
-        std::vector<double> vP = simp.best_vertex();
-        double min_sos = simp.best_value();
-
-        std::cout << "Best sos value: " << min_sos << " and best theta: " << vP[0] << std::endl;
-        this->autoalign_theta = vP[0];
-
-        if (nBinsTmp != nBinsSave) {
-            // Need to reset bins and update the fit again, but this time rotating by vP[0]
-            std::cout << "reset bins to nBinsSave = " << nBinsSave << std::endl;
-            this->setBins (nBinsSave);
-            std::cout << "Update fit with rotation " << this->autoalign_theta << std::endl;
-            this->updateFit (this->autoalign_theta);
-        } // else there was no need to change bins back
-
-        // rotate by the best theta, vP[0]
-        std::cout << "Update unchanged fit with rotation " << this->autoalign_theta << std::endl;
-        this->rotate (this->fitted_autoalign_translated, this->fitted_autoaligned, this->autoalign_theta);
-        this->rotate (this->LM_autoalign_translated, this->LM_autoaligned, this->autoalign_theta);
     }
 
     //! Common code to generate the frame name
