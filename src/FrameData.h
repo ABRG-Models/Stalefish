@@ -168,6 +168,12 @@ public:
     double lm_theta = 0.0;
     //! Holds the final, translated and rotated points aligned with landmarks.
     std::vector<cv::Point2d> fitted_lmaligned;
+    //! If true, and there are >1 landmark per slice, apply the "rotate slices about
+    //! landmark 1" alignment procedure anyway. This rotational alignment is applied by
+    //! default if there is ONLY 1 landmark per slice.
+    bool rotateLandmarkOne = false;
+    //! If true, in "rotate about landmark 1 mode" align the other landmarks, instead of the curves.
+    bool rotateButAlignLandmarkTwoPlus = false;
     //! Set true if landmark alignment was completed before write()
     bool lmalignComputed = false;
 
@@ -216,6 +222,9 @@ public:
     //! If set true, then the read() function will load FrameNNN/class/frame from the H5
     //! file into this->frame and then call this->setupFrames()
     bool loadFrameFromH5 = false;
+    //! If true, then save FrameData::frame contents to H5 file on write()
+    bool saveFrameToH5 = true;
+    //! Maximum and minimum pixel values of frame
     std::pair<int, int> frame_maxmin;
     //! A copy of the image data in float format (in range 0 to 1, rather than 0 to 255). CV_32FC3
     cv::Mat frameF;
@@ -1157,8 +1166,10 @@ public:
         }
 
         // The frame data itself
-        dname = frameName + "/class/frame";
-        df.add_contained_vals (dname.c_str(), this->frame);
+        if (this->saveFrameToH5 == true) {
+            dname = frameName + "/class/frame";
+            df.add_contained_vals (dname.c_str(), this->frame);
+        }
 
         /*
          * The rest of the methods write out data that WON'T be read by the
@@ -1620,33 +1631,9 @@ public:
         return n;
     }
 
-    //! Compute the align-centroid-and-rotate slice alignments and if possible, the
-    //! landmark-based alignment.
-    void updateAlignments()
+private:
+    void updateAutoAlignments()
     {
-        if (this->fitted.empty()) { return; }
-
-        this->scalePoints (this->fitted, this->fitted_scaled);
-
-        // Need to resize the container for the autoalign-translated copies of any landmarks:
-        // Re-size landmark containers.
-        if (this->landmarkCheck() > 0) {
-            std::cout << "LM (landmark container) size: " << this->LM.size() << std::endl;
-            this->LM_scaled.resize(this->LM.size());
-            this->LM_lmaligned.resize(this->LM.size());
-            this->LM_autoalign_translated.resize(this->LM.size());
-            this->LM_autoaligned.resize(this->LM.size());
-
-            // Scale the landmarks
-            this->scalePoints (this->LM, this->LM_scaled);
-        }
-
-        // Set variables saying aligned_with_centroids = false; aligned_with_landmarks =
-        // false; for writing into the h5 file. Then set these true as appropriate,
-        // below.
-        this->autoalignComputed = false;
-        this->lmalignComputed = false;
-
 #if 0
         // The autoalign translation is the centroid of the scaled fitted points
         this->autoalign_translation = -morph::MathAlgo::centroid (this->fitted_scaled);
@@ -1706,15 +1693,74 @@ public:
 
 #endif
         this->autoalignComputed = true;
+    }
 
+private:
+    void landmarkAlignByRotation()
+    {
+        // First job is to translate landmark 1 of the slice so it's on the origin of
+        // the slice plane. That's just the inverse of the location of (the scaled
+        // version of) landmark 1.
+        this->lm_translation = -this->LM_scaled[0];
+
+        // If there's no previous frame, there's no rotation to apply - we'll rotate to match this one
+        if (this->previous < 0) {
+            this->lm_theta = 0.0;
+
+        } else {
+
+            // Translate the points ready for the rotational optimization
+            std::vector<cv::Point2d> LM_translated_unrotated (this->LM_scaled);
+            this->transform (this->LM_scaled, LM_translated_unrotated, this->lm_translation, 0.0);
+
+            size_t alignment_slice = 0;
+
+            if (this->rotateButAlignLandmarkTwoPlus == true) {
+                // alignment coords are rest of the landmarks
+                this->lm_theta = this->alignOptimallyByRotation (LM_translated_unrotated,
+                                                                 (*this->parentStack)[alignment_slice].LM_lmaligned,
+                                                                 (*this->parentStack)[this->previous].LM_lmaligned);
+
+            } else {
+                // Alignment against curve points
+                this->lm_theta = this->alignOptimallyByRotation (LM_translated_unrotated,
+                                                                 (*this->parentStack)[alignment_slice].fitted_lmaligned,
+                                                                 (*this->parentStack)[this->previous].fitted_lmaligned);
+            }
+
+        }
+
+        // Apply the rotation
+        this->transform (this->LM_scaled, this->LM_lmaligned, this->lm_translation, this->lm_theta);
+        this->transform (this->fitted_scaled, this->fitted_lmaligned, this->lm_translation, this->lm_theta);
+
+        this->lmalignComputed = true;
+    }
+
+private:
+    void updateLandmarkAlignments()
+    {
         // Landmark scheme, if we have >=2 landmarks on each slice and same number of
         // landmarks on each slice the we can compute alignment with the landmarks.
-        // FIXME: If 1 landmark, then do an "align-on-the-landmark-and-rotate-optimally-thereafter" process
+
+        // FIXME: If 1 landmark, then do an
+        // "align-on-the-landmark-and-rotate-optimally-thereafter" process. This could
+        // either rotate to align landmarks 2 and above, or rotate to align the curves.
+
         if (this->landmarkCheck() == 1) {
             // FIXME: Implement align-by-single-landmark and rotate to fit
+            std::cout << "align by rotation...\n";
+            this->landmarkAlignByRotation();
             return;
+
         } else if (this->landmarkCheck() < 2) { // 0. If 2
             return;
+        } else {
+            // 2 or higher. See if configuration mandates rotate-about-landmark-1
+            if (this->rotateLandmarkOne == true) {
+                this->landmarkAlignByRotation();
+                return;
+            }
         }
 
         // If there's no previous frame, we just translate the frame to lie around the origin (with no rotation)
@@ -1752,6 +1798,38 @@ public:
         this->transform (this->fitted_scaled, this->fitted_lmaligned, this->lm_translation, this->lm_theta);
 
         this->lmalignComputed = true;
+    }
+
+public:
+    //! Compute the align-centroid-and-rotate slice alignments and if possible, the
+    //! landmark-based alignment.
+    void updateAlignments()
+    {
+        if (this->fitted.empty()) { return; }
+
+        this->scalePoints (this->fitted, this->fitted_scaled);
+
+        // Need to resize the container for the autoalign-translated copies of any landmarks:
+        // Re-size landmark containers.
+        if (this->landmarkCheck() > 0) {
+            std::cout << "LM (landmark container) size: " << this->LM.size() << std::endl;
+            this->LM_scaled.resize(this->LM.size());
+            this->LM_lmaligned.resize(this->LM.size());
+            this->LM_autoalign_translated.resize(this->LM.size());
+            this->LM_autoaligned.resize(this->LM.size());
+
+            // Scale the landmarks
+            this->scalePoints (this->LM, this->LM_scaled);
+        }
+
+        // Set variables saying aligned_with_centroids = false; aligned_with_landmarks =
+        // false; for writing into the h5 file. Then set these true as appropriate,
+        // below.
+        this->autoalignComputed = false;
+        this->lmalignComputed = false;
+
+        this->updateAutoAlignments();
+        this->updateLandmarkAlignments();
     }
 
     //! Public wrapper around updateFitBezier()
@@ -2140,6 +2218,15 @@ private:
         return rtn;
     }
 
+    //! Rotation only
+    double computeSos1d (const std::vector<cv::Point2d> target_coords,
+                         const std::vector<cv::Point2d> coords,
+                         const double rotn)
+    {
+        std::vector<double> vtx3d = {0.0, 0.0, rotn};
+        return this->computeSos3d (target_coords, coords, vtx3d);
+    }
+
     /*!
      * vertex contains x,y,theta values and should have size 3 translate coords by
      * vertex[0],vertex[1] and rotate by vertex[2]. Compute SOS compared with target
@@ -2174,6 +2261,16 @@ private:
 
         //std::cout << "sos=" << sos << std::endl;
         return sos;
+    }
+
+    //! Rotation only
+    double computeSos1d (const std::vector<cv::Point2d> target_coords,
+                         const std::vector<cv::Point2d> neighbour_coords,
+                         const std::vector<cv::Point2d> coords,
+                         const double rotn)
+    {
+        std::vector<double> vtx3d = {0.0, 0.0, rotn};
+        return this->computeSos3d (target_coords, neighbour_coords, coords, vtx3d);
     }
 
     /*!
@@ -2343,6 +2440,85 @@ private:
         rtn.y = xi * sin_theta + yi * cos_theta;
 
         return rtn;
+    }
+
+    /*!
+     * Translation is the translation to apply to alignment_coords prior to aligning
+     * with target_aligned_alignment_coords. Does that make sense?
+     *
+     * By applying only rotations about the origin, find the best rotation to apply to
+     * alignment_coords so that they line up with some combination of
+     * target_aligned_alignment_coords adn neighbour_aligned_alignment_coords
+     *
+     * \return The rotation that best lines the points up.
+     */
+    double alignOptimallyByRotation (const std::vector<cv::Point2d>& alignment_coords,
+                                     const std::vector<cv::Point2d>& target_aligned_alignment_coords,
+                                     const std::vector<cv::Point2d>& neighbour_aligned_alignment_coords)
+    {
+         // Check that target frame has same number of coords, if not warn and return.
+        if (target_aligned_alignment_coords.size() != alignment_coords.size()
+            || neighbour_aligned_alignment_coords.size() != alignment_coords.size()) {
+            std::stringstream ee;
+            ee << "Same number of alignment coords in both frames please! target_aligned..: "
+               << target_aligned_alignment_coords.size()
+               << ", alignment_coords: " << alignment_coords.size()
+               << ", neighbour_aligned_alignment_coords: " << neighbour_aligned_alignment_coords.size();
+            std::cout << ee.str() << std::endl;
+            return 0.0;
+        }
+
+        double thet1 = 0.0;
+        double thet2 = 0.5;
+        morph::NM_Simplex<double> simp (thet1, thet2);
+        // Set a termination threshold for the SD of the vertices of the simplex
+        simp.termination_threshold = 2.0 * std::numeric_limits<double>::epsilon();
+        // Set a 10000 operation limit, in case the above threshold can't be reached
+        simp.too_many_operations = 1000;
+        while (simp.state != morph::NM_Simplex_State::ReadyToStop) {
+
+            if (simp.state == morph::NM_Simplex_State::NeedToComputeThenOrder) {
+                // 1. apply objective to each vertex
+                for (unsigned int i = 0; i <= simp.n; ++i) {
+                    simp.values[i] = this->computeSos1d (target_aligned_alignment_coords,
+                                                         neighbour_aligned_alignment_coords,
+                                                         alignment_coords,
+                                                         simp.vertices[i][0]);
+                }
+                simp.order();
+
+            } else if (simp.state == morph::NM_Simplex_State::NeedToOrder) {
+                simp.order();
+
+            } else if (simp.state == morph::NM_Simplex_State::NeedToComputeReflection) {
+                double val = this->computeSos1d (target_aligned_alignment_coords,
+                                                 neighbour_aligned_alignment_coords,
+                                                 alignment_coords,
+                                                 simp.xr[0]);
+                simp.apply_reflection (val);
+
+            } else if (simp.state == morph::NM_Simplex_State::NeedToComputeExpansion) {
+                double val = this->computeSos1d (target_aligned_alignment_coords,
+                                                 neighbour_aligned_alignment_coords,
+                                                 alignment_coords,
+                                                 simp.xe[0]);
+                simp.apply_expansion (val);
+
+            } else if (simp.state == morph::NM_Simplex_State::NeedToComputeContraction) {
+                double val = this->computeSos1d (target_aligned_alignment_coords,
+                                                 neighbour_aligned_alignment_coords,
+                                                 alignment_coords,
+                                                 simp.xc[0]);
+                simp.apply_contraction (val);
+            }
+        }
+        std::vector<double> vP = simp.best_vertex();
+        double min_sos = simp.best_value();
+
+        std::cout << "Best sos value: " << min_sos << " and best theta: " << vP[0] << std::endl;
+
+        // Return the best rotation
+        return vP[0];
     }
 
     /*!

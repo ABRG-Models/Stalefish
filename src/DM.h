@@ -140,6 +140,11 @@ public:
         fd.savePerPixelData = this->savePerPixel;
         fd.saveAutoAlignData = this->saveAutoAlign;
         fd.saveLMAlignData = this->saveLMAlign;
+        fd.saveFrameToH5 = this->saveFrameImage;
+
+        fd.rotateLandmarkOne = this->rotateLandmarkOne;
+        fd.rotateButAlignLandmarkTwoPlus = this->rotateButAlignLandmarkTwoPlus;
+
         // Read, opportunistically
         try {
             morph::HdfData d(this->datafile, true); // true for read
@@ -402,10 +407,21 @@ public:
     //! A subtraction offset used when subtracting blurred background signal from image
     float bgBlurSubtractionOffset = 255.0;
 
-    //! Flags to control what data gets saved.
+    // Flags to control what data gets saved.
+    //! Save data for every single freakin' pixel in every single sample box (instead of means and SDs)
     bool savePerPixel = false;
+    //! Save auto (i.e. curve based) alignment location data
     bool saveAutoAlign = true;
+    //! Save landmark alignment location data
     bool saveLMAlign = true;
+    //! If true, then tell FrameData objects to save a copy of their image data (FrameData::frame)
+    bool saveFrameImage = true;
+    //! If true, and there are >1 landmark per slice, apply the "rotate slices about
+    //! landmark 1" alignment procedure anyway. This rotational alignment is applied by
+    //! default if there is ONLY 1 landmark per slice.
+    bool rotateLandmarkOne = false;
+    //! If true, in "rotate about landmark 1 mode" align the other landmarks, instead of the curves.
+    bool rotateButAlignLandmarkTwoPlus = false;
 
     //! Adapted from Seb's futil library. Create unique file name for temporary file
     std::string generateRandomFilename (const std::string& prefixPath, const unsigned int numChars = 0)
@@ -511,14 +527,16 @@ public:
         // luminosity linear fit parameters
         this->luminosity_cutoff = conf.getFloat ("luminosity_cutoff", 255.0f);
         this->luminosity_factor = conf.getFloat ("luminosity_factor", -0.00392f); // -1/255
-
+        // Data-saving parameters - what to save to the HDF5 file
         this->savePerPixel = conf.getBool ("save_per_pixel_data", false);
         this->saveAutoAlign = conf.getBool ("save_auto_align_data", true);
         this->saveLMAlign = conf.getBool ("save_landmark_align_data", true);
-        // this->saveFrameData = conf.getBool ("save_frame_data", true);
-
-        // scaling routine (pull scale factor from config json)
+        this->saveFrameImage = conf.getBool ("save_frame_image", true);
+        // A scaling applied to the original image before it is saved in FrameData::frame
         this->scaleFactor = conf.getFloat ("scaleFactor", 1.0f);
+
+        this->rotateLandmarkOne = conf.getBool ("rotate_landmark_one", false);
+        this->rotateButAlignLandmarkTwoPlus = conf.getBool ("rotate_align_landmarks", false);
 
         // Set false, try to open frames from json; if that fails, then set this
         // true. At that point, we'll try to add frames using in-hdf5 saved data for the

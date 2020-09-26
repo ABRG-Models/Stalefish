@@ -24,6 +24,12 @@
     "desc_save_landmark_align_data" : "Default is true. If false, then don't write coordinates in the landmark aligned frame of reference into the HDF5 data file.",
     "save_landmark_align_data" : true,
 
+    "desc_rotate_landmark_one" : "If true, and there are >1 landmark per slice, apply the 'rotate slices about landmark 1' alignment procedure anyway. This rotational alignment is applied by default if there is ONLY 1 landmark per slice.",
+    "rotate_landmark_one" : true,
+
+    "desc_rotate_align_landmarks" : "If true, then in 'rotate about landmark 1 mode' align the other landmarks, instead of the curves.",
+    "rotate_align_landmarks" : false,
+
     "desc_slices" : "The brain slices in the y-z plane, where y points to the anterior, z points dorsally (and so x is the lateral dimension).",
 
     "slices": [
