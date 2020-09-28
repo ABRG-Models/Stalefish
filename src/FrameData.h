@@ -856,7 +856,8 @@ public:
 
 private:
     //! Compute determinant for 3x3 matrix @cm arranged in col major format
-    double determinant3x3 (std::array<double, 9> cm) const {
+    double determinant3x3 (std::array<double, 9> cm) const
+    {
         double det = (cm[0]*cm[4]*cm[8])
         + (cm[3]*cm[7]*cm[2])
         + (cm[6]*cm[1]*cm[5])
