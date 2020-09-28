@@ -627,13 +627,13 @@ public:
         this->colourmodel = conf.getString ("colourmodel", "monochrome");
         // colour_rot - array<float, 9>
         const Json::Value cr = conf.getArray ("colour_rot");
-        for (unsigned int ci = 0; ci < cr.size(); ++ci) {
-            this->colour_rot[ci] = cr[ci].asFloat();
+        for (unsigned int ii = 0; ii < cr.size(); ++ii) {
+            this->colour_rot[ii] = cr[ii].asFloat();
         }
         // colour_trans - array<float, 3>
         const Json::Value ct = conf.getArray ("colour_trans");
-        for (unsigned int ci = 0; ci < ct.size(); ++ci) {
-            this->colour_trans[ci] = ct[ci].asFloat();
+        for (unsigned int ii = 0; ii < ct.size(); ++ii) {
+            this->colour_trans[ii] = ct[ii].asFloat();
         }
         // ellip_axes array<float, 2>
         const Json::Value ea = conf.getArray ("ellip_axes");
