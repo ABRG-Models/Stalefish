@@ -936,6 +936,46 @@ public:
         }
     }
 
+    //! Read landmark and circlemark points from file
+    void importLandmarks (morph::HdfData& df)
+    {
+        std::string frameName = this->getFrameName();
+
+        // Landmark points
+        std::string dname = frameName + "/class/LM";
+        try {
+            std::cout << "Before, LM has size " << this->LM.size() << std::endl;
+            df.read_contained_vals (dname.c_str(), this->LM);
+            std::cout << "Updated this->LM" << std::endl;
+            std::cout << "After, LM has size " << this->LM.size() << std::endl;
+        } catch (...) {
+            // Do nothing on exception. Move on to next.
+            std::cout << "No landmarks to read for this frame" << std::endl;
+        }
+
+        // Circlemarks
+        for (size_t i = 0; i < this->LM.size(); ++i) {
+            dname = frameName + "/class/CM/lm" + std::to_string(i);
+            try {
+                std::vector<cv::Point> vpts;
+                df.read_contained_vals (dname.c_str(), vpts);
+                this->CM[i] = vpts;
+                std::cout << "Updated this->CM[" << i << "]" << std::endl;
+            } catch (...) {
+                // Do nothing on exception. Move on to next.
+                std::cout << "Could not read circlemarks" << std::endl;
+            }
+        }
+        try {
+            dname = frameName + "/class/CM_points";
+            df.read_val (dname.c_str(), this->CM_points);
+            std::cout << "Updated this->CM_points" << std::endl;
+        } catch (...) {
+            // Do nothing on exception. Move on to next.
+            std::cout << "No CM_points to read" << std::endl;
+        }
+    }
+
     //! Read important data from file
     void read (morph::HdfData& df, bool oldformat=false)
     {
@@ -1060,6 +1100,30 @@ public:
     bool saveAutoAlignData = true;
     //! If true, save data relating to the landmark-aligned slices
     bool saveLMAlignData = true;
+
+    //! Export landmark and circlemark points for this frame
+    void exportLandmarks (morph::HdfData& df) const
+    {
+        std::string frameName = this->getFrameName();
+        // The landmark points
+        std::string dname = frameName + "/class/LM";
+        df.add_contained_vals (dname.c_str(), this->LM);
+        dname = frameName + "/class/LM_scaled";
+        df.add_contained_vals (dname.c_str(), this->LM_scaled);
+
+        // Circlemark points
+        if (!this->CM_points.empty()) {
+            dname = frameName + "/class/CM_points";
+            df.add_contained_vals (dname.c_str(), this->CM_points);
+        }
+        // CM is map<size_t, vector<cv::Point>>. Unpack here and save.
+        std::map<size_t, std::vector<cv::Point>>::const_iterator cmi = this->CM.cbegin();
+        while (cmi != this->CM.cend()) {
+            dname = frameName + "/class/CM/lm" + std::to_string(cmi->first);
+            df.add_contained_vals (dname.c_str(), cmi->second);
+            ++cmi;
+        }
+    }
 
     //! Write the data out to an HdfData file \a df.
     void write (morph::HdfData& df)

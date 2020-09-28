@@ -131,6 +131,16 @@ int main (int argc, char** argv)
             DM::i()->previousFrame();
             break;
         }
+        case ('i'):
+        {
+            DM::i()->importLandmarks();
+            break;
+        }
+        case ('l'):
+        {
+            DM::i()->exportLandmarks();
+            break;
+        }
         case ('m'):
         {
             // Mirror

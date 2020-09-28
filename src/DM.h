@@ -346,6 +346,32 @@ public:
         std::cout << "writeFrames complete: All frames written to HDF5" << std::endl;
     }
 
+    //! Export all landmark information to a file landmarks.h5
+    void exportLandmarks()
+    {
+        this->refreshAllBoxes();
+        for (auto& f : this->vFrameData) { f.updateAlignments(); }
+        std::string lmfile("/tmp/landmarks.h5");
+        std::cout << "Export landmarks to " << lmfile << std::endl;
+        morph::HdfData d(lmfile);
+        for (auto f : this->vFrameData) { f.exportLandmarks (d); }
+        int nf = this->vFrameData.size();
+        d.add_val("/nframes", nf);
+    }
+
+    //! Import landmark information from a file landmarks.h5
+    void importLandmarks()
+    {
+        std::cout << "DM::importLandmarks() called\n";
+        try {
+            std::string lmfile("/tmp/landmarks.h5");
+            morph::HdfData d(lmfile, true);
+            for (auto& f : this->vFrameData) { f.importLandmarks (d); }
+        } catch (...) {
+            std::cout << "Failed to read ./landmarks.h5" << std::endl;
+        }
+    }
+
     //! Toogle showHelp
     void toggleShowHelp() { this->flags[AppShowHelp] = this->flags.test(AppShowHelp) ? false : true; }
     void setShowHelp (bool t) { this->flags[AppShowHelp] = t; }
@@ -977,6 +1003,12 @@ public:
                      cv::Point(xh,yh), cv::FONT_HERSHEY_SIMPLEX, fontsz, SF_BLACK, 1, cv::LINE_AA);
             yh += yinc;
             putText (*pImg, std::string("s:   Toggle add points to curve at start/end"),
+                     cv::Point(xh,yh), cv::FONT_HERSHEY_SIMPLEX, fontsz, SF_BLACK, 1, cv::LINE_AA);
+            yh += yinc;
+            putText (*pImg, std::string("i:   Import landmarks from /tmp/landmarks.h5"),
+                     cv::Point(xh,yh), cv::FONT_HERSHEY_SIMPLEX, fontsz, SF_BLACK, 1, cv::LINE_AA);
+            yh += yinc;
+            putText (*pImg, std::string("l:   Export landmarks and circlemarks to /tmp/landmarks.h5"),
                      cv::Point(xh,yh), cv::FONT_HERSHEY_SIMPLEX, fontsz, SF_BLACK, 1, cv::LINE_AA);
             yh += yinc;
             putText (*pImg, std::string("n:   Next frame"),
