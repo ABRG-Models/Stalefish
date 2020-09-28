@@ -1042,7 +1042,7 @@ public:
 
         if (_this->clearAllPending == true) {
             std::stringstream ss3;
-            ss3 << "Clear curves on ALL frames? (press 'y' to confirm, 'Esc' to cancel)";
+            ss3 << "Clear curves on ALL frames? (press 'C' to confirm, 'Esc' to cancel)";
             putText (*pImg, ss3.str(), cv::Point(xh,80), cv::FONT_HERSHEY_SIMPLEX, 1.2*fontsz, SF_BLACK, 1, cv::LINE_AA);
             putText (*sImg, ss3.str(), cv::Point(xh,80), cv::FONT_HERSHEY_SIMPLEX, 1.2*fontsz, SF_WHITE, 1, cv::LINE_AA);
         }
