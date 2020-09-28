@@ -93,6 +93,9 @@ public:
     InputMode input_mode = InputMode::Bezier;
     //! Set true if we're in 'clear all pending' mode
     bool clearAllPending = false;
+    //! Set true if we're in 'export pending' mode
+    bool exportPending = false;
+    bool importPending = false;
 
     //! The instance public function. Uses the very short name 'i' to keep code tidy.
     static DM* i()
@@ -346,29 +349,115 @@ public:
         std::cout << "writeFrames complete: All frames written to HDF5" << std::endl;
     }
 
-    //! Export all landmark information to a file landmarks.h5
+    //! A hardcoded tmp file location to save exported points for import into another project
+    const std::string lm_exportfile = "/tmp/landmarks.h5";
+    const std::string cp_exportfile = "/tmp/curves.h5";
+    const std::string fh_exportfile = "/tmp/freehand.h5";
+
+    //! Depending on the current InputMode, export landmarks, curves OR freehand loops.
+    void exportInputModePoints()
+    {
+        FrameData* cf = DM::i()->gcf();
+        if (cf->ct == InputMode::Bezier || cf->ct == InputMode::ReverseBezier) {
+            this->exportCurves();
+        } else if (cf->ct == InputMode::Freehand) {
+            this->exportFreehand();
+        } else if (cf->ct == InputMode::Landmark || cf->ct == InputMode::Circlemark) {
+            this->exportLandmarks();
+        } else {
+            std::cerr << "Unknown mode for export\n";
+        }
+    }
+
     void exportLandmarks()
     {
         this->refreshAllBoxes();
         for (auto& f : this->vFrameData) { f.updateAlignments(); }
-        std::string lmfile("/tmp/landmarks.h5");
-        std::cout << "Export landmarks to " << lmfile << std::endl;
-        morph::HdfData d(lmfile);
-        for (auto f : this->vFrameData) { f.exportLandmarks (d); }
         int nf = this->vFrameData.size();
+        morph::HdfData d(lm_exportfile);
+        for (auto f : this->vFrameData) { f.exportLandmarks (d); }
         d.add_val("/nframes", nf);
+        std::cout << "Exported landmarks to " << lm_exportfile << std::endl;
     }
 
-    //! Import landmark information from a file landmarks.h5
+    void exportFreehand()
+    {
+        this->refreshAllBoxes();
+        for (auto& f : this->vFrameData) { f.updateAlignments(); }
+        int nf = this->vFrameData.size();
+        morph::HdfData d(fh_exportfile);
+        for (auto f : this->vFrameData) { f.exportFreehand (d); }
+        d.add_val("/nframes", nf);
+        std::cout << "Exported freehand loops to " << fh_exportfile << std::endl;
+    }
+
+    void exportCurves()
+    {
+        this->refreshAllBoxes();
+        for (auto& f : this->vFrameData) { f.updateAlignments(); }
+        int nf = this->vFrameData.size();
+        morph::HdfData d(cp_exportfile);
+        for (auto f : this->vFrameData) { f.exportCurves (d); }
+        d.add_val("/nframes", nf);
+        std::cout << "Exported curves to " << cp_exportfile << std::endl;
+    }
+
+    //! Export all user-supplied point information to files
+    void exportUserpoints()
+    {
+        this->refreshAllBoxes();
+        for (auto& f : this->vFrameData) { f.updateAlignments(); }
+        int nf = this->vFrameData.size();
+        {
+            morph::HdfData d(lm_exportfile);
+            for (auto f : this->vFrameData) { f.exportLandmarks (d); }
+            d.add_val("/nframes", nf);
+            std::cout << "Exported landmarks to " << lm_exportfile << std::endl;
+        }
+        {
+            morph::HdfData d(cp_exportfile);
+            for (auto f : this->vFrameData) { f.exportCurves (d); }
+            d.add_val("/nframes", nf);
+            std::cout << "Exported curves to " << cp_exportfile << std::endl;
+        }
+        {
+            morph::HdfData d(fh_exportfile);
+            for (auto f : this->vFrameData) { f.exportFreehand (d); }
+            d.add_val("/nframes", nf);
+            std::cout << "Exported freehand loops to " << fh_exportfile << std::endl;
+        }
+    }
+
+    //! Import landmark information from a file
     void importLandmarks()
     {
-        std::cout << "DM::importLandmarks() called\n";
         try {
-            std::string lmfile("/tmp/landmarks.h5");
-            morph::HdfData d(lmfile, true);
+            morph::HdfData d(lm_exportfile, true);
             for (auto& f : this->vFrameData) { f.importLandmarks (d); }
         } catch (...) {
-            std::cout << "Failed to read ./landmarks.h5" << std::endl;
+            std::cout << "Failed to read " << lm_exportfile << std::endl;
+        }
+    }
+
+    //! Import "curve points" from a file
+    void importCurves()
+    {
+        try {
+            morph::HdfData d(cp_exportfile, true);
+            for (auto& f : this->vFrameData) { f.importCurves (d); }
+        } catch (...) {
+            std::cout << "Failed to read " << cp_exportfile << std::endl;
+        }
+    }
+
+    //! Import freehand loops from a file
+    void importFreehand()
+    {
+        try {
+            morph::HdfData d(fh_exportfile, true);
+            for (auto& f : this->vFrameData) { f.importFreehand (d); }
+        } catch (...) {
+            std::cout << "Failed to read " << fh_exportfile << std::endl;
         }
     }
 
@@ -538,13 +627,13 @@ public:
         this->colourmodel = conf.getString ("colourmodel", "monochrome");
         // colour_rot - array<float, 9>
         const Json::Value cr = conf.getArray ("colour_rot");
-        for (unsigned int i = 0; i < cr.size(); ++i) {
-            this->colour_rot[i] = cr[i].asFloat();
+        for (unsigned int ci = 0; ci < cr.size(); ++ci) {
+            this->colour_rot[ci] = cr[ci].asFloat();
         }
         // colour_trans - array<float, 3>
         const Json::Value ct = conf.getArray ("colour_trans");
-        for (unsigned int i = 0; i < ct.size(); ++i) {
-            this->colour_trans[i] = ct[i].asFloat();
+        for (unsigned int ci = 0; ci < ct.size(); ++ci) {
+            this->colour_trans[ci] = ct[ci].asFloat();
         }
         // ellip_axes array<float, 2>
         const Json::Value ea = conf.getArray ("ellip_axes");
@@ -572,8 +661,8 @@ public:
         // Loop over slices, creating a FrameData object for each. BUT if image not
         // findable, allow system to fall back to the image saved in the frame.
         const Json::Value slices = conf.getArray ("slices");
-        for (unsigned int i = 0; i < slices.size(); ++i) {
-            Json::Value slice = slices[i];
+        for (unsigned int si = 0; si < slices.size(); ++si) {
+            Json::Value slice = slices[si];
             std::string fn = slice.get ("filename", "unknown").asString();
             float slice_x = slice.get ("x", 0.0).asFloat();
 
@@ -864,15 +953,15 @@ public:
         auto cmi = cf->CM.begin();
         while (cmi != cf->CM.end()) {
             std::vector<cv::Point> pts = cmi->second;
-            for (size_t i = 0; i < pts.size(); ++i) {
-                circle (*pImg, pts[i], 4, SF_PURPLE, -1);
+            for (size_t ii = 0; ii < pts.size(); ++ii) {
+                circle (*pImg, pts[ii], 4, SF_PURPLE, -1);
             }
             ++cmi;
         }
 
         // Draw any entries in CM_points
-        for (size_t i = 0; i < cf->CM_points.size(); ++i) {
-            circle (*pImg, cf->CM_points[i], 4, SF_RED, -1);
+        for (size_t ii = 0; ii < cf->CM_points.size(); ++ii) {
+            circle (*pImg, cf->CM_points[ii], 4, SF_RED, -1);
         }
     }
 
@@ -953,7 +1042,19 @@ public:
 
         if (_this->clearAllPending == true) {
             std::stringstream ss3;
-            ss3 << "Clear curves on ALL frames? (press 'C' to confirm, 'Esc' to cancel)";
+            ss3 << "Clear curves on ALL frames? (press 'y' to confirm, 'Esc' to cancel)";
+            putText (*pImg, ss3.str(), cv::Point(xh,80), cv::FONT_HERSHEY_SIMPLEX, 1.2*fontsz, SF_BLACK, 1, cv::LINE_AA);
+            putText (*sImg, ss3.str(), cv::Point(xh,80), cv::FONT_HERSHEY_SIMPLEX, 1.2*fontsz, SF_WHITE, 1, cv::LINE_AA);
+        }
+        else if (_this->exportPending == true) {
+            std::stringstream ss3;
+            ss3 << "Export data? (press key again to confirm, 'Esc' to cancel)";
+            putText (*pImg, ss3.str(), cv::Point(xh,80), cv::FONT_HERSHEY_SIMPLEX, 1.2*fontsz, SF_BLACK, 1, cv::LINE_AA);
+            putText (*sImg, ss3.str(), cv::Point(xh,80), cv::FONT_HERSHEY_SIMPLEX, 1.2*fontsz, SF_WHITE, 1, cv::LINE_AA);
+        }
+        else if (_this->importPending == true) {
+            std::stringstream ss3;
+            ss3 << "IMPORT data? (press key again to confirm, 'Esc' to cancel)";
             putText (*pImg, ss3.str(), cv::Point(xh,80), cv::FONT_HERSHEY_SIMPLEX, 1.2*fontsz, SF_BLACK, 1, cv::LINE_AA);
             putText (*sImg, ss3.str(), cv::Point(xh,80), cv::FONT_HERSHEY_SIMPLEX, 1.2*fontsz, SF_WHITE, 1, cv::LINE_AA);
         }
@@ -964,16 +1065,10 @@ public:
             putText (*pImg, std::string("Use the sliders to control the bin parameters"),
                      cv::Point(xh,yh), cv::FONT_HERSHEY_SIMPLEX, fontsz, SF_BLACK, 1, cv::LINE_AA);
             yh += yinc;
-            putText (*pImg, std::string("1:   Toggle Bezier controls"),
+            putText (*pImg, std::string("1:   Toggle Bezier controls    2: Toggle user points"),
                      cv::Point(xh,yh), cv::FONT_HERSHEY_SIMPLEX, fontsz, SF_BLACK, 1, cv::LINE_AA);
             yh += yinc;
-            putText (*pImg, std::string("2:   Toggle user points"),
-                     cv::Point(xh,yh), cv::FONT_HERSHEY_SIMPLEX, fontsz, SF_BLACK, 1, cv::LINE_AA);
-            yh += yinc;
-            putText (*pImg, std::string("3:   Toggle the fit line"),
-                     cv::Point(xh,yh), cv::FONT_HERSHEY_SIMPLEX, fontsz, SF_BLACK, 1, cv::LINE_AA);
-            yh += yinc;
-            putText (*pImg, std::string("4:   Toggle the bins"),
+            putText (*pImg, std::string("3:   Toggle the fit line    4: Toggle the bins"),
                      cv::Point(xh,yh), cv::FONT_HERSHEY_SIMPLEX, fontsz, SF_BLACK, 1, cv::LINE_AA);
             yh += yinc;
             putText (*pImg, std::string("Spc: Next curve"),
@@ -1005,10 +1100,19 @@ public:
             putText (*pImg, std::string("s:   Toggle add points to curve at start/end"),
                      cv::Point(xh,yh), cv::FONT_HERSHEY_SIMPLEX, fontsz, SF_BLACK, 1, cv::LINE_AA);
             yh += yinc;
-            putText (*pImg, std::string("i:   Import landmarks from /tmp/landmarks.h5"),
+            putText (*pImg, std::string("k:   Export points to files in /tmp"),
                      cv::Point(xh,yh), cv::FONT_HERSHEY_SIMPLEX, fontsz, SF_BLACK, 1, cv::LINE_AA);
             yh += yinc;
-            putText (*pImg, std::string("l:   Export landmarks and circlemarks to /tmp/landmarks.h5"),
+            putText (*pImg, std::string("p:   Export landmark OR curves OR freehand to file in /tmp (depends on Draw mode)"),
+                     cv::Point(xh,yh), cv::FONT_HERSHEY_SIMPLEX, fontsz, SF_BLACK, 1, cv::LINE_AA);
+            yh += yinc;
+            putText (*pImg, std::string("l:   Import landmarks from ") + _this->lm_exportfile,
+                     cv::Point(xh,yh), cv::FONT_HERSHEY_SIMPLEX, fontsz, SF_BLACK, 1, cv::LINE_AA);
+            yh += yinc;
+            putText (*pImg, std::string("i:   Import curve points from ") + _this->cp_exportfile,
+                     cv::Point(xh,yh), cv::FONT_HERSHEY_SIMPLEX, fontsz, SF_BLACK, 1, cv::LINE_AA);
+            yh += yinc;
+            putText (*pImg, std::string("j:   Import freehand loops from ") + _this->fh_exportfile,
                      cv::Point(xh,yh), cv::FONT_HERSHEY_SIMPLEX, fontsz, SF_BLACK, 1, cv::LINE_AA);
             yh += yinc;
             putText (*pImg, std::string("n:   Next frame"),

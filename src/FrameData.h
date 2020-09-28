@@ -936,18 +936,16 @@ public:
         }
     }
 
-    //! Read landmark and circlemark points from file
+    //! Read landmark and circlemark points from file (or rather, morph::HdfData object)
     void importLandmarks (morph::HdfData& df)
     {
         std::string frameName = this->getFrameName();
 
         // Landmark points
         std::string dname = frameName + "/class/LM";
+        this->LM.clear();
         try {
-            std::cout << "Before, LM has size " << this->LM.size() << std::endl;
             df.read_contained_vals (dname.c_str(), this->LM);
-            std::cout << "Updated this->LM" << std::endl;
-            std::cout << "After, LM has size " << this->LM.size() << std::endl;
         } catch (...) {
             // Do nothing on exception. Move on to next.
             std::cout << "No landmarks to read for this frame" << std::endl;
@@ -960,7 +958,6 @@ public:
                 std::vector<cv::Point> vpts;
                 df.read_contained_vals (dname.c_str(), vpts);
                 this->CM[i] = vpts;
-                std::cout << "Updated this->CM[" << i << "]" << std::endl;
             } catch (...) {
                 // Do nothing on exception. Move on to next.
                 std::cout << "Could not read circlemarks" << std::endl;
@@ -968,29 +965,24 @@ public:
         }
         try {
             dname = frameName + "/class/CM_points";
+            this->CM_points.clear();
             df.read_val (dname.c_str(), this->CM_points);
-            std::cout << "Updated this->CM_points" << std::endl;
         } catch (...) {
             // Do nothing on exception. Move on to next.
             std::cout << "No CM_points to read" << std::endl;
         }
     }
 
-    //! Read important data from file
-    void read (morph::HdfData& df, bool oldformat=false)
+    //! Import the user-supplied coordinates used to create fitted Bezier curves as well
+    //! as the sample box info (size and number)
+    void importCurves (morph::HdfData& df)
     {
-        // Note this file assumes idx has been set for the frame.
         std::string frameName = this->getFrameName();
-
-        if (oldformat == true) {
-            throw std::runtime_error ("Note: there is currently no old format conversion code.");
-            // NB: This code is left as a place holder in case we need to read in an old
-            // format and save in a new format.
-        }
-
         std::string dname = frameName + "/class/P";
+        this->P.clear();
         df.read_contained_vals (dname.c_str(), this->P);
         dname = frameName + "/class/sP";
+        this->sP.clear();
         df.read_contained_vals (dname.c_str(), this->sP);
 
         dname = frameName + "/class/PP_n";
@@ -1011,8 +1003,28 @@ public:
         dname = frameName + "/class/pp_idx";
         df.read_val (dname.c_str(), this->pp_idx);
 
+        dname = frameName + "/class/nBins";
+        int _nBins;
+        try {
+            df.read_val (dname.c_str(), _nBins);
+        } catch (...) {
+            // In case nBins stored as 'nBinsTarg'
+            dname = frameName + "/class/nBinsTarg";
+            df.read_val (dname.c_str(), _nBins);
+        }
+        this->setBins (_nBins);
+        dname = frameName + "/class/binA";
+        df.read_val (dname.c_str(), this->binA);
+        dname = frameName + "/class/binB";
+        df.read_val (dname.c_str(), this->binB);
+    }
+
+    void importFreehand (morph::HdfData& df)
+    {
+        std::string frameName = this->getFrameName();
         // Freehand-drawn regions
-        dname = frameName + "/class/FL";
+        std::string dname = frameName + "/class/FL";
+        this->FL.clear();
         df.read_contained_vals (dname.c_str(), this->FL);
         dname = frameName + "/class/FLE_n";
         unsigned int fle_size = 0;
@@ -1034,46 +1046,25 @@ public:
             ss1 << i;
             df.read_contained_vals (ss1.str().c_str(), this->FLB[i]);
         }
+    }
 
-        // Landmark points
-        dname = frameName + "/class/LM";
-        df.read_contained_vals (dname.c_str(), this->LM);
+    //! Read important data from file
+    void read (morph::HdfData& df, bool oldformat=false)
+    {
+        // Note this file assumes idx has been set for the frame.
+        std::string frameName = this->getFrameName();
 
-        // Circlemarks
-        for (size_t i = 0; i < this->LM.size(); ++i) {
-            dname = frameName + "/class/CM/lm" + std::to_string(i);
-            try {
-                std::vector<cv::Point> vpts;
-                df.read_contained_vals (dname.c_str(), vpts);
-                this->CM[i] = vpts;
-            } catch (...) {
-                // Do nothing on exception. Move on to next.
-                std::cout << "Circlemarks exception1" << std::endl;
-            }
-        }
-        try {
-            dname = frameName + "/class/CM_points";
-            df.read_val (dname.c_str(), this->CM_points);
-        } catch (...) {
-            // Do nothing on exception. Move on to next.
-            std::cout << "Circlemarks exception2" << std::endl;
+        if (oldformat == true) {
+            throw std::runtime_error ("Note: there is currently no old format conversion code.");
+            // NB: This code is left as a place holder in case we need to read in an old
+            // format and save in a new format.
         }
 
-        dname = frameName + "/class/nBins";
-        int _nBins;
-        try {
-            df.read_val (dname.c_str(), _nBins);
-        } catch (...) {
-            // In case nBins stored as 'nBinsTarg'
-            dname = frameName + "/class/nBinsTarg";
-            df.read_val (dname.c_str(), _nBins);
-        }
-        this->setBins (_nBins);
-        dname = frameName + "/class/binA";
-        df.read_val (dname.c_str(), this->binA);
-        dname = frameName + "/class/binB";
-        df.read_val (dname.c_str(), this->binB);
-        dname = frameName + "/class/flags";
+        this->importCurves (df);
+        this->importFreehand (df);
+        this->importLandmarks (df);
+
+        std::string dname = frameName + "/class/flags";
         df.read_val (dname.c_str(), this->flags);
         dname = frameName + "/class/filename";
         df.read_string (dname.c_str(), this->filename);
@@ -1101,10 +1092,67 @@ public:
     //! If true, save data relating to the landmark-aligned slices
     bool saveLMAlignData = true;
 
+    //! Export the user-supplied points for curve drawing
+    void exportCurves (morph::HdfData& df) const
+    {
+        std::string frameName = this->getFrameName();
+        std::string dname = frameName + "/class/P";
+        df.add_contained_vals (dname.c_str(), this->P);
+        dname = frameName + "/class/sP";
+        df.add_contained_vals (dname.c_str(), this->sP);
+
+        dname = frameName + "/class/PP_n";
+        unsigned int pp_size = this->PP.size();
+        df.add_val (dname.c_str(), pp_size);
+        for (size_t i = 0; i<pp_size; ++i) {
+            std::stringstream ss;
+            ss << frameName + "/class/PP";
+            ss.width(3);
+            ss.fill('0');
+            ss << i;
+            df.add_contained_vals (ss.str().c_str(), this->PP[i]);
+        }
+        dname = frameName + "/class/pp_idx";
+        df.add_val (dname.c_str(), this->pp_idx);
+        dname = frameName + "/class/nBins";
+        df.add_val (dname.c_str(), this->nBins);
+        dname = frameName + "/class/binA";
+        df.add_val (dname.c_str(), this->binA);
+        dname = frameName + "/class/binB";
+        df.add_val (dname.c_str(), this->binB);
+    }
+
+    //! Export freehand drawn regions
+    void exportFreehand (morph::HdfData& df) const
+    {
+        std::string frameName = this->getFrameName();
+        std::string dname = frameName + "/class/FL";
+        df.add_contained_vals (dname.c_str(), this->FL);
+        dname = frameName + "/class/FLE_n";
+        unsigned int fle_size = this->FLE.size();
+        df.add_val (dname.c_str(), fle_size);
+        for (size_t i = 0; i<fle_size; ++i) {
+            std::stringstream ss;
+            ss << frameName + "/class/FLE";
+            ss.width(3);
+            ss.fill('0');
+            ss << i;
+            df.add_contained_vals (ss.str().c_str(), this->FLE[i]);
+
+            std::stringstream ss1;
+            ss1 << frameName + "/class/FLB";
+            ss1.width(3);
+            ss1.fill('0');
+            ss1 << i;
+            df.add_contained_vals (ss1.str().c_str(), this->FLB[i]);
+        }
+    }
+
     //! Export landmark and circlemark points for this frame
     void exportLandmarks (morph::HdfData& df) const
     {
         std::string frameName = this->getFrameName();
+
         // The landmark points
         std::string dname = frameName + "/class/LM";
         df.add_contained_vals (dname.c_str(), this->LM);
@@ -1130,81 +1178,16 @@ public:
     {
         // Update box means. not const
         this->computeBoxMeans();
-
         // And any freehand regions. not const
         this->computeFreehandMeans();
 
+        // Export curve points, freehand regions, landmarks and circlemarks
+        this->exportCurves (df);
+        this->exportFreehand (df);
+        this->exportLandmarks (df);
+
         std::string frameName = this->getFrameName();
-
-        // Write out essential information to re-load state of the application and the
-        // user's work saving points etc.
-        std::string dname = frameName + "/class/P";
-        df.add_contained_vals (dname.c_str(), this->P);
-        dname = frameName + "/class/sP";
-        df.add_contained_vals (dname.c_str(), this->sP);
-
-        dname = frameName + "/class/PP_n";
-        unsigned int pp_size = this->PP.size();
-        df.add_val (dname.c_str(), pp_size);
-        for (size_t i = 0; i<pp_size; ++i) {
-            std::stringstream ss;
-            ss << frameName + "/class/PP";
-            ss.width(3);
-            ss.fill('0');
-            ss << i;
-            df.add_contained_vals (ss.str().c_str(), this->PP[i]);
-        }
-
-        // Freehand drawn regions
-        dname = frameName + "/class/FL";
-        df.add_contained_vals (dname.c_str(), this->FL);
-        dname = frameName + "/class/FLE_n";
-        unsigned int fle_size = this->FLE.size();
-        df.add_val (dname.c_str(), fle_size);
-        for (size_t i = 0; i<fle_size; ++i) {
-            std::stringstream ss;
-            ss << frameName + "/class/FLE";
-            ss.width(3);
-            ss.fill('0');
-            ss << i;
-            df.add_contained_vals (ss.str().c_str(), this->FLE[i]);
-
-            std::stringstream ss1;
-            ss1 << frameName + "/class/FLB";
-            ss1.width(3);
-            ss1.fill('0');
-            ss1 << i;
-            df.add_contained_vals (ss1.str().c_str(), this->FLB[i]);
-        }
-
-        // The landmark points
-        dname = frameName + "/class/LM";
-        df.add_contained_vals (dname.c_str(), this->LM);
-        dname = frameName + "/class/LM_scaled";
-        df.add_contained_vals (dname.c_str(), this->LM_scaled);
-
-        // Circlemark points
-        if (!this->CM_points.empty()) {
-            dname = frameName + "/class/CM_points";
-            df.add_contained_vals (dname.c_str(), this->CM_points);
-        }
-        // CM is map<size_t, vector<cv::Point>>. Unpack here and save.
-        std::map<size_t, std::vector<cv::Point>>::iterator cmi = this->CM.begin();
-        while (cmi != this->CM.end()) {
-            dname = frameName + "/class/CM/lm" + std::to_string(cmi->first);
-            df.add_contained_vals (dname.c_str(), cmi->second);
-            ++cmi;
-        }
-
-        dname = frameName + "/class/pp_idx";
-        df.add_val (dname.c_str(), this->pp_idx);
-        dname = frameName + "/class/nBins";
-        df.add_val (dname.c_str(), this->nBins);
-        dname = frameName + "/class/binA";
-        df.add_val (dname.c_str(), this->binA);
-        dname = frameName + "/class/binB";
-        df.add_val (dname.c_str(), this->binB);
-        dname = frameName + "/class/flags";
+        std::string dname = frameName + "/class/flags";
         df.add_val (dname.c_str(), this->flags);
         dname = frameName + "/class/filename";
         df.add_string (dname.c_str(), this->filename);
@@ -1355,6 +1338,7 @@ public:
         // coordinate system and in the lmalign coord system.
         //
         // Add the centroid of the freehand regions (in the y-z or 'in-slice' plane)
+        unsigned int fle_size = this->FLE.size();
         for (size_t i = 0; i<fle_size; ++i) {
             cv::Point cntroid = morph::MathAlgo::centroid (this->FLE[i]);
 
