@@ -142,6 +142,11 @@ public:
     //! Take FrameData::fitted and scale by pixels_per_mm. Units: mm.
     std::vector<cv::Point2d> fitted_scaled;
 
+    //! The centroid of the curve, after lm_translation or autoalign_translation have
+    //! been applied to move the user points This will be 0,0 in the latter case (in
+    //! fact, it's only initially going to be used for LM alignment).
+    cv::Point2d curve_centroid;
+
     // Attributes to do with the auto-transformed slices, where the centroid of each
     // curve is used to arrange the slices on an axis, then each slice's curve is
     // rotated to best-fit the previous curve.
@@ -1744,6 +1749,10 @@ private:
         if (this->previous < 0) {
             this->lm_theta = 0.0;
 
+            // get centroid of this->fitted_scaled (the 0th slice)
+            cv::Point2d slice0centroid = morph::MathAlgo::centroid (this->fitted_scaled);
+            this->curve_centroid = LM_scaled[0] - slice0centroid;
+
         } else {
 
             // Translate the points ready for the rotational optimization
@@ -1767,9 +1776,17 @@ private:
 
         }
 
-        // Apply the rotation
-        this->transform (this->LM_scaled, this->LM_lmaligned, this->lm_translation, this->lm_theta);
-        this->transform (this->fitted_scaled, this->fitted_lmaligned, this->lm_translation, this->lm_theta);
+        // Apply the rotation.
+        // The transform includes the lm_translation of the very first slice, so that
+        // the centroid of this slice is roughly 0? Or better to use the actual centroid
+        // of the first slice.
+        this->transform (this->LM_scaled, this->LM_lmaligned,
+                         this->lm_translation + (*this->parentStack)[0].curve_centroid,
+                         this->lm_theta);
+
+        this->transform (this->fitted_scaled, this->fitted_lmaligned,
+                         this->lm_translation + (*this->parentStack)[0].curve_centroid,
+                         this->lm_theta);
 
         this->lmalignComputed = true;
     }
