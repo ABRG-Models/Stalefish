@@ -23,20 +23,25 @@
 // This is the "input mode". So in Bezier mode, you add points for the curve fitting; in
 // freehand mode you draw a loop, and in Landmark mode, you give landmarks for slice
 // alignment.
-enum class InputMode {
+enum class InputMode
+{
     Bezier,    // Cubic Bezier: "curve drawing mode"
     Freehand,  // A freehand drawn loop enclosing a region
     Landmark,  // User provides alignment landmark locations on each slice
-    ReverseBezier // Curve drawing mode but adding/deleting points at the start of the curve
+    ReverseBezier, // Curve drawing mode but adding/deleting points at the start of the curve
+    Circlemark // Circular landmarks that are large and require 3 points to estimate
+               // their centre. Developed to handle needle alignment holes.
 };
 
 // What sort of colour model is in use?
-enum class ColourModel {
+enum class ColourModel
+{
     Greyscale,
     AllenDevMouse
 };
 
-enum FrameFlag {
+enum FrameFlag
+{
     ShowBoxes, // Show the yellow boxes?
     ShowUsers, // Show the user points?
     ShowCtrls, // Show the ctrl points of the fits?
@@ -92,6 +97,20 @@ public:
     //! As part of alignment, have to hold a copy of the aligned landmarks
     std::vector<cv::Point2d> LM_lmaligned;
 
+    // Circlemarks. For every 3 circlemarks, we effectively add a landmark. So
+    // circlemark mode simply adds landmarks, but by placing 3 points on a circle. The
+    // difference comes when deleting, I suppose. Usually don't expect to see more than
+    // 3 of these? Do I save the circle marks for each landmark or have the system
+    // re-set them each time? If I don't save, then the off-screen landmarks will be
+    // missing.
+
+    //! Current circle mark points, user-supplied
+    std::vector<cv::Point> CM_points;
+    //! Holds a collection of finished circlemark triplets, ordered by the key, which is
+    //! the index into LM for the associated landmark, which is the centre of the circle
+    //! defined by the triplets.
+    std::map<size_t, std::vector<cv::Point>> CM;
+
     //! The means computed for the boxes. This is "mean_signal".
     std::vector<float> box_signal_means;
     //! And corresponding standard deviations
@@ -118,10 +137,15 @@ public:
     //! Bin A sets the number of pixels along the normal to the fit to end the sample box
     int binB = 100;
 
-    //! A set of points created from the fit. Units: pixels.
-    std::vector<cv::Point> fitted;
+    //! A set of points created from the fit. Units: pixels, but stored in double precision.
+    std::vector<cv::Point2d> fitted;
     //! Take FrameData::fitted and scale by pixels_per_mm. Units: mm.
     std::vector<cv::Point2d> fitted_scaled;
+
+    //! The centroid of the curve, after lm_translation or autoalign_translation have
+    //! been applied to move the user points This will be 0,0 in the latter case (in
+    //! fact, it's only initially going to be used for LM alignment).
+    cv::Point2d curve_centroid;
 
     // Attributes to do with the auto-transformed slices, where the centroid of each
     // curve is used to arrange the slices on an axis, then each slice's curve is
@@ -149,6 +173,12 @@ public:
     double lm_theta = 0.0;
     //! Holds the final, translated and rotated points aligned with landmarks.
     std::vector<cv::Point2d> fitted_lmaligned;
+    //! If true, and there are >1 landmark per slice, apply the "rotate slices about
+    //! landmark 1" alignment procedure anyway. This rotational alignment is applied by
+    //! default if there is ONLY 1 landmark per slice.
+    bool rotateLandmarkOne = false;
+    //! If true, in "rotate about landmark 1 mode" align the other landmarks, instead of the curves.
+    bool rotateButAlignLandmarkTwoPlus = false;
     //! Set true if landmark alignment was completed before write()
     bool lmalignComputed = false;
 
@@ -194,6 +224,12 @@ public:
     std::bitset<8> flags;
     //! The image data, required when sampling the image in one of the boxes. CV_8UC3
     cv::Mat frame;
+    //! If set true, then the read() function will load FrameNNN/class/frame from the H5
+    //! file into this->frame and then call this->setupFrames()
+    bool loadFrameFromH5 = false;
+    //! If true, then save FrameData::frame contents to H5 file on write()
+    bool saveFrameToH5 = true;
+    //! Maximum and minimum pixel values of frame
     std::pair<int, int> frame_maxmin;
     //! A copy of the image data in float format (in range 0 to 1, rather than 0 to 255). CV_32FC3
     cv::Mat frameF;
@@ -247,7 +283,26 @@ public:
 
 public:
     FrameData() { throw std::runtime_error ("Default constructor is not allowed"); }
-    //! Constructor initializes default values
+
+    //! Constructor for creating a FrameData with NO image data. The image data is to be
+    //! read from the .h5 file.
+    FrameData (const double _bgBlurScreenProportion, const float _bgBlurSubtractionOffset)
+    {
+        this->previous = -1;
+        this->parentStack = (std::vector<FrameData>*)0;
+        // An offset so that we don't lose very small amounts of signal above the
+        // background when we subtract the blurred version of the image. To become a
+        // parameter for the user to modify at application level. Really? Want this here?
+        this->bgBlurScreenProportion = _bgBlurScreenProportion;
+        if (_bgBlurSubtractionOffset < 0.0f || _bgBlurSubtractionOffset > 255.0f) {
+            throw std::runtime_error ("The bg blur subtraction offset should be in range [0,255]");
+        }
+        this->bgBlurSubtractionOffset = _bgBlurSubtractionOffset;
+        // setupFrames will have to wait until later.
+        this->loadFrameFromH5 = true;
+    }
+
+    //! Constructor initializes default values and calls setupFrames()
     FrameData (const cv::Mat& fr,
                const double _bgBlurScreenProportion,
                const float _bgBlurSubtractionOffset)
@@ -256,6 +311,18 @@ public:
         this->previous = -1;
         this->parentStack = (std::vector<FrameData>*)0;
         this->frame = fr.clone();
+        this->bgBlurScreenProportion = _bgBlurScreenProportion;
+        if (_bgBlurSubtractionOffset < 0.0f || _bgBlurSubtractionOffset > 255.0f) {
+            throw std::runtime_error ("The bg blur subtraction offset should be in range [0,255]");
+        }
+        this->bgBlurSubtractionOffset = _bgBlurSubtractionOffset;
+        this->setupFrames();
+    }
+
+    //! From the initial frame, as loaded from an image file, or as retreived from the
+    //! .h5 file, generate the signal frame
+    void setupFrames()
+    {
         this->frame_maxmin = this->showMaxMinU (this->frame, "frame (original)");
         // Scale and convert frame to float format
         this->frame.convertTo (this->frameF, CV_32FC3, 1/255.0);
@@ -268,11 +335,8 @@ public:
         this->flags.set (ShowBoxes);
 
         // Make a blurred copy of the floating point format frame, for estimating lighting background
-        this->bgBlurScreenProportion = _bgBlurScreenProportion;
         this->blurred = cv::Mat::zeros (this->frameF.rows, this->frameF.cols, CV_32FC3);
         cv::Size ksz;
-        std::cout << "FrameData constructor: bgBlurScreenProportion = "
-                  << this->bgBlurScreenProportion << std::endl;
         ksz.width = this->frameF.cols * 2.0 * this->bgBlurScreenProportion;
         ksz.width += (ksz.width%2 == 1) ? 0 : 1; // ensure ksz.width is odd
         ksz.height = this->frameF.rows/3;
@@ -285,13 +349,6 @@ public:
 
         // Now subtract the blur from the original
         cv::Mat suboffset_minus_blurred;
-        // An offset so that we don't lose very small amounts of signal above the
-        // background when we subtract the blurred version of the image. To become a
-        // parameter for the user to modify at application level. Really? Want this here?
-        if (_bgBlurSubtractionOffset < 0.0f || _bgBlurSubtractionOffset > 255.0f) {
-            throw std::runtime_error ("The bg blur subtraction offset should be in range [0,255]");
-        }
-        this->bgBlurSubtractionOffset = _bgBlurSubtractionOffset;
         cv::subtract (this->bgBlurSubtractionOffset/255.0f, this->blurred,
                       suboffset_minus_blurred, cv::noArray(), CV_32FC3);
         // show max mins (For debugging)
@@ -351,9 +408,7 @@ public:
     //! Set the number of bins and update the size of the various containers
     void setBins (int num)
     {
-        if (num > 5000) {
-            throw std::runtime_error ("Too many bins...");
-        }
+        if (num > 5000) { throw std::runtime_error ("Too many bins..."); }
         this->nBins = num;
         this->nFit = num + 1;
         this->fitted_scaled.resize (this->nFit);
@@ -398,6 +453,8 @@ public:
             ss << ". Freehand mode";
         } else if (this->ct == InputMode::Landmark) {
             ss << ". Landmark mode";
+        } else if (this->ct == InputMode::Circlemark) {
+            ss << ". Circlemark mode";
         } else {
             ss << ". unknown mode";
         }
@@ -661,6 +718,9 @@ public:
             this->removeLastLandmark();
         } else if (this->ct == InputMode::ReverseBezier) {
             this->removeFirstPoint();
+        } else if (this->ct == InputMode::Circlemark) {
+            // Also removes the associated landmark
+            this->removeLastCirclepoint();
         } else {
             this->removeLastPoint();
         }
@@ -762,7 +822,104 @@ public:
     }
 
     //! Remove the last landmark coordinate
-    void removeLastLandmark() { if (!this->LM.empty()) { this->LM.pop_back(); } }
+    void removeLastLandmark()
+    {
+        if (!this->LM.empty()) {
+            // If LM.back() is in this->CM, then delete those, too
+            size_t lm_last = this->LM.size()-1;
+            std::map<size_t, std::vector<cv::Point>>::iterator cmi = this->CM.find(lm_last);
+            if (cmi != this->CM.end()) {
+                this->CM.erase (cmi);
+            }
+            this->LM.pop_back();
+        }
+    }
+
+    //! Remove the last circlemark point. If there are no current circlepoints in
+    //! CM_points, then a) move the largest key entry in this->CM over to CM_points, b)
+    //! Remove the landmark associated with it and c) remove the 3rd circle point from
+    //! CM_points.
+    void removeLastCirclepoint()
+    {
+        if (this->CM_points.empty()) {
+            if (!this->CM.empty()) {
+                std::map<size_t, std::vector<cv::Point>>::reverse_iterator ei = this->CM.rbegin();
+                std::cout << "End entry in CM has key " << ei->first << std::endl;
+                std::vector<cv::Point>::iterator li = this->LM.begin();
+                li += ei->first;
+                if (li != this->LM.end()) {
+                    this->LM.erase (li);
+                }
+                this->CM_points = ei->second;
+                this->CM.erase (this->CM.find(ei->first));
+                this->CM_points.pop_back();
+            }
+        } else {
+            this->CM_points.pop_back();
+        }
+    }
+
+private:
+    //! Compute determinant for 3x3 matrix @cm arranged in col major format
+    double determinant3x3 (std::array<double, 9> cm) const
+    {
+        double det = (cm[0]*cm[4]*cm[8])
+        + (cm[3]*cm[7]*cm[2])
+        + (cm[6]*cm[1]*cm[5])
+        - (cm[6]*cm[4]*cm[2])
+        - (cm[0]*cm[7]*cm[5])
+        - (cm[3]*cm[1]*cm[8]);
+        return det;
+    }
+
+    //! From 3 points, compute the centre of the circle which passes through all 3.
+    //! Matrix based recipe from https://mathworld.wolfram.com/Circumcircle.html
+    cv::Point circumcentre (const std::vector<cv::Point>& threepoints)
+    {
+        // zero is the centre
+        cv::Point2d zero;
+
+        cv::Point2d one = cv::Point2d(threepoints[0]);
+        cv::Point2d two = cv::Point2d(threepoints[1]);
+        cv::Point2d three = cv::Point2d(threepoints[2]);
+
+        std::array<double, 9> Dx, Dy, _a;
+
+        Dx[0] = one.x*one.x + one.y*one.y;         Dx[3] = one.y;   Dx[6] = 1.0;
+        Dx[1] = two.x*two.x + two.y*two.y;         Dx[4] = two.y;   Dx[7] = 1.0;
+        Dx[2] = three.x*three.x + three.y*three.y; Dx[5] = three.y; Dx[8] = 1.0;
+
+        Dy[0] = one.x*one.x + one.y*one.y;         Dy[3] = one.x;   Dy[6] = 1.0;
+        Dy[1] = two.x*two.x + two.y*two.y;         Dy[4] = two.x;   Dy[7] = 1.0;
+        Dy[2] = three.x*three.x + three.y*three.y; Dy[5] = three.x; Dy[8] = 1.0;
+
+        _a[0] = one.x; _a[3] = one.y; _a[6] = 1.0;
+        _a[1] = two.x; _a[4] = two.y; _a[7] = 1.0;
+        _a[2] = three.x; _a[5] = three.y; _a[8] = 1.0;
+
+        double minusbx = this->determinant3x3 (Dx);
+        double by = this->determinant3x3 (Dy);
+        double twoa = 2.0 * this->determinant3x3 (_a);
+
+        zero.x = minusbx / twoa;
+        zero.y = -by / twoa;
+
+        return cv::Point (zero);
+    }
+
+public:
+    void addCirclepoint (cv::Point& pt)
+    {
+        this->CM_points.push_back (pt);
+
+        if (this->CM_points.size() == 3) {
+            // We just added the last point to CM_points
+            cv::Point cent = this->circumcentre (this->CM_points);
+            this->LM.push_back (cent);
+            this->CM[this->LM.size()-1] = this->CM_points;
+            this->CM_points.clear();
+        }
+    }
 
     //! In Bezier mode, store the current set of user points (P) into PP and clear P.
     void nextCurve()
@@ -785,21 +942,53 @@ public:
         }
     }
 
-    //! Read important data from file
-    void read (morph::HdfData& df, bool oldformat=false)
+    //! Read landmark and circlemark points from file (or rather, morph::HdfData object)
+    void importLandmarks (morph::HdfData& df)
     {
-        // Note this file assumes idx has been set for the frame.
         std::string frameName = this->getFrameName();
 
-        if (oldformat == true) {
-            throw std::runtime_error ("Note: there is currently no old format conversion code.");
-            // NB: This code is left as a place holder in case we need to read in an old
-            // format and save in a new format.
+        // Landmark points
+        std::string dname = frameName + "/class/LM";
+        this->LM.clear();
+        try {
+            df.read_contained_vals (dname.c_str(), this->LM);
+        } catch (...) {
+            // Do nothing on exception. Move on to next.
+            std::cout << "No landmarks to read for this frame" << std::endl;
         }
 
+        // Circlemarks
+        for (size_t i = 0; i < this->LM.size(); ++i) {
+            dname = frameName + "/class/CM/lm" + std::to_string(i);
+            try {
+                std::vector<cv::Point> vpts;
+                df.read_contained_vals (dname.c_str(), vpts);
+                this->CM[i] = vpts;
+            } catch (...) {
+                // Do nothing on exception. Move on to next.
+                std::cout << "Could not read circlemarks" << std::endl;
+            }
+        }
+        try {
+            dname = frameName + "/class/CM_points";
+            this->CM_points.clear();
+            df.read_val (dname.c_str(), this->CM_points);
+        } catch (...) {
+            // Do nothing on exception. Move on to next.
+            std::cout << "No CM_points to read" << std::endl;
+        }
+    }
+
+    //! Import the user-supplied coordinates used to create fitted Bezier curves as well
+    //! as the sample box info (size and number)
+    void importCurves (morph::HdfData& df)
+    {
+        std::string frameName = this->getFrameName();
         std::string dname = frameName + "/class/P";
+        this->P.clear();
         df.read_contained_vals (dname.c_str(), this->P);
         dname = frameName + "/class/sP";
+        this->sP.clear();
         df.read_contained_vals (dname.c_str(), this->sP);
 
         dname = frameName + "/class/PP_n";
@@ -820,8 +1009,28 @@ public:
         dname = frameName + "/class/pp_idx";
         df.read_val (dname.c_str(), this->pp_idx);
 
+        dname = frameName + "/class/nBins";
+        int _nBins;
+        try {
+            df.read_val (dname.c_str(), _nBins);
+        } catch (...) {
+            // In case nBins stored as 'nBinsTarg'
+            dname = frameName + "/class/nBinsTarg";
+            df.read_val (dname.c_str(), _nBins);
+        }
+        this->setBins (_nBins);
+        dname = frameName + "/class/binA";
+        df.read_val (dname.c_str(), this->binA);
+        dname = frameName + "/class/binB";
+        df.read_val (dname.c_str(), this->binB);
+    }
+
+    void importFreehand (morph::HdfData& df)
+    {
+        std::string frameName = this->getFrameName();
         // Freehand-drawn regions
-        dname = frameName + "/class/FL";
+        std::string dname = frameName + "/class/FL";
+        this->FL.clear();
         df.read_contained_vals (dname.c_str(), this->FL);
         dname = frameName + "/class/FLE_n";
         unsigned int fle_size = 0;
@@ -843,30 +1052,41 @@ public:
             ss1 << i;
             df.read_contained_vals (ss1.str().c_str(), this->FLB[i]);
         }
+    }
 
-        // Landmark points
-        dname = frameName + "/class/LM";
-        df.read_contained_vals (dname.c_str(), this->LM);
+    //! Read important data from file
+    void read (morph::HdfData& df, bool oldformat=false)
+    {
+        // Note this file assumes idx has been set for the frame.
+        std::string frameName = this->getFrameName();
 
-        dname = frameName + "/class/nBins";
-        int _nBins;
-        try {
-            df.read_val (dname.c_str(), _nBins);
-        } catch (...) {
-            // In case nBins stored as 'nBinsTarg'
-            dname = frameName + "/class/nBinsTarg";
-            df.read_val (dname.c_str(), _nBins);
+        if (oldformat == true) {
+            throw std::runtime_error ("Note: there is currently no old format conversion code.");
+            // NB: This code is left as a place holder in case we need to read in an old
+            // format and save in a new format.
         }
-        this->setBins (_nBins);
-        dname = frameName + "/class/binA";
-        df.read_val (dname.c_str(), this->binA);
-        dname = frameName + "/class/binB";
-        df.read_val (dname.c_str(), this->binB);
-        dname = frameName + "/class/flags";
+
+        this->importCurves (df);
+        this->importFreehand (df);
+        this->importLandmarks (df);
+
+        std::string dname = frameName + "/class/flags";
         df.read_val (dname.c_str(), this->flags);
         dname = frameName + "/class/filename";
         df.read_string (dname.c_str(), this->filename);
 
+        if (this->loadFrameFromH5 == true) {
+            std::cout << "Attempting to read frame from H5 file...\n";
+            try {
+                dname = frameName + "/class/frame";
+                df.read_contained_vals (dname.c_str(), this->frame);
+            } catch (...) {
+                std::stringstream ee;
+                ee << "Failed to load frame image data from HDF5 file at path " << dname;
+                throw std::runtime_error (ee.str());
+            }
+            this->setupFrames();
+        }
         // NB: Don't read back from H5 file those variables which are specified in json,
         // thus changes in json will override the h5 file.
     }
@@ -878,19 +1098,10 @@ public:
     //! If true, save data relating to the landmark-aligned slices
     bool saveLMAlignData = true;
 
-    //! Write the data out to an HdfData file \a df.
-    void write (morph::HdfData& df)
+    //! Export the user-supplied points for curve drawing
+    void exportCurves (morph::HdfData& df) const
     {
-        // Update box means. not const
-        this->computeBoxMeans();
-
-        // And any freehand regions. not const
-        this->computeFreehandMeans();
-
         std::string frameName = this->getFrameName();
-
-        // Write out essential information to re-load state of the application and the
-        // user's work saving points etc.
         std::string dname = frameName + "/class/P";
         df.add_contained_vals (dname.c_str(), this->P);
         dname = frameName + "/class/sP";
@@ -907,9 +1118,21 @@ public:
             ss << i;
             df.add_contained_vals (ss.str().c_str(), this->PP[i]);
         }
+        dname = frameName + "/class/pp_idx";
+        df.add_val (dname.c_str(), this->pp_idx);
+        dname = frameName + "/class/nBins";
+        df.add_val (dname.c_str(), this->nBins);
+        dname = frameName + "/class/binA";
+        df.add_val (dname.c_str(), this->binA);
+        dname = frameName + "/class/binB";
+        df.add_val (dname.c_str(), this->binB);
+    }
 
-        // Freehand drawn regions
-        dname = frameName + "/class/FL";
+    //! Export freehand drawn regions
+    void exportFreehand (morph::HdfData& df) const
+    {
+        std::string frameName = this->getFrameName();
+        std::string dname = frameName + "/class/FL";
         df.add_contained_vals (dname.c_str(), this->FL);
         dname = frameName + "/class/FLE_n";
         unsigned int fle_size = this->FLE.size();
@@ -929,29 +1152,51 @@ public:
             ss1 << i;
             df.add_contained_vals (ss1.str().c_str(), this->FLB[i]);
         }
+    }
+
+    //! Export landmark and circlemark points for this frame
+    void exportLandmarks (morph::HdfData& df) const
+    {
+        std::string frameName = this->getFrameName();
 
         // The landmark points
-        dname = frameName + "/class/LM";
+        std::string dname = frameName + "/class/LM";
         df.add_contained_vals (dname.c_str(), this->LM);
         dname = frameName + "/class/LM_scaled";
         df.add_contained_vals (dname.c_str(), this->LM_scaled);
 
-        dname = frameName + "/class/pp_idx";
-        df.add_val (dname.c_str(), this->pp_idx);
-        dname = frameName + "/class/nBins";
-        df.add_val (dname.c_str(), this->nBins);
-        dname = frameName + "/class/binA";
-        df.add_val (dname.c_str(), this->binA);
-        dname = frameName + "/class/binB";
-        df.add_val (dname.c_str(), this->binB);
-        dname = frameName + "/class/flags";
+        // Circlemark points
+        if (!this->CM_points.empty()) {
+            dname = frameName + "/class/CM_points";
+            df.add_contained_vals (dname.c_str(), this->CM_points);
+        }
+        // CM is map<size_t, vector<cv::Point>>. Unpack here and save.
+        std::map<size_t, std::vector<cv::Point>>::const_iterator cmi = this->CM.cbegin();
+        while (cmi != this->CM.cend()) {
+            dname = frameName + "/class/CM/lm" + std::to_string(cmi->first);
+            df.add_contained_vals (dname.c_str(), cmi->second);
+            ++cmi;
+        }
+    }
+
+    //! Write the data out to an HdfData file \a df.
+    void write (morph::HdfData& df)
+    {
+        // Update box means. not const
+        this->computeBoxMeans();
+        // And any freehand regions. not const
+        this->computeFreehandMeans();
+
+        // Export curve points, freehand regions, landmarks and circlemarks
+        this->exportCurves (df);
+        this->exportFreehand (df);
+        this->exportLandmarks (df);
+
+        std::string frameName = this->getFrameName();
+        std::string dname = frameName + "/class/flags";
         df.add_val (dname.c_str(), this->flags);
         dname = frameName + "/class/filename";
         df.add_string (dname.c_str(), this->filename);
-        // The cv::Mat image data could be saved in the h5 file, though at the cost of
-        // quite a bit of storage:
-        // dname = frameName + "/class/frame";
-        // df.add_contained_vals (dname.c_str(), this->frame);
         dname = frameName + "/class/layer_x";
         df.add_val (dname.c_str(), this->layer_x);
         dname = frameName + "/class/thickness";
@@ -971,6 +1216,12 @@ public:
             df.add_val (dname.c_str(), this->luminosity_factor);
             dname = frameName + "/class/luminosity_cutoff";
             df.add_val (dname.c_str(), this->luminosity_cutoff);
+        }
+
+        // The frame data itself
+        if (this->saveFrameToH5 == true) {
+            dname = frameName + "/class/frame";
+            df.add_contained_vals (dname.c_str(), this->frame);
         }
 
         /*
@@ -1093,6 +1344,7 @@ public:
         // coordinate system and in the lmalign coord system.
         //
         // Add the centroid of the freehand regions (in the y-z or 'in-slice' plane)
+        unsigned int fle_size = this->FLE.size();
         for (size_t i = 0; i<fle_size; ++i) {
             cv::Point cntroid = morph::MathAlgo::centroid (this->FLE[i]);
 
@@ -1433,13 +1685,181 @@ public:
         return n;
     }
 
+private:
+    void updateAutoAlignments()
+    {
+        if (this->previous < 0) {
+            // get centroid of this->fitted_scaled (the 0th slice
+            cv::Point2d slice0centroid = morph::MathAlgo::centroid (this->fitted_scaled);
+            // The translation to record for the first slice is the inverse of the centroid
+            this->autoalign_translation = -slice0centroid;
+            this->autoalign_theta = 0.0;
+
+        } else {
+            // now, if we're aligning partly to the mid slice, shouldn't we centroid it
+            // first? Perhaps that's why the computeSos3d function is heavily weighted
+            // to the neighbouring (i.e. to the previous) slice?
+            size_t alignment_slice = this->parentStack->size()/2; // align to mid slice
+            std::cout << "Alignment slice: " << alignment_slice << std::endl;
+
+            // set number of bins in the alignment_slice and in the previous slice to
+            // match the number of bins in this frame.
+            int alignment_slice_bins = (*this->parentStack)[alignment_slice].getBins();
+            int previous_slice_bins = (*this->parentStack)[this->previous].getBins();
+            if (alignment_slice_bins != this->nBins) {
+                (*this->parentStack)[alignment_slice].setBins (this->nBins);
+                (*this->parentStack)[alignment_slice].updateFit();
+            }
+            if (previous_slice_bins != this->nBins) {
+                (*this->parentStack)[this->previous].setBins (this->nBins);
+                (*this->parentStack)[this->previous].updateFit();
+            }
+
+            // Call the optimization function
+            this->alignOptimally (this->fitted_scaled,
+                                  (*this->parentStack)[alignment_slice].fitted_autoaligned,
+                                  (*this->parentStack)[this->previous].fitted_autoaligned,
+                                  this->autoalign_translation, this->autoalign_theta);
+
+            // Restore number of bins.
+            if (alignment_slice_bins != this->nBins) {
+                (*this->parentStack)[alignment_slice].setBins (alignment_slice_bins);
+                (*this->parentStack)[alignment_slice].updateFit();
+            }
+            if (previous_slice_bins != this->nBins) {
+                (*this->parentStack)[this->previous].setBins (previous_slice_bins);
+                (*this->parentStack)[this->previous].updateFit();
+            }
+        }
+        this->transform (this->fitted_scaled, this->fitted_autoaligned, this->autoalign_translation, this->autoalign_theta);
+        this->transform (this->LM_scaled, this->LM_autoaligned, this->autoalign_translation, this->autoalign_theta);
+
+        this->autoalignComputed = true;
+    }
+
+private:
+    void landmarkAlignByRotation()
+    {
+        // First job is to translate landmark 1 of the slice so it's on the origin of
+        // the slice plane. That's just the inverse of the location of (the scaled
+        // version of) landmark 1.
+        this->lm_translation = -this->LM_scaled[0];
+
+        // If there's no previous frame, there's no rotation to apply - we'll rotate to match this one
+        if (this->previous < 0) {
+            this->lm_theta = 0.0;
+
+            // get centroid of this->fitted_scaled (the 0th slice)
+            cv::Point2d slice0centroid = morph::MathAlgo::centroid (this->fitted_scaled);
+            this->curve_centroid = LM_scaled[0] - slice0centroid;
+
+        } else {
+
+            // Translate the points ready for the rotational optimization
+            std::vector<cv::Point2d> LM_translated_unrotated (this->LM_scaled);
+            this->transform (this->LM_scaled, LM_translated_unrotated, this->lm_translation, 0.0);
+
+            size_t alignment_slice = 0;
+
+            if (this->rotateButAlignLandmarkTwoPlus == true) {
+                // alignment coords are rest of the landmarks
+                this->lm_theta = this->alignOptimallyByRotation (LM_translated_unrotated,
+                                                                 (*this->parentStack)[alignment_slice].LM_lmaligned,
+                                                                 (*this->parentStack)[this->previous].LM_lmaligned);
+
+            } else {
+                // Alignment against curve points
+                this->lm_theta = this->alignOptimallyByRotation (LM_translated_unrotated,
+                                                                 (*this->parentStack)[alignment_slice].fitted_lmaligned,
+                                                                 (*this->parentStack)[this->previous].fitted_lmaligned);
+            }
+
+        }
+
+        // Apply the rotation.
+        // The transform includes the lm_translation of the very first slice, so that
+        // the centroid of this slice is roughly 0? Or better to use the actual centroid
+        // of the first slice.
+        this->transform (this->LM_scaled, this->LM_lmaligned,
+                         this->lm_translation + (*this->parentStack)[0].curve_centroid,
+                         this->lm_theta);
+
+        this->transform (this->fitted_scaled, this->fitted_lmaligned,
+                         this->lm_translation + (*this->parentStack)[0].curve_centroid,
+                         this->lm_theta);
+
+        this->lmalignComputed = true;
+    }
+
+private:
+    void updateLandmarkAlignments()
+    {
+        // Landmark scheme, if we have >=2 landmarks on each slice and same number of
+        // landmarks on each slice the we can compute alignment with the landmarks.
+
+        // FIXME: If 1 landmark, then do an
+        // "align-on-the-landmark-and-rotate-optimally-thereafter" process. This could
+        // either rotate to align landmarks 2 and above, or rotate to align the curves.
+
+        if (this->landmarkCheck() == 1) {
+            // FIXME: Implement align-by-single-landmark and rotate to fit
+            std::cout << "align by rotation...\n";
+            this->landmarkAlignByRotation();
+            return;
+
+        } else if (this->landmarkCheck() < 2) { // 0. If 2
+            return;
+        } else {
+            // 2 or higher. See if configuration mandates rotate-about-landmark-1
+            if (this->rotateLandmarkOne == true) {
+                this->landmarkAlignByRotation();
+                return;
+            }
+        }
+
+        // If there's no previous frame, we just translate the frame to lie around the origin (with no rotation)
+        if (this->previous < 0) {
+            // get centroid of this->fitted_scaled (the 0th slice
+            cv::Point2d slice0centroid = morph::MathAlgo::centroid (this->fitted_scaled);
+            // The translation to record for the first slice is the inverse of the centroid
+            this->lm_translation = -slice0centroid;
+            this->lm_theta = 0.0;
+
+        } else {
+            // NB: This is the landmark scheme
+            size_t alignment_slice = 0; // Align to the 0th slice
+
+            // Unify the number of sample bins on the curves in the alignment_slice frame and in this frame.
+            int alignment_slice_bins = (*this->parentStack)[alignment_slice].getBins();
+            if (alignment_slice_bins != this->nBins) {
+                (*this->parentStack)[alignment_slice].setBins (this->nBins);
+                (*this->parentStack)[alignment_slice].updateFit();
+            }
+
+            this->alignOptimally (this->LM_scaled,
+                                  (*this->parentStack)[alignment_slice].LM_lmaligned,
+                                  //(*this->parentStack)[this->previous].LM_lmaligned, // keep landmark aligning simple
+                                  this->lm_translation, this->lm_theta);
+
+            // Restore number of bins.
+            if (alignment_slice_bins != this->nBins) {
+                (*this->parentStack)[alignment_slice].setBins (alignment_slice_bins);
+                (*this->parentStack)[alignment_slice].updateFit();
+            }
+        }
+
+        this->transform (this->LM_scaled, this->LM_lmaligned, this->lm_translation, this->lm_theta);
+        this->transform (this->fitted_scaled, this->fitted_lmaligned, this->lm_translation, this->lm_theta);
+
+        this->lmalignComputed = true;
+    }
+
+public:
     //! Compute the align-centroid-and-rotate slice alignments and if possible, the
     //! landmark-based alignment.
     void updateAlignments()
     {
-        if (this->fitted.empty()) {
-            return;
-        }
+        if (this->fitted.empty()) { return; }
 
         this->scalePoints (this->fitted, this->fitted_scaled);
 
@@ -1462,72 +1882,8 @@ public:
         this->autoalignComputed = false;
         this->lmalignComputed = false;
 
-#if 0
-        // The autoalign translation is the centroid of the scaled fitted points
-        this->autoalign_translation = -morph::MathAlgo::centroid (this->fitted_scaled);
-        // Apply offset
-        this->translate (this->fitted_scaled, this->fitted_autoalign_translated, this->autoalign_translation);
-        // Also apply the translation to any landmarks
-        this->translate (this->LM_scaled, this->LM_autoalign_translated, this->autoalign_translation);
-        this->rotateFitOptimally();
-#else
-        // Possible alternative to allow optimization to tweak the translation as well as the rotation:
-
-        // FIXME: Write function to ensure same number of bins in each frame (temporarily), then:
-
-        if (this->previous < 0) {
-            // get centroid of this->fitted_scaled (the 0th slice
-            cv::Point2d slice0centroid = morph::MathAlgo::centroid (this->fitted_scaled);
-            // The translation to record for the first slice is the inverse of the centroid
-            this->autoalign_translation = -slice0centroid;
-            this->autoalign_theta = 0.0;
-
-        } else {
-            // How many slices?
-            //size_t alignment_slice = 0; // Align to the 0th slice
-            size_t alignment_slice = this->parentStack->size()/2; // align to mid slice
-            std::cout << "Alignment slice: " << alignment_slice << std::endl;
-            this->alignOptimally (this->fitted_scaled,
-                                  (*this->parentStack)[alignment_slice].fitted_autoaligned,
-                                  (*this->parentStack)[this->previous].fitted_autoaligned,
-                                  this->autoalign_translation, this->autoalign_theta);
-        }
-        this->transform (this->fitted_scaled, this->fitted_autoaligned, this->autoalign_translation, this->autoalign_theta);
-        this->transform (this->LM_scaled, this->LM_autoaligned, this->autoalign_translation, this->autoalign_theta);
-
-#endif
-        this->autoalignComputed = true;
-
-        // Landmark scheme, if we have >=2 landmarks on each slice and same number of
-        // landmarks on each slice the we can compute alignment with the landmarks.
-        // FIXME: If 1 landmark, then do an "align-on-the-landmark-and-rotate-optimally-thereafter" process
-        if (this->landmarkCheck() == 1) {
-            // FIXME: Implement align-by-single-landmark and rotate to fit
-            return;
-        } else if (this->landmarkCheck() < 2) { // 0. If 2
-            return;
-        }
-
-        // If there's no previous frame, we just translate the frame to lie around the origin (with no rotation)
-        if (this->previous < 0) {
-            // get centroid of this->fitted_scaled (the 0th slice
-            cv::Point2d slice0centroid = morph::MathAlgo::centroid (this->fitted_scaled);
-            // The translation to record for the first slice is the inverse of the centroid
-            this->lm_translation = -slice0centroid;
-            this->lm_theta = 0.0;
-
-        } else {
-            size_t alignment_slice = 0; // Align to the 0th slice
-            this->alignOptimally (this->LM_scaled,
-                                  (*this->parentStack)[alignment_slice].LM_lmaligned,
-                                  //(*this->parentStack)[this->previous].LM_lmaligned, // keep landmark aligning simple
-                                  this->lm_translation, this->lm_theta);
-        }
-
-        this->transform (this->LM_scaled, this->LM_lmaligned, this->lm_translation, this->lm_theta);
-        this->transform (this->fitted_scaled, this->fitted_lmaligned, this->lm_translation, this->lm_theta);
-
-        this->lmalignComputed = true;
+        this->updateAutoAlignments();
+        this->updateLandmarkAlignments();
     }
 
     //! Public wrapper around updateFitBezier()
@@ -1555,8 +1911,8 @@ public:
         for (int i=0; i<this->nFit; i++) {
             cv::Point2d normLenA = this->normals[i]*lenA;
             cv::Point2d normLenB = this->normals[i]*lenB;
-            this->pointsInner[i] = this->fitted[i] + cv::Point2i((int)normLenA.x, (int)normLenA.y);
-            this->pointsOuter[i] = this->fitted[i] + cv::Point2i((int)normLenB.x, (int)normLenB.y);
+            this->pointsInner[i] = cv::Point(this->fitted[i] + cv::Point2d(normLenA.x, normLenA.y));
+            this->pointsOuter[i] = cv::Point(this->fitted[i] + cv::Point2d(normLenB.x, normLenB.y));
         }
 
         // Make the boxes from pointsInner and pointsOuter
@@ -1825,7 +2181,7 @@ private:
         }
     }
 
-    //! Update the fit, scale and rotate by \a _theta. Used by rotateFitOptimally()
+    //! Update the fit, scale and rotate by \a _theta.
     void updateFit (double _theta)
     {
         this->updateFitBezier();
@@ -1881,7 +2237,7 @@ private:
         this->tangents.resize (this->nFit);
         this->normals.resize (this->nFit);
         for (int i = 0; i < this->nFit; ++i) {
-            this->fitted[i] = cv::Point(coords[i].x(),coords[i].y());
+            this->fitted[i] = cv::Point2d(coords[i].x(),coords[i].y());
             this->tangents[i] = cv::Point2d(tans[i].x(),tans[i].y());
             this->normals[i] = cv::Point2d(norms[i].x(),norms[i].y());
         }
@@ -1898,11 +2254,31 @@ private:
         }
     }
 
+    //! Scale \a points by FrameData::pixels_per_mm to give \a scaled_points
+    void scalePoints (const std::vector<cv::Point2d>& points, std::vector<cv::Point2d>& scaled_points)
+    {
+        size_t sz = points.size();
+        size_t sz2 = scaled_points.size();
+        if (sz != sz2) { throw std::runtime_error ("scalePoints: size mismatch"); }
+        for (size_t i = 0; i < sz; ++i) {
+            scaled_points[i] = points[i] / this->pixels_per_mm;
+        }
+    }
+
     //! Scale the coordinate \a pt by FrameData::pixels_per_mm and return the result
     cv::Point2d scalePoint (const cv::Point& pt)
     {
         cv::Point2d rtn = cv::Point2d(pt)/this->pixels_per_mm;
         return rtn;
+    }
+
+    //! Rotation only
+    double computeSos1d (const std::vector<cv::Point2d> target_coords,
+                         const std::vector<cv::Point2d> coords,
+                         const double rotn)
+    {
+        std::vector<double> vtx3d = {0.0, 0.0, rotn};
+        return this->computeSos3d (target_coords, coords, vtx3d);
     }
 
     /*!
@@ -1939,6 +2315,16 @@ private:
 
         //std::cout << "sos=" << sos << std::endl;
         return sos;
+    }
+
+    //! Rotation only
+    double computeSos1d (const std::vector<cv::Point2d> target_coords,
+                         const std::vector<cv::Point2d> neighbour_coords,
+                         const std::vector<cv::Point2d> coords,
+                         const double rotn)
+    {
+        std::vector<double> vtx3d = {0.0, 0.0, rotn};
+        return this->computeSos3d (target_coords, neighbour_coords, coords, vtx3d);
     }
 
     /*!
@@ -2111,10 +2497,88 @@ private:
     }
 
     /*!
+     * Translation is the translation to apply to alignment_coords prior to aligning
+     * with target_aligned_alignment_coords. Does that make sense?
+     *
+     * By applying only rotations about the origin, find the best rotation to apply to
+     * alignment_coords so that they line up with some combination of
+     * target_aligned_alignment_coords adn neighbour_aligned_alignment_coords
+     *
+     * \return The rotation that best lines the points up.
+     */
+    double alignOptimallyByRotation (const std::vector<cv::Point2d>& alignment_coords,
+                                     const std::vector<cv::Point2d>& target_aligned_alignment_coords,
+                                     const std::vector<cv::Point2d>& neighbour_aligned_alignment_coords)
+    {
+         // Check that target frame has same number of coords, if not warn and return.
+        if (target_aligned_alignment_coords.size() != alignment_coords.size()
+            || neighbour_aligned_alignment_coords.size() != alignment_coords.size()) {
+            std::stringstream ee;
+            ee << "Same number of alignment coords in both frames please! target_aligned..: "
+               << target_aligned_alignment_coords.size()
+               << ", alignment_coords: " << alignment_coords.size()
+               << ", neighbour_aligned_alignment_coords: " << neighbour_aligned_alignment_coords.size();
+            std::cout << ee.str() << std::endl;
+            return 0.0;
+        }
+
+        double thet1 = 0.0;
+        double thet2 = 0.5;
+        morph::NM_Simplex<double> simp (thet1, thet2);
+        // Set a termination threshold for the SD of the vertices of the simplex
+        simp.termination_threshold = 2.0 * std::numeric_limits<double>::epsilon();
+        // Set a 10000 operation limit, in case the above threshold can't be reached
+        simp.too_many_operations = 1000;
+        while (simp.state != morph::NM_Simplex_State::ReadyToStop) {
+
+            if (simp.state == morph::NM_Simplex_State::NeedToComputeThenOrder) {
+                // 1. apply objective to each vertex
+                for (unsigned int i = 0; i <= simp.n; ++i) {
+                    simp.values[i] = this->computeSos1d (target_aligned_alignment_coords,
+                                                         neighbour_aligned_alignment_coords,
+                                                         alignment_coords,
+                                                         simp.vertices[i][0]);
+                }
+                simp.order();
+
+            } else if (simp.state == morph::NM_Simplex_State::NeedToOrder) {
+                simp.order();
+
+            } else if (simp.state == morph::NM_Simplex_State::NeedToComputeReflection) {
+                double val = this->computeSos1d (target_aligned_alignment_coords,
+                                                 neighbour_aligned_alignment_coords,
+                                                 alignment_coords,
+                                                 simp.xr[0]);
+                simp.apply_reflection (val);
+
+            } else if (simp.state == morph::NM_Simplex_State::NeedToComputeExpansion) {
+                double val = this->computeSos1d (target_aligned_alignment_coords,
+                                                 neighbour_aligned_alignment_coords,
+                                                 alignment_coords,
+                                                 simp.xe[0]);
+                simp.apply_expansion (val);
+
+            } else if (simp.state == morph::NM_Simplex_State::NeedToComputeContraction) {
+                double val = this->computeSos1d (target_aligned_alignment_coords,
+                                                 neighbour_aligned_alignment_coords,
+                                                 alignment_coords,
+                                                 simp.xc[0]);
+                simp.apply_contraction (val);
+            }
+        }
+        std::vector<double> vP = simp.best_vertex();
+        double min_sos = simp.best_value();
+
+        std::cout << "Best sos value: " << min_sos << " and best theta: " << vP[0] << std::endl;
+
+        // Return the best rotation
+        return vP[0];
+    }
+
+    /*!
      * By optimally aligning (by 2d translate and rotate only) the \a alignment_coords
-     * with \a target_aligned_alignment_coords, find a translation and rotation to
-     * transform \a alignment_coords into \a aligned_alignment_coords and \a coords into
-     * \a aligned_coords.
+     * with \a target_aligned_alignment_coords, find a \a translation and \a rotation
+     * which are the outputs of this function.
      *
      * \param alignment_coords The coordinates which will be aligned by the
      * optimization. These could be user-supplied landmarks or the Bezier curve points.
@@ -2123,15 +2587,16 @@ private:
      * should be transformed until they match target_aligned_alignment_coords as closely
      * as possible.
      *
-     * \param neighbour_aligned_alignment_coords The neighbouring slice alignment coords.
+     * \param neighbour_aligned_alignment_coords The neighbouring slice alignment
+     * coords. These are passed into the cost function of the optimization.
      *
      * \param translation Output. The x/y translation applied to alignment_coords and
-     * coords to give (after \a rotation has also been applied) \a aligned_alignment_coords
-     * and \a aligned_coords
+     * coords to give (after \a rotation has also been applied) \a
+     * target_aligned_alignment_coords
      *
      * \param rotation Output. The rotation (theta) applied to alignment_coords and
      * coords to give (as long as translation was applied)
-     * aligned_alignment_coords and aligned_coords
+     * target_aligned_alignment_coords.
      */
     void alignOptimally (const std::vector<cv::Point2d>& alignment_coords,
                          const std::vector<cv::Point2d>& target_aligned_alignment_coords,
@@ -2139,7 +2604,7 @@ private:
                          cv::Point2d& translation,
                          double& rotation)
     {
-        // Check that target frame has same number of coords, if not throw exception
+        // Check that target frame has same number of coords, if not warn and return.
         if (target_aligned_alignment_coords.size() != alignment_coords.size()
             || neighbour_aligned_alignment_coords.size() != alignment_coords.size()) {
             std::stringstream ee;
@@ -2238,8 +2703,7 @@ private:
      * and \a aligned_coords
      *
      * \param rotation Output. The rotation (theta) applied to alignment_coords and
-     * coords to give (as long as translation was applied)
-     * aligned_alignment_coords and aligned_coords
+     * coords to give (as long as translation was applied) aligned_alignment_coords.
      */
     void alignOptimally (const std::vector<cv::Point2d>& alignment_coords,
                          const std::vector<cv::Point2d>& target_aligned_alignment_coords,
@@ -2316,86 +2780,6 @@ private:
         translation.x = vP[0];
         translation.y = vP[1];
         rotation = vP[2];
-    }
-
-    //! Rotate the fit until we get the best one.
-    void rotateFitOptimally()
-    {
-        // If there's no previous frame, then fitted_autoaligned should be same as fitted_autoalign_translated
-        if (this->previous < 0) {
-            // Using translate as copy here:
-            this->translate (this->fitted_autoalign_translated, this->fitted_autoaligned, cv::Point2d(0,0));
-            this->translate (this->LM_autoalign_translated, this->LM_autoaligned, cv::Point2d(0,0));
-            return;
-        }
-
-        std::cout << "rotateFitOptimally: DO have previous frame" << std::endl;
-
-        // Now check if the previous frame has different number of bins
-        int nBinsSave = this->nBins;
-        int nBinsTmp = (*this->parentStack)[this->previous].getBins();
-        std::cout << "  nBinsSave(this->nBins) = "<< nBinsSave << std::endl;
-        std::cout << "  nBinsTmp(this->previous->nBins) = "<< nBinsTmp << std::endl;
-        if (nBinsTmp != nBinsSave) {
-            // This temporarily re-computes THIS frame's fit with nBinsTmp
-            std::cout << "set bins to nBinsTmp = " << nBinsTmp << std::endl;
-            this->setBins (nBinsTmp);
-            this->updateFitBezier();
-        }
-
-        // Now we have a fit which has same number of bins as the previous frame,
-        // this means we can compute SOS objective function
-        double thet1 = 0.0;
-        double thet2 = 0.5;
-        morph::NM_Simplex<double> simp (thet1, thet2);
-        // Set a termination threshold for the SD of the vertices of the simplex
-        simp.termination_threshold = 2.0 * std::numeric_limits<double>::epsilon();
-        // Set a 10000 operation limit, in case the above threshold can't be reached
-        simp.too_many_operations = 1000;
-
-        while (simp.state != morph::NM_Simplex_State::ReadyToStop) {
-
-            if (simp.state == morph::NM_Simplex_State::NeedToComputeThenOrder) {
-                // 1. apply objective to each vertex
-                for (unsigned int i = 0; i <= simp.n; ++i) {
-                    simp.values[i] = this->computeSosWithPrev (simp.vertices[i][0]);
-                }
-                simp.order();
-
-            } else if (simp.state == morph::NM_Simplex_State::NeedToOrder) {
-                simp.order();
-
-            } else if (simp.state == morph::NM_Simplex_State::NeedToComputeReflection) {
-                double val = this->computeSosWithPrev (simp.xr[0]);
-                simp.apply_reflection (val);
-
-            } else if (simp.state == morph::NM_Simplex_State::NeedToComputeExpansion) {
-                double val = this->computeSosWithPrev (simp.xe[0]);
-                simp.apply_expansion (val);
-
-            } else if (simp.state == morph::NM_Simplex_State::NeedToComputeContraction) {
-                double val = this->computeSosWithPrev (simp.xc[0]);
-                simp.apply_contraction (val);
-            }
-        }
-        std::vector<double> vP = simp.best_vertex();
-        double min_sos = simp.best_value();
-
-        std::cout << "Best sos value: " << min_sos << " and best theta: " << vP[0] << std::endl;
-        this->autoalign_theta = vP[0];
-
-        if (nBinsTmp != nBinsSave) {
-            // Need to reset bins and update the fit again, but this time rotating by vP[0]
-            std::cout << "reset bins to nBinsSave = " << nBinsSave << std::endl;
-            this->setBins (nBinsSave);
-            std::cout << "Update fit with rotation " << this->autoalign_theta << std::endl;
-            this->updateFit (this->autoalign_theta);
-        } // else there was no need to change bins back
-
-        // rotate by the best theta, vP[0]
-        std::cout << "Update unchanged fit with rotation " << this->autoalign_theta << std::endl;
-        this->rotate (this->fitted_autoalign_translated, this->fitted_autoaligned, this->autoalign_theta);
-        this->rotate (this->LM_autoalign_translated, this->LM_autoaligned, this->autoalign_theta);
     }
 
     //! Common code to generate the frame name

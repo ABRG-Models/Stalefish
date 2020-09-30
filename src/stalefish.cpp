@@ -92,10 +92,12 @@ int main (int argc, char** argv)
             }
             break;
         }
-        // Cancel a pending 'clear all curves'. char(27) is the Esc key.
+        // Cancel a pending 'clear all curves' or 'export file'. char(27) is the Esc key.
         case (char(27)):
         {
             DM::i()->clearAllPending = false;
+            DM::i()->exportPending = false;
+            DM::i()->importPending = false;
             break;
         }
         // Perform all fits
@@ -129,6 +131,57 @@ int main (int argc, char** argv)
         case ('b'):
         {
             DM::i()->previousFrame();
+            break;
+        }
+        case ('l'):
+        {
+            if (DM::i()->importPending == true) {
+                DM::i()->importLandmarks();
+                DM::i()->importPending = false;
+            } else {
+                DM::i()->importPending = true;
+            }
+            break;
+        }
+        case ('i'):
+        {
+            if (DM::i()->importPending == true) {
+                DM::i()->importCurves();
+                DM::i()->importPending = false;
+            } else {
+                DM::i()->importPending = true;
+            }
+            break;
+        }
+        case ('j'):
+        {
+            if (DM::i()->importPending == true) {
+                DM::i()->importFreehand();
+                DM::i()->importPending = false;
+            } else {
+                DM::i()->importPending = true;
+            }
+            break;
+        }
+        case ('k'):
+        {
+            if (DM::i()->exportPending == true) {
+                DM::i()->exportUserpoints();
+                DM::i()->exportPending = false;
+            } else {
+                DM::i()->exportPending = true;
+            }
+            break;
+        }
+        case ('p'):
+        {
+            if (DM::i()->exportPending == true) {
+                // Depending on InputMode, export landmarks, curves or freehand
+                DM::i()->exportInputModePoints();
+                DM::i()->exportPending = false;
+            } else {
+                DM::i()->exportPending = true;
+            }
             break;
         }
         case ('m'):

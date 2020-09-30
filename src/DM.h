@@ -5,10 +5,14 @@
 #include <cmath>
 #include <stdexcept>
 #include <bitset>
+#include <fstream>
+#include <limits>
 #include <opencv2/opencv.hpp>
 #include <opencv2/imgproc.hpp>
 #include <morph/HdfData.h>
 #include <morph/Config.h>
+#include <morph/Random.h>
+#include <morph/tools.h>
 #include "FrameData.h"
 
 // OpenCV functions mostly expect colours in Blue-Green-Red order
@@ -16,6 +20,7 @@
 #define SF_GREEN    cv::Scalar(0,255,0,10)
 #define SF_RED      cv::Scalar(0,0,255,10)
 #define SF_YELLOW   cv::Scalar(0,255,255,10)
+#define SF_PURPLE   cv::Scalar(238,121,159,50)
 #define SF_BLACK    cv::Scalar(0,0,0)
 #define SF_WHITE    cv::Scalar(255,255,255)
 #define SF_C1       cv::Scalar(238,121,159) // mediumpurple2
@@ -89,6 +94,9 @@ public:
     InputMode input_mode = InputMode::Bezier;
     //! Set true if we're in 'clear all pending' mode
     bool clearAllPending = false;
+    //! Set true if we're in 'export pending' mode
+    bool exportPending = false;
+    bool importPending = false;
 
     //! The instance public function. Uses the very short name 'i' to keep code tidy.
     static DM* i()
@@ -103,14 +111,9 @@ public:
     //! Initialize by clearing out vFrameData.
     void init() { this->vFrameData.clear(); }
 
-    /*!
-     * Add frame \a frameImg to vFrameData, setting the metadata attributes
-     * \a frameImgFilename (The filename for the image), \a slice_x (position in the x
-     * dimension) and \a ppm (pixels per mm; the scale).
-     */
-    void addFrame (cv::Mat& frameImg, const std::string& frameImgFilename, const float& slice_x)
+    //! Set up, and add the FramdData object \a fd
+    void addFrame (FrameData& fd, const std::string& frameImgFilename, const float& slice_x)
     {
-        FrameData fd(frameImg, this->bgBlurScreenProportion, this->bgBlurSubtractionOffset);
         fd.ct = this->default_mode;
         fd.filename = frameImgFilename;
         fd.setParentStack (&this->vFrameData);
@@ -126,7 +129,7 @@ public:
             fd.setPrevious (this->vFrameData.back().idx);
         }
         fd.layer_x = slice_x;
-        fd.pixels_per_mm = (double)this->pixels_per_mm;
+        fd.pixels_per_mm = (double)this->pixels_per_mm * this->scaleFactor;
         fd.thickness = this->thickness;
         if (this->colourmodel == "allen") {
             fd.cmodel = ColourModel::AllenDevMouse;
@@ -141,6 +144,11 @@ public:
         fd.savePerPixelData = this->savePerPixel;
         fd.saveAutoAlignData = this->saveAutoAlign;
         fd.saveLMAlignData = this->saveLMAlign;
+        fd.saveFrameToH5 = this->saveFrameImage;
+
+        fd.rotateLandmarkOne = this->rotateLandmarkOne;
+        fd.rotateButAlignLandmarkTwoPlus = this->rotateButAlignLandmarkTwoPlus;
+
         // Read, opportunistically
         try {
             morph::HdfData d(this->datafile, true); // true for read
@@ -162,6 +170,29 @@ public:
         this->vFrameData.push_back (fd);
     }
 
+    /*!
+     * Add frame to vFrameData, setting the metadata attributes
+     * \a frameImgFilename (The filename for the image), \a slice_x (position in the x
+     * dimension)
+     */
+    void addFrame (const std::string& frameImgFilename, const float& slice_x)
+    {
+        // Create an empty FrameData, with no image data as yet.
+        FrameData fd(this->bgBlurScreenProportion, this->bgBlurSubtractionOffset);
+        this->addFrame (fd, frameImgFilename, slice_x);
+    }
+
+    /*!
+     * Add frame \a frameImg to vFrameData, setting the metadata attributes
+     * \a frameImgFilename (The filename for the image), \a slice_x (position in the x
+     * dimension)
+     */
+    void addFrame (cv::Mat& frameImg, const std::string& frameImgFilename, const float& slice_x)
+    {
+        FrameData fd(frameImg, this->bgBlurScreenProportion, this->bgBlurSubtractionOffset);
+        this->addFrame (fd, frameImgFilename, slice_x);
+    }
+
     //! Return the size of vFrameData
     unsigned int getNumFrames() const { return this->vFrameData.size(); }
 
@@ -181,6 +212,8 @@ public:
         } else if (this->input_mode == InputMode::Freehand) {
             this->input_mode = InputMode::Landmark;
         } else if (this->input_mode == InputMode::Landmark) {
+            this->input_mode = InputMode::Circlemark;
+        } else if (this->input_mode == InputMode::Circlemark) {
             this->input_mode = InputMode::Bezier;
         } else {
             // Shouldn't get here...
@@ -317,6 +350,118 @@ public:
         std::cout << "writeFrames complete: All frames written to HDF5" << std::endl;
     }
 
+    //! A hardcoded tmp file location to save exported points for import into another project
+    const std::string lm_exportfile = "/tmp/landmarks.h5";
+    const std::string cp_exportfile = "/tmp/curves.h5";
+    const std::string fh_exportfile = "/tmp/freehand.h5";
+
+    //! Depending on the current InputMode, export landmarks, curves OR freehand loops.
+    void exportInputModePoints()
+    {
+        FrameData* cf = DM::i()->gcf();
+        if (cf->ct == InputMode::Bezier || cf->ct == InputMode::ReverseBezier) {
+            this->exportCurves();
+        } else if (cf->ct == InputMode::Freehand) {
+            this->exportFreehand();
+        } else if (cf->ct == InputMode::Landmark || cf->ct == InputMode::Circlemark) {
+            this->exportLandmarks();
+        } else {
+            std::cerr << "Unknown mode for export\n";
+        }
+    }
+
+    void exportLandmarks()
+    {
+        this->refreshAllBoxes();
+        for (auto& f : this->vFrameData) { f.updateAlignments(); }
+        int nf = this->vFrameData.size();
+        morph::HdfData d(lm_exportfile);
+        for (auto f : this->vFrameData) { f.exportLandmarks (d); }
+        d.add_val("/nframes", nf);
+        std::cout << "Exported landmarks to " << lm_exportfile << std::endl;
+    }
+
+    void exportFreehand()
+    {
+        this->refreshAllBoxes();
+        for (auto& f : this->vFrameData) { f.updateAlignments(); }
+        int nf = this->vFrameData.size();
+        morph::HdfData d(fh_exportfile);
+        for (auto f : this->vFrameData) { f.exportFreehand (d); }
+        d.add_val("/nframes", nf);
+        std::cout << "Exported freehand loops to " << fh_exportfile << std::endl;
+    }
+
+    void exportCurves()
+    {
+        this->refreshAllBoxes();
+        for (auto& f : this->vFrameData) { f.updateAlignments(); }
+        int nf = this->vFrameData.size();
+        morph::HdfData d(cp_exportfile);
+        for (auto f : this->vFrameData) { f.exportCurves (d); }
+        d.add_val("/nframes", nf);
+        std::cout << "Exported curves to " << cp_exportfile << std::endl;
+    }
+
+    //! Export all user-supplied point information to files
+    void exportUserpoints()
+    {
+        this->refreshAllBoxes();
+        for (auto& f : this->vFrameData) { f.updateAlignments(); }
+        int nf = this->vFrameData.size();
+        {
+            morph::HdfData d(lm_exportfile);
+            for (auto f : this->vFrameData) { f.exportLandmarks (d); }
+            d.add_val("/nframes", nf);
+            std::cout << "Exported landmarks to " << lm_exportfile << std::endl;
+        }
+        {
+            morph::HdfData d(cp_exportfile);
+            for (auto f : this->vFrameData) { f.exportCurves (d); }
+            d.add_val("/nframes", nf);
+            std::cout << "Exported curves to " << cp_exportfile << std::endl;
+        }
+        {
+            morph::HdfData d(fh_exportfile);
+            for (auto f : this->vFrameData) { f.exportFreehand (d); }
+            d.add_val("/nframes", nf);
+            std::cout << "Exported freehand loops to " << fh_exportfile << std::endl;
+        }
+    }
+
+    //! Import landmark information from a file
+    void importLandmarks()
+    {
+        try {
+            morph::HdfData d(lm_exportfile, true);
+            for (auto& f : this->vFrameData) { f.importLandmarks (d); }
+        } catch (...) {
+            std::cout << "Failed to read " << lm_exportfile << std::endl;
+        }
+    }
+
+    //! Import "curve points" from a file
+    void importCurves()
+    {
+        try {
+            morph::HdfData d(cp_exportfile, true);
+            for (auto& f : this->vFrameData) { f.importCurves (d); }
+        } catch (...) {
+            std::cout << "Failed to read " << cp_exportfile << std::endl;
+        }
+    }
+
+    //! Import freehand loops from a file
+    void importFreehand()
+    {
+        try {
+            morph::HdfData d(fh_exportfile, true);
+            for (auto& f : this->vFrameData) { f.importFreehand (d); }
+        } catch (...) {
+            std::cout << "Failed to read " << fh_exportfile << std::endl;
+        }
+    }
+
     //! Toogle showHelp
     void toggleShowHelp() { this->flags[AppShowHelp] = this->flags.test(AppShowHelp) ? false : true; }
     void setShowHelp (bool t) { this->flags[AppShowHelp] = t; }
@@ -361,6 +506,8 @@ public:
     std::string datafile = "unset.h5";
     //! How many pixels in the image is 1mm?
     float pixels_per_mm = 100.0f;
+    //! What is the scaling factor to scale the images before saving them in FrameData objects?
+    float scaleFactor = 1.0f;
 
     //! Set true to read in old data format, to be written out in new format.
     bool readOldFormat = false;
@@ -376,23 +523,90 @@ public:
     //! A subtraction offset used when subtracting blurred background signal from image
     float bgBlurSubtractionOffset = 255.0;
 
-    //! Flags to control what data gets saved.
+    // Flags to control what data gets saved.
+    //! Save data for every single freakin' pixel in every single sample box (instead of means and SDs)
     bool savePerPixel = false;
+    //! Save auto (i.e. curve based) alignment location data
     bool saveAutoAlign = true;
+    //! Save landmark alignment location data
     bool saveLMAlign = true;
+    //! If true, then tell FrameData objects to save a copy of their image data (FrameData::frame)
+    bool saveFrameImage = true;
+    //! If true, and there are >1 landmark per slice, apply the "rotate slices about
+    //! landmark 1" alignment procedure anyway. This rotational alignment is applied by
+    //! default if there is ONLY 1 landmark per slice.
+    bool rotateLandmarkOne = false;
+    //! If true, in "rotate about landmark 1 mode" align the other landmarks, instead of the curves.
+    bool rotateButAlignLandmarkTwoPlus = false;
 
-    //! Application setup
+    //! Adapted from Seb's futil library. Create unique file name for temporary file
+    std::string generateRandomFilename (const std::string& prefixPath, const unsigned int numChars = 0)
+    {
+        std::string rtn(prefixPath);
+        unsigned int nc = 8;
+        if (numChars > 0) { nc = numChars; }
+        morph::RandString rs((size_t)nc, morph::CharGroup::HexLowerCase);
+        rtn.append (rs.get());
+        return rtn;
+    }
+
+    /*!
+     * Application setup
+     *
+     * \param paramsfile Either a path to a .json config file or a path to an HDF5
+     * file. If HDF5, then the saved JSON config is searched for within the HDF as
+     * '/config'
+     */
     void setup (const std::string& paramsfile)
     {
+        std::string jsonfile (paramsfile);
         // Set the HDF5 data file path based on the .json file path
         std::string::size_type jsonpos = paramsfile.find(".json");
         if (jsonpos == std::string::npos) {
-            this->datafile = paramsfile + ".h5";
+            // If no '.json' in the filename, then test if there's '.h5'. FIXME - should
+            // really ID the file content using libmagic, rather than relying on file suffices.
+            std::string::size_type h5pos = paramsfile.find(".h5");
+            if (h5pos == std::string::npos) {
+                std::cerr << paramsfile << " seems to be neither json nor h5; exiting." << std::endl;
+                exit (1);
+            } else {
+                this->datafile = paramsfile;
+
+                // Now get config from h5. Make a temporary file. Fill it with JSON
+                // config. Put the path to the tmp file in jsonfile.
+                std::string jsoncontent("");
+                try {
+                    morph::HdfData d(this->datafile, true); // true for read
+                    d.read_string ("/config", jsoncontent);
+                    // What about on Apple. Tmp location there?
+                    // Strip directories off paramsfile for tmp file
+                    std::string only_paramsfile(paramsfile);
+                    morph::Tools::stripUnixPath (only_paramsfile);
+                    std::string prefix = "/tmp/json_" + only_paramsfile + "_";
+                    jsonfile = "";
+                    jsonfile = this->generateRandomFilename (prefix);
+                    jsonfile.append(".json");
+                    std::ofstream jf;
+                    jf.open (jsonfile.c_str(), std::ios::out|std::ios::trunc);
+                    if (!jf.is_open()) {
+                        std::stringstream ee;
+                        ee << "Failed to open temporary file '" << jsonfile << "' for writing.";
+                        throw std::runtime_error (ee.str());
+                    }
+                    jf << jsoncontent;
+                    jf.close();
+
+                } catch (const std::exception& e) {
+                    std::cerr << "Could not read a configuration from that h5 file (is it too old?): " << e.what() << std::endl;
+                    exit (1);
+                }
+            }
+
         } else {
             this->datafile = paramsfile.substr (0,jsonpos) + ".h5";
         }
 
-        this->conf.init (paramsfile);
+        this->conf.init (jsonfile);
         if (!this->conf.ready) {
             std::cerr << "Error setting up JSON config: "
                       << this->conf.emsg << ", exiting." << std::endl;
@@ -414,13 +628,13 @@ public:
         this->colourmodel = conf.getString ("colourmodel", "monochrome");
         // colour_rot - array<float, 9>
         const Json::Value cr = conf.getArray ("colour_rot");
-        for (unsigned int i = 0; i < cr.size(); ++i) {
-            this->colour_rot[i] = cr[i].asFloat();
+        for (unsigned int ii = 0; ii < cr.size(); ++ii) {
+            this->colour_rot[ii] = cr[ii].asFloat();
         }
         // colour_trans - array<float, 3>
         const Json::Value ct = conf.getArray ("colour_trans");
-        for (unsigned int i = 0; i < ct.size(); ++i) {
-            this->colour_trans[i] = ct[i].asFloat();
+        for (unsigned int ii = 0; ii < ct.size(); ++ii) {
+            this->colour_trans[ii] = ct[ii].asFloat();
         }
         // ellip_axes array<float, 2>
         const Json::Value ea = conf.getArray ("ellip_axes");
@@ -429,44 +643,61 @@ public:
         // luminosity linear fit parameters
         this->luminosity_cutoff = conf.getFloat ("luminosity_cutoff", 255.0f);
         this->luminosity_factor = conf.getFloat ("luminosity_factor", -0.00392f); // -1/255
-
+        // Data-saving parameters - what to save to the HDF5 file
         this->savePerPixel = conf.getBool ("save_per_pixel_data", false);
         this->saveAutoAlign = conf.getBool ("save_auto_align_data", true);
         this->saveLMAlign = conf.getBool ("save_landmark_align_data", true);
+        this->saveFrameImage = conf.getBool ("save_frame_image", true);
+        // A scaling applied to the original image before it is saved in FrameData::frame
+        this->scaleFactor = conf.getFloat ("scaleFactor", 1.0f);
 
-        // Loop over slices, creating a FrameData object for each.
+        this->rotateLandmarkOne = conf.getBool ("rotate_landmark_one", false);
+        this->rotateButAlignLandmarkTwoPlus = conf.getBool ("rotate_align_landmarks", false);
+
+        // Set false, try to open frames from json; if that fails, then set this
+        // true. At that point, we'll try to add frames using in-hdf5 saved data for the
+        // frame.
+        bool fallbackToInternalFrames = false;
+
+        // Loop over slices, creating a FrameData object for each. BUT if image not
+        // findable, allow system to fall back to the image saved in the frame.
         const Json::Value slices = conf.getArray ("slices");
-        for (unsigned int i = 0; i < slices.size(); ++i) {
-            Json::Value slice = slices[i];
+        for (unsigned int si = 0; si < slices.size(); ++si) {
+            Json::Value slice = slices[si];
             std::string fn = slice.get ("filename", "unknown").asString();
             float slice_x = slice.get ("x", 0.0).asFloat();
 
             std::cout << "imread " << fn << std::endl;
             cv::Mat frame = cv::imread (fn.c_str(), cv::IMREAD_COLOR);
             if (frame.empty()) {
-                std::cout <<  "Could not open or find the image '"
-                          << fn << "', exiting." << std::endl;
-                exit (1);
+                std::cout << "Could not open or find the image '"
+                          << fn << "'. Will attempt fall-back to image data stored in the h5 file." << std::endl;
+                fallbackToInternalFrames = true;
             }
 
-            // scaling routine (pull scale factor from config json)
-            float scaleFactor = conf.getFloat("scaleFactor", 1.0f);
+            if (fallbackToInternalFrames == true) {
+                // Try loading the frame exclusively from file
+                this->addFrame (fn, slice_x);
+                // Reset the bool, incase we can read the next one.
+                fallbackToInternalFrames = false;
 
-            if (scaleFactor != 1.0f) {
-                std::cout << "rescaling frame to scaleFactor: " << scaleFactor << std::endl;
-
-                cv::Size scaledSize = cv::Size(std::round(frame.cols * scaleFactor),
-                                               std::round(frame.rows * scaleFactor));
-                cv::Mat scaledFrame = cv::Mat(scaledSize, frame.type());
-                cv::resize (frame, scaledFrame, scaledSize,
-                            scaleFactor, scaleFactor, cv::INTER_LINEAR);
-
-                frame.release(); // free original frame since we have resized it
-
-                this->addFrame(scaledFrame, fn, slice_x);
             } else {
-                // if we are at the default scale factor do not do anything
-                this->addFrame(frame, fn, slice_x);
+                if (std::abs(this->scaleFactor - 1.0f) > std::numeric_limits<float>::epsilon()) {
+                    std::cout << "rescaling frame to scaleFactor: " << scaleFactor << std::endl;
+
+                    cv::Size scaledSize = cv::Size(std::round(frame.cols * scaleFactor),
+                                                   std::round(frame.rows * scaleFactor));
+                    cv::Mat scaledFrame = cv::Mat(scaledSize, frame.type());
+                    cv::resize (frame, scaledFrame, scaledSize,
+                                scaleFactor, scaleFactor, cv::INTER_LINEAR);
+
+                    frame.release(); // free original frame since we have resized it
+
+                    this->addFrame (scaledFrame, fn, slice_x);
+                } else {
+                    // if we are at the default scale factor do not do anything
+                    this->addFrame (frame, fn, slice_x);
+                }
             }
         }
 
@@ -704,6 +935,37 @@ public:
         }
     }
 
+    //! Input mode for entering landmarks by defining 3 points on a circle.
+    void draw_circlemarks (const cv::Point& pt)
+    {
+        DM* _this = DM::i();
+        cv::Mat* pImg = _this->getImg();
+        FrameData* cf = _this->gcf();
+
+        // circle under the cursor
+        if (cf->ct == InputMode::Circlemark) {
+            circle (*pImg, pt, 7, SF_PURPLE, 1);
+            // Cross hares too
+            line (*pImg, pt-cv::Point(0,6), pt+cv::Point(0,6), SF_BLACK, 1);
+            line (*pImg, pt-cv::Point(6,0), pt+cv::Point(6,0), SF_BLACK, 1);
+        }
+
+        // Draw any entries in CM
+        auto cmi = cf->CM.begin();
+        while (cmi != cf->CM.end()) {
+            std::vector<cv::Point> pts = cmi->second;
+            for (size_t ii = 0; ii < pts.size(); ++ii) {
+                circle (*pImg, pts[ii], 4, SF_PURPLE, -1);
+            }
+            ++cmi;
+        }
+
+        // Draw any entries in CM_points
+        for (size_t ii = 0; ii < cf->CM_points.size(); ++ii) {
+            circle (*pImg, cf->CM_points[ii], 4, SF_RED, -1);
+        }
+    }
+
     //! Actions to take on a mouse user-interface event
     static void onmouse (int event, int x, int y, int flags, void* param)
     {
@@ -737,6 +999,8 @@ public:
                 cf->addToFL (pt);
             } else if (cf->ct == InputMode::Landmark) {
                 cf->LM.push_back (pt);
+            } else if (cf->ct == InputMode::Circlemark) {
+                cf->addCirclepoint (pt);
             }
         } else if (event == cv::EVENT_LBUTTONUP) {
             cf->loopFinished = false;
@@ -757,6 +1021,7 @@ public:
         _this->draw_curves (pt);
         _this->draw_freehand (pt);
         _this->draw_landmarks (pt);
+        _this->draw_circlemarks (pt);
 
         std::stringstream ss;
         int xh = 30;
@@ -782,6 +1047,18 @@ public:
             putText (*pImg, ss3.str(), cv::Point(xh,80), cv::FONT_HERSHEY_SIMPLEX, 1.2*fontsz, SF_BLACK, 1, cv::LINE_AA);
             putText (*sImg, ss3.str(), cv::Point(xh,80), cv::FONT_HERSHEY_SIMPLEX, 1.2*fontsz, SF_WHITE, 1, cv::LINE_AA);
         }
+        else if (_this->exportPending == true) {
+            std::stringstream ss3;
+            ss3 << "Export data? (press key again to confirm, 'Esc' to cancel)";
+            putText (*pImg, ss3.str(), cv::Point(xh,80), cv::FONT_HERSHEY_SIMPLEX, 1.2*fontsz, SF_BLACK, 1, cv::LINE_AA);
+            putText (*sImg, ss3.str(), cv::Point(xh,80), cv::FONT_HERSHEY_SIMPLEX, 1.2*fontsz, SF_WHITE, 1, cv::LINE_AA);
+        }
+        else if (_this->importPending == true) {
+            std::stringstream ss3;
+            ss3 << "IMPORT data? (press key again to confirm, 'Esc' to cancel)";
+            putText (*pImg, ss3.str(), cv::Point(xh,80), cv::FONT_HERSHEY_SIMPLEX, 1.2*fontsz, SF_BLACK, 1, cv::LINE_AA);
+            putText (*sImg, ss3.str(), cv::Point(xh,80), cv::FONT_HERSHEY_SIMPLEX, 1.2*fontsz, SF_WHITE, 1, cv::LINE_AA);
+        }
 
         int yh = 90;
         int yinc = 40;
@@ -789,16 +1066,10 @@ public:
             putText (*pImg, std::string("Use the sliders to control the bin parameters"),
                      cv::Point(xh,yh), cv::FONT_HERSHEY_SIMPLEX, fontsz, SF_BLACK, 1, cv::LINE_AA);
             yh += yinc;
-            putText (*pImg, std::string("1:   Toggle Bezier controls"),
+            putText (*pImg, std::string("1:   Toggle Bezier controls    2: Toggle user points"),
                      cv::Point(xh,yh), cv::FONT_HERSHEY_SIMPLEX, fontsz, SF_BLACK, 1, cv::LINE_AA);
             yh += yinc;
-            putText (*pImg, std::string("2:   Toggle user points"),
-                     cv::Point(xh,yh), cv::FONT_HERSHEY_SIMPLEX, fontsz, SF_BLACK, 1, cv::LINE_AA);
-            yh += yinc;
-            putText (*pImg, std::string("3:   Toggle the fit line"),
-                     cv::Point(xh,yh), cv::FONT_HERSHEY_SIMPLEX, fontsz, SF_BLACK, 1, cv::LINE_AA);
-            yh += yinc;
-            putText (*pImg, std::string("4:   Toggle the bins"),
+            putText (*pImg, std::string("3:   Toggle the fit line    4: Toggle the bins"),
                      cv::Point(xh,yh), cv::FONT_HERSHEY_SIMPLEX, fontsz, SF_BLACK, 1, cv::LINE_AA);
             yh += yinc;
             putText (*pImg, std::string("Spc: Next curve"),
@@ -828,6 +1099,21 @@ public:
                      cv::Point(xh,yh), cv::FONT_HERSHEY_SIMPLEX, fontsz, SF_BLACK, 1, cv::LINE_AA);
             yh += yinc;
             putText (*pImg, std::string("s:   Toggle add points to curve at start/end"),
+                     cv::Point(xh,yh), cv::FONT_HERSHEY_SIMPLEX, fontsz, SF_BLACK, 1, cv::LINE_AA);
+            yh += yinc;
+            putText (*pImg, std::string("k:   Export points to files in /tmp"),
+                     cv::Point(xh,yh), cv::FONT_HERSHEY_SIMPLEX, fontsz, SF_BLACK, 1, cv::LINE_AA);
+            yh += yinc;
+            putText (*pImg, std::string("p:   Export landmark OR curves OR freehand to file in /tmp (depends on Draw mode)"),
+                     cv::Point(xh,yh), cv::FONT_HERSHEY_SIMPLEX, fontsz, SF_BLACK, 1, cv::LINE_AA);
+            yh += yinc;
+            putText (*pImg, std::string("l:   Import landmarks from ") + _this->lm_exportfile,
+                     cv::Point(xh,yh), cv::FONT_HERSHEY_SIMPLEX, fontsz, SF_BLACK, 1, cv::LINE_AA);
+            yh += yinc;
+            putText (*pImg, std::string("i:   Import curve points from ") + _this->cp_exportfile,
+                     cv::Point(xh,yh), cv::FONT_HERSHEY_SIMPLEX, fontsz, SF_BLACK, 1, cv::LINE_AA);
+            yh += yinc;
+            putText (*pImg, std::string("j:   Import freehand loops from ") + _this->fh_exportfile,
                      cv::Point(xh,yh), cv::FONT_HERSHEY_SIMPLEX, fontsz, SF_BLACK, 1, cv::LINE_AA);
             yh += yinc;
             putText (*pImg, std::string("n:   Next frame"),
