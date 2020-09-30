@@ -1194,6 +1194,7 @@ public:
         cf->refreshBoxes (-cf->binA, cf->binB);
         DM::onmouse (cv::EVENT_MOUSEMOVE, -1, -1, 0, NULL);
     }
+    //On trackbar change, refresh blur value
     static void ontrackbar_blur (int val, void*)
     {
         DM* _this = DM::i();
