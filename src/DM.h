@@ -63,6 +63,7 @@ private:
     std::array<float, 2> ellip_axes; // red-green ellipse for "elliptical tube of expressing colours
     float luminosity_factor; // The slope of the linear luminosity vs signal fit.
     float luminosity_cutoff; // at what luminosity does the signal cut off to zero?
+    
 
     // Called by next/previousFrame. Take binA, binB from the frame and change the
     // sliders. Update the fit and refresh boxes. Update the view of boxes/fit line/control points
@@ -92,7 +93,7 @@ public:
     //! The instance public function. Uses the very short name 'i' to keep code tidy.
     static DM* i()
     {
-        if (DM::pInstance == 0) {
+        if (!DM::pInstance) {
             DM::pInstance = new DM;
             DM::i()->init();
         }
@@ -907,14 +908,23 @@ public:
         cf->refreshBoxes (-cf->binA, cf->binB);
         DM::onmouse (cv::EVENT_MOUSEMOVE, -1, -1, 0, NULL);
     }
-
+    static void ontrackbar_blur (int val, void*)
+    {
+        DM* _this = DM::i();
+        FrameData* cf = _this->gcf();
+        _this->bgBlurScreenProportion = ((double)val)/100;
+        cf->updateFit();
+        DM::onmouse (cv::EVENT_MOUSEMOVE, -1, -1, 0, NULL);
+    }
     static void createTrackbars()
     {
         // Set up trackbars. Have to do this for each frame
         std::string tbBinA = "Box A";
         std::string tbBinB = "Box B";
+        std::string gBlur = "Gaussian Blur";
         std::string tbNBins = "Num bins";
         DM* _this = DM::i();
+        int bgBlurScreenProportion_int = (int)(_this->bgBlurScreenProportion*100);
         // binA slider goes from -200 to +200
         cv::createTrackbar (tbBinA, _this->winName, &_this->binA, 400, ontrackbar_boxes);
         cv::setTrackbarPos (tbBinA, _this->winName, _this->binA);
@@ -923,6 +933,8 @@ public:
         cv::setTrackbarPos (tbBinB, _this->winName, _this->binB);
         cv::createTrackbar (tbNBins, _this->winName, &_this->nBinsTarg, 200, ontrackbar_nbins);
         cv::setTrackbarPos (tbNBins, _this->winName, _this->nBinsTarg);
+        cv::createTrackbar (gBlur, _this->winName, &bgBlurScreenProportion_int, 100, ontrackbar_blur);
+        cv::setTrackbarPos (gBlur, _this->winName, bgBlurScreenProportion_int);
     }
 
     static void updateTrackbars()
