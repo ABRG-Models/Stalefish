@@ -520,7 +520,7 @@ int main (int argc, char** argv)
         POPT_AUTOHELP
 
         {"scale_perslice", 'p',
-         POPT_ARG_NONE, &(cmdOptions.scale_perslice), 0,
+         POPT_ARG_NONE, &(cmdOptions.scale_perslice), 0, // 0 is 'val' which is available in callbacks
          "If set, auto-scale the signal for each slice."},
 
         {"use_autoalign", 'a',
@@ -532,8 +532,8 @@ int main (int argc, char** argv)
          "If set, display the ribbon-like surface boxes, rather than the smoothed surface."},
 
         {"show_landmarks", 'l',
-         POPT_ARG_NONE, &(cmdOptions.show_landmarks), 0,
-         "If set, display landmarks from the first (or indexed?) data file."},
+         POPT_ARG_INT, &(cmdOptions.show_landmarks), 0,
+         "Display landmarks from the indexed (counting from 1) data file."},
 
         {"show_landmarks_all", 'L',
          POPT_ARG_NONE, &(cmdOptions.show_landmarks), 0,
@@ -598,6 +598,7 @@ int main (int argc, char** argv)
     }
 
     // And landmarks
+    std::cout << "show_landmarks: " << cmdOptions.show_landmarks << "\n";
     if (cmdOptions.show_landmarks_all) {
         for (unsigned int ii = 0; ii < cmdOptions.datafiles.size(); ++ii) {
             rtn += addLandmarks (v, cmdOptions.datafiles[ii], cmdOptions);
@@ -609,6 +610,7 @@ int main (int argc, char** argv)
     }
 
     // Add requested flattened map
+    std::cout << "show_flattened: " << cmdOptions.show_flattened << "\n";
     if (cmdOptions.show_flattened > 0 && static_cast<int>(cmdOptions.datafiles.size()) >= cmdOptions.show_flattened) {
         rtn += addFlattened (v, cmdOptions.datafiles[cmdOptions.show_flattened-1], cmdOptions);
     }
