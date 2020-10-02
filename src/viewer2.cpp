@@ -21,6 +21,16 @@ struct CmdOptions
     int scale_perslice;
     //! If true, then use auto align, even if landmark alignment data is present
     int use_autoalign;
+    //! If true, plot ribbons for 3D instead of the smooth surface map. Useful for debugging
+    int show_ribbons;
+    //! Show landmarks from first model
+    int show_landmarks;
+    //! Show landmarks from all models
+    int show_landmarks_all;
+    //! Takes the index of the flattened map to show
+    int show_flattened;
+    //! flattened_type could be 0. aligned linear distance, starting from angle 0 1. linear distance, centered, 2. angle of thing about 0.
+    int flattened_type;
     //! Temporary datafile, for adding to datafiles.
     char* datafile;
     //! The h5 files to visualize
@@ -32,6 +42,11 @@ void zeroCmdOptions (CmdOptions* copts)
 {
     copts->scale_perslice = 0;
     copts->use_autoalign = 0;
+    copts->show_ribbons = 0;
+    copts->show_landmarks = 0;
+    copts->show_landmarks_all = 0;
+    copts->show_flattened = 0;
+    copts->flattened_type = 0;
     copts->datafile = (char*)0;
     copts->datafiles.clear();
 }
@@ -65,12 +80,11 @@ void popt_option_callback (poptContext con,
     }
 }
 
-//! Add a visual model, created from the file datafile, to the scene v
-int addVisMod (morph::Visual& v, const string& datafile, const CmdOptions& co)
+//! Add just the landmarks in the datafile
+int addLandmarks (morph::Visual& v, const string& datafile, const CmdOptions& co)
 {
     int rtn = 0;
 
-    bool autoscale_per_slice = co.scale_perslice > 0 ? true : false;
     bool align_lm = co.use_autoalign > 0 ? false : true;
 
     try {
@@ -78,37 +92,22 @@ int addVisMod (morph::Visual& v, const string& datafile, const CmdOptions& co)
 
         morph::Scale<float> scale;
         scale.setParams (1.0, 0.0);
-
-        // FIXME: thickness is hard-coded
-        float thickness = 0.1f;
-        float xx = thickness;
-
-        vector<array<float, 12>> quads_autoaligned; // Get from HDF5
-        vector<array<float, 12>> quads_lmaligned;
-        vector<array<float, 12>> quads_scaled;
-        vector<array<float, 12>> fquads; // Flat quads, for the flat visualization
-        vector<morph::Vector<float>> points_autoaligned; // Centres of boxes; for smooth surface (points rows)
-        vector<morph::Vector<float>> points_lmaligned; // Centres of boxes; for smooth surface (points rows)
-        vector<morph::Vector<float>> points_scaled; // Centres of boxes; for smooth surface (points rows)
+        float xx = 0.0f;
 
         vector<morph::Vector<float>> landmarks_autoaligned;
         vector<morph::Vector<float>> landmarks_lmaligned;
         vector<float> landmarks_id;
 
-        vector<float> means;
-        vector<float> fmeans;
-
         {
-            cout << "Opening H5 file " << datafile << endl;
             morph::HdfData d(datafile, true); // true for read
             int nf = 0;
             d.read_val ("/nframes", nf);
 
             // Check first frame for alignments
             bool lmalignComputed = false;
-            d.read_val ("Frame001/lmalign/computed", lmalignComputed);
+            d.read_val ("/Frame001/lmalign/computed", lmalignComputed);
             bool autoalignComputed = false;
-            d.read_val ("Frame001/autoalign/computed", autoalignComputed);
+            d.read_val ("/Frame001/autoalign/computed", autoalignComputed);
 
             string frameName("");
             for (int i = 1; i<=nf; ++i) {
@@ -120,36 +119,9 @@ int addVisMod (morph::Visual& v, const string& datafile, const CmdOptions& co)
                 ss << i;
                 frameName = ss.str();
 
-                vector<array<float, 12>> frameQuads_scaled;
-                vector<array<float, 12>> frameQuads_lmaligned;
-                vector<array<float, 12>> frameQuads_autoaligned;
-
-                vector<morph::Vector<float>> framePoints_autoaligned;
-                vector<morph::Vector<float>> framePoints_lmaligned;
-                vector<morph::Vector<float>> framePoints_scaled;
-
-                // Read quads and data for each frame and add to an overall pair of vectors...
-                string str = frameName+"/autoalign/sboxes";
-                d.read_contained_vals (str.c_str(), frameQuads_autoaligned);
-                str = frameName+"/lmalign/sboxes";
-                d.read_contained_vals (str.c_str(), frameQuads_lmaligned);
-                // Un-transformed:
-                str = frameName+"/scaled/sboxes";
-                d.read_contained_vals (str.c_str(), frameQuads_scaled);
-
-                for (auto fq : frameQuads_autoaligned) {
-                    // FIXME: Use centre of box, or even each end of box, or something
-                    morph::Vector<float> pt = {fq[0],fq[1],fq[2]};
-                    framePoints_autoaligned.push_back (pt);
-                }
-                for (auto fq : frameQuads_lmaligned) {
-                    morph::Vector<float> pt = {fq[0],fq[1],fq[2]};
-                    framePoints_lmaligned.push_back (pt);
-                }
-                for (auto fq : frameQuads_scaled) {
-                    morph::Vector<float> pt = {fq[0],fq[1],fq[2]};
-                    framePoints_scaled.push_back (pt);
-                }
+                // x position comes from FrameNNN/class/layer_x
+                string str = frameName+"/class/layer_x";
+                d.read_val (str.c_str(), xx);
 
                 // Landmarks
                 vector<array<float, 3>> LM_autoaligned;
@@ -170,6 +142,121 @@ int addVisMod (morph::Visual& v, const string& datafile, const CmdOptions& co)
                 for (auto lm : LM_lmaligned) {
                     morph::Vector<float> _lm = {lm[0],lm[1],lm[2]};
                     landmarks_lmaligned.push_back (_lm);
+                }
+            }
+            unsigned int visId = 0;
+
+            offset[0]=0.0;
+
+            // Show landmark aligned for preference:
+            if (lmalignComputed == true && align_lm == true) {
+                // Show the landmarks with a ScatterVisual
+                visId = v.addVisualModel (new morph::ScatterVisual<float> (v.shaderprog,
+                                                                           &landmarks_lmaligned, offset,
+                                                                           &landmarks_id, 0.07f, scale,
+                                                                           morph::ColourMapType::Plasma));
+            } else {
+                visId = v.addVisualModel (new morph::ScatterVisual<float> (v.shaderprog,
+                                                                           &landmarks_autoaligned, offset,
+                                                                           &landmarks_id, 0.07f, scale,
+                                                                           morph::ColourMapType::Plasma));
+            }
+            cout << "Added landmarks with visId " << visId << endl;
+        }
+    } catch (const exception& e) {
+        cerr << "Caught exception: " << e.what() << endl;
+        rtn = -1;
+    }
+
+    return rtn;
+}
+
+//! Add a visual model for the expression surface, created from the file datafile, to the scene v
+int addVisMod (morph::Visual& v, const string& datafile, const CmdOptions& co, const float hue)
+{
+    int rtn = 0;
+
+    bool autoscale_per_slice = co.scale_perslice > 0 ? true : false;
+    bool align_lm = co.use_autoalign > 0 ? false : true;
+    bool showribbons = co.show_ribbons > 0 ? true : false;
+
+    try {
+        morph::Vector<float> offset = { 0.0, 0.0, 0.0 };
+
+        morph::Scale<float> scale;
+        scale.setParams (1.0, 0.0);
+
+        float thickness = 0.0f;
+        float xx = 0.0f;
+
+        vector<array<float, 12>> quads_autoaligned; // Get from HDF5
+        vector<array<float, 12>> quads_lmaligned;
+        vector<array<float, 12>> quads_scaled;
+        vector<array<float, 12>> fquads; // Flat quads, for the flat visualization
+        vector<morph::Vector<float>> points_autoaligned; // Centres of boxes; for smooth surface (points rows)
+        vector<morph::Vector<float>> points_lmaligned; // Centres of boxes; for smooth surface (points rows)
+        vector<morph::Vector<float>> points_scaled; // Centres of boxes; for smooth surface (points rows)
+
+        vector<float> means;
+        vector<float> fmeans;
+
+        {
+            cout << "Opening H5 file " << datafile << endl;
+            morph::HdfData d(datafile, true); // true for read
+            int nf = 0;
+            d.read_val ("/nframes", nf);
+
+            // Check first frame for alignments
+            bool lmalignComputed = false;
+            d.read_val ("/Frame001/lmalign/computed", lmalignComputed);
+            bool autoalignComputed = false;
+            d.read_val ("/Frame001/autoalign/computed", autoalignComputed);
+
+            string frameName("");
+            for (int i = 1; i<=nf; ++i) {
+
+                stringstream ss;
+                ss << "/Frame";
+                ss.width(3);
+                ss.fill('0');
+                ss << i;
+                frameName = ss.str();
+
+                // x position comes from FrameNNN/class/layer_x
+                string str = frameName+"/class/layer_x";
+                d.read_val (str.c_str(), xx);
+                str = frameName+"/class/thickness";
+                d.read_val (str.c_str(), thickness);
+
+                vector<array<float, 12>> frameQuads_scaled;
+                vector<array<float, 12>> frameQuads_lmaligned;
+                vector<array<float, 12>> frameQuads_autoaligned;
+
+                vector<morph::Vector<float>> framePoints_autoaligned;
+                vector<morph::Vector<float>> framePoints_lmaligned;
+                vector<morph::Vector<float>> framePoints_scaled;
+
+                // Read quads and data for each frame and add to an overall pair of vectors...
+                str = frameName+"/autoalign/sboxes";
+                d.read_contained_vals (str.c_str(), frameQuads_autoaligned);
+                str = frameName+"/lmalign/sboxes";
+                d.read_contained_vals (str.c_str(), frameQuads_lmaligned);
+                // Un-transformed:
+                str = frameName+"/scaled/sboxes";
+                d.read_contained_vals (str.c_str(), frameQuads_scaled);
+
+                for (auto fq : frameQuads_autoaligned) {
+                    // FIXME: Use centre of box, or even each end of box, or something
+                    morph::Vector<float> pt = {fq[0],fq[1],fq[2]};
+                    framePoints_autoaligned.push_back (pt);
+                }
+                for (auto fq : frameQuads_lmaligned) {
+                    morph::Vector<float> pt = {fq[0],fq[1],fq[2]};
+                    framePoints_lmaligned.push_back (pt);
+                }
+                for (auto fq : frameQuads_scaled) {
+                    morph::Vector<float> pt = {fq[0],fq[1],fq[2]};
+                    framePoints_scaled.push_back (pt);
                 }
 
                 vector<double> frameMeans;
@@ -202,10 +289,11 @@ int addVisMod (morph::Visual& v, const string& datafile, const CmdOptions& co)
 
                 // Load in linear stuff as well, to make up flat boxes? Or easier to do at source?
                 vector<float> linbins;
-                //str = frameName+"/scaled/flattened/sbox_linear_distance";
-                // Better:
-                //str = frameName+"/lmalign/flattened/sbox_angles";
-                // Even better:
+                // linear distance boxes:
+                // str = frameName+"/scaled/flattened/sbox_linear_distance";
+                // angle based boxes:
+                // str = frameName+"/lmalign/flattened/sbox_angles";
+                // linear distance based on 0 angle starting point:
                 if (lmalignComputed == true && align_lm == true) {
                     str = frameName+"/lmalign/flattened/sbox_linear_distance";
                 } else {
@@ -217,20 +305,20 @@ int addVisMod (morph::Visual& v, const string& datafile, const CmdOptions& co)
                 array<float, 12> sbox;
                 for (unsigned int j = 1; j < linbins.size(); ++j) {
                     // c1 x,y,z
-                    sbox[0] = xx-thickness;
-                    sbox[1] = linbins[j-1];  // y
-                    sbox[2] = 0.0;
+                    sbox[0] = xx-thickness; // x
+                    sbox[1] = linbins[j-1]; // y
+                    sbox[2] = 0.0;          // z
                     // c2 x,y,z
-                    sbox[3] = xx-thickness;               // x
-                    sbox[4] = linbins[j];  // y
+                    sbox[3] = xx-thickness;
+                    sbox[4] = linbins[j];
                     sbox[5] = 0.0;
                     // c3 x,y,z
                     sbox[6] = xx;
-                    sbox[7] = linbins[j];     // y
+                    sbox[7] = linbins[j];
                     sbox[8] = 0.0;
                     // c4 x,y,z
                     sbox[9] = xx;
-                    sbox[10] = linbins[j-1];  // y
+                    sbox[10] = linbins[j-1];
                     sbox[11] = 0.0;
 
                     flatsurf_boxes.push_back (sbox);
@@ -238,33 +326,172 @@ int addVisMod (morph::Visual& v, const string& datafile, const CmdOptions& co)
 
                 fquads.insert (fquads.end(), flatsurf_boxes.begin(), flatsurf_boxes.end());
                 fmeans.insert (fmeans.end(), frameMeansF.begin(), --frameMeansF.end());
-                xx += thickness;
             }
-#ifdef DEBUG
-            cout << "fquads size: " << fquads.size() << ", fmeans size: " << fmeans.size() << endl;
-            cout << "fmeans min/max: " << fmeans.size() << endl;
-            cout << "landmarks_autoaligned.size(): " << landmarks_autoaligned.size() << endl;
-#endif
             unsigned int visId = 0;
 
-#if 0
-            // The 'ribbons' maps
-            offset[0] = 0.0;
+// With multiple surfaces, don't want all maps
+//#define SHOW_FLATTENED_MAP 1
+#ifdef SHOW_FLATTENED_MAP
+            // This is the flattened map; showing it alongside the 3D map for now
+            offset[0]=-5.0;
             visId = v.addVisualModel (new morph::QuadsVisual<float> (v.shaderprog,
-                                                                     &quads_autoaligned, offset,
-                                                                     &means, scale,
-                                                                     morph::ColourMapType::MonochromeBlue));
-            offset[0] = 5.0;
-            visId = v.addVisualModel (new morph::QuadsVisual<float> (v.shaderprog,
-                                                                     &quads_lmaligned, offset,
-                                                                     &means, scale,
-                                                                     morph::ColourMapType::MonochromeRed));
-            offset[0] = 10.0;
-            visId = v.addVisualModel (new morph::QuadsVisual<float> (v.shaderprog,
-                                                                     &quads_scaled, offset,
-                                                                     &means, scale,
-                                                                     morph::ColourMapType::MonochromeGreen));
+                                                                     &fquads, offset,
+                                                                     &fmeans, scale,
+                                                                     morph::ColourMapType::Greyscale));
 #endif
+
+            offset[0]=0.0;
+
+            // Show landmark aligned for preference:
+            if (lmalignComputed == true && align_lm == true) {
+                if (showribbons) {
+                    visId = v.addVisualModel (new morph::QuadsVisual<float> (v.shaderprog,
+                                                                             &quads_lmaligned, offset,
+                                                                             &means, scale,
+                                                                             morph::ColourMapType::Monochrome, hue));
+                } else {
+                    visId = v.addVisualModel (new morph::PointRowsVisual<float> (v.shaderprog,
+                                                                                 &points_lmaligned, offset,
+                                                                                 &means, scale,
+                                                                                 morph::ColourMapType::Monochrome, hue));
+                }
+                std::cout << "Landmark layer with visId " << visId << " created\n";
+            } else {
+
+                if (showribbons) {
+                    visId = v.addVisualModel (new morph::QuadsVisual<float> (v.shaderprog,
+                                                                             &quads_autoaligned, offset,
+                                                                             &means, scale,
+                                                                             morph::ColourMapType::Monochrome, hue));
+                } else {
+
+                    visId = v.addVisualModel (new morph::PointRowsVisual<float> (v.shaderprog,
+                                                                                 &points_autoaligned, offset,
+                                                                                 &means, scale,
+                                                                                 morph::ColourMapType::Monochrome, hue));
+                }
+                std::cout << "Autoalign layer with visId " << visId << " created\n";
+            }
+
+            cout << "Added Visual with visId " << visId << endl;
+        }
+    } catch (const exception& e) {
+        cerr << "Caught exception: " << e.what() << endl;
+        rtn = -1;
+    }
+
+    return rtn;
+}
+
+//! Add flattened map
+int addFlattened (morph::Visual& v, const string& datafile, const CmdOptions& co)
+{
+    int rtn = 0;
+
+    bool autoscale_per_slice = co.scale_perslice > 0 ? true : false;
+    bool align_lm = co.use_autoalign > 0 ? false : true;
+
+    try {
+        morph::Vector<float> offset = { 0.0, 0.0, 0.0 };
+
+        morph::Scale<float> scale;
+        scale.setParams (1.0, 0.0);
+
+        float thickness = 0.0f;
+        float xx = 0.0f;
+        vector<array<float, 12>> fquads; // Flat quads, for the flat visualization
+        vector<float> means;
+        vector<float> fmeans;
+
+        {
+            cout << "Opening H5 file " << datafile << endl;
+            morph::HdfData d(datafile, true); // true for read
+            int nf = 0;
+            d.read_val ("/nframes", nf);
+
+            // Check first frame for alignments
+            bool lmalignComputed = false;
+            d.read_val ("/Frame001/lmalign/computed", lmalignComputed);
+            bool autoalignComputed = false;
+            d.read_val ("/Frame001/autoalign/computed", autoalignComputed);
+
+            string frameName("");
+            for (int i = 1; i<=nf; ++i) {
+
+                stringstream ss;
+                ss << "/Frame";
+                ss.width(3);
+                ss.fill('0');
+                ss << i;
+                frameName = ss.str();
+
+                // x position comes from FrameNNN/class/layer_x
+                string str = frameName+"/class/layer_x";
+                d.read_val (str.c_str(), xx);
+                str = frameName+"/class/thickness";
+                d.read_val (str.c_str(), thickness);
+                vector<double> frameMeans;
+                if (autoscale_per_slice) {
+                    // Use the auto-scaled version of the means, with each slice autoscaled to [0,1]
+                    str = frameName+"/signal/postproc/boxes/means_autoscaled";
+                    d.read_contained_vals (str.c_str(), frameMeans);
+                } else {
+                    // Use the raw means and autoscale them as an entire group
+                    str = frameName+"/signal/postproc/boxes/means";
+                    d.read_contained_vals (str.c_str(), frameMeans);
+                    // The morph::Scale object scale with autoscale the who thing.
+                    scale.do_autoscale = true;
+                }
+
+                // Gah, convert frameMeans to float (there's a better way to do this)
+                vector<float> frameMeansF;
+                for (unsigned int j = 0; j < frameMeans.size(); ++j) {
+                    frameMeansF.push_back (static_cast<float>(frameMeans[j]));
+                }
+                // Load in linear stuff as well, to make up flat boxes? Or easier to do at source?
+                vector<float> linbins;
+                if (co.flattened_type == 1) {
+                    // linear distance boxes:
+                    str = frameName+"/scaled/flattened/sbox_linear_distance";
+                } else if (co.flattened_type == 2) {
+                    // angle based boxes:
+                    str = frameName+"/lmalign/flattened/sbox_angles";
+                } else {
+                    // linear distance based on 0 angle starting point:
+                    if (lmalignComputed == true && align_lm == true) {
+                        str = frameName+"/lmalign/flattened/sbox_linear_distance";
+                    } else {
+                        str = frameName+"/autoalign/flattened/sbox_linear_distance";
+                    }
+                }
+                d.read_contained_vals (str.c_str(), linbins);
+
+                vector<array<float,12>> flatsurf_boxes;
+                array<float, 12> sbox;
+                for (unsigned int j = 1; j < linbins.size(); ++j) {
+                    // c1 x,y,z
+                    sbox[0] = xx-thickness; // x
+                    sbox[1] = linbins[j-1]; // y
+                    sbox[2] = 0.0;          // z
+                    // c2 x,y,z
+                    sbox[3] = xx-thickness;
+                    sbox[4] = linbins[j];
+                    sbox[5] = 0.0;
+                    // c3 x,y,z
+                    sbox[6] = xx;
+                    sbox[7] = linbins[j];
+                    sbox[8] = 0.0;
+                    // c4 x,y,z
+                    sbox[9] = xx;
+                    sbox[10] = linbins[j-1];
+                    sbox[11] = 0.0;
+
+                    flatsurf_boxes.push_back (sbox);
+                }
+                fquads.insert (fquads.end(), flatsurf_boxes.begin(), flatsurf_boxes.end());
+                fmeans.insert (fmeans.end(), frameMeansF.begin(), --frameMeansF.end());
+            }
+            unsigned int visId = 0;
 
             // This is the flattened map; showing it alongside the 3D map for now
             offset[0]=-5.0;
@@ -272,31 +499,6 @@ int addVisMod (morph::Visual& v, const string& datafile, const CmdOptions& co)
                                                                      &fquads, offset,
                                                                      &fmeans, scale,
                                                                      morph::ColourMapType::Greyscale));
-
-            offset[0]=0.0;
-
-            // Show landmark aligned for preference:
-            if (lmalignComputed == true && align_lm == true) {
-                visId = v.addVisualModel (new morph::PointRowsVisual<float> (v.shaderprog,
-                                                                             &points_lmaligned, offset,
-                                                                             &means, scale,
-                                                                             morph::ColourMapType::MonochromeRed));
-                // Show the landmarks with a ScatterVisual
-                visId = v.addVisualModel (new morph::ScatterVisual<float> (v.shaderprog,
-                                                                           &landmarks_lmaligned, offset,
-                                                                           &landmarks_id, 0.07f, scale,
-                                                                           morph::ColourMapType::Plasma));
-            } else {
-                visId = v.addVisualModel (new morph::PointRowsVisual<float> (v.shaderprog,
-                                                                             &points_autoaligned, offset,
-                                                                             &means, scale,
-                                                                             morph::ColourMapType::MonochromeBlue));
-                visId = v.addVisualModel (new morph::ScatterVisual<float> (v.shaderprog,
-                                                                           &landmarks_autoaligned, offset,
-                                                                           &landmarks_id, 0.07f, scale,
-                                                                           morph::ColourMapType::Plasma));
-            }
-
             cout << "Added Visual with visId " << visId << endl;
         }
     } catch (const exception& e) {
@@ -324,6 +526,28 @@ int main (int argc, char** argv)
         {"use_autoalign", 'a',
          POPT_ARG_NONE, &(cmdOptions.use_autoalign), 0,
          "If set, prefer the auto-alignment (based on the curve points only) rather than landscape alignment."},
+
+        {"show_ribbons", 'r',
+         POPT_ARG_NONE, &(cmdOptions.show_ribbons), 0,
+         "If set, display the ribbon-like surface boxes, rather than the smoothed surface."},
+
+        {"show_landmarks", 'l',
+         POPT_ARG_NONE, &(cmdOptions.show_landmarks), 0,
+         "If set, display landmarks from the first (or indexed?) data file."},
+
+        {"show_landmarks_all", 'L',
+         POPT_ARG_NONE, &(cmdOptions.show_landmarks), 0,
+         "If set, display landmarks from ALL first data files."},
+
+        {"show_flattened", 'm',
+         POPT_ARG_INT, &(cmdOptions.show_flattened), 0,
+         "Display flattened image from the data file with this index (counting from 1), to compare with 3D."},
+
+        {"flattened_type", 't',
+         POPT_ARG_INT, &(cmdOptions.flattened_type), 0,
+         "Selects the type of flattened map to show: 0 (default): use aligned 3D image and compute linear "
+         "distance along the curve starting from the surface box that is on the zero degree line wrt the "
+         "origin. 1: Use centered surface box linear distance. 2: Plot vs. the angle of the surface box."},
 
         // options following this will cause the popt_option_callback to be executed.
         { "callback", '\0',
@@ -361,8 +585,32 @@ int main (int argc, char** argv)
     v.setZDefault (-15.4);
 
     // For each file in cmdOptions.datafiles:
+    // 0 red .2 yellow .3 green .4 cyan green .5 cyan .6 blue .7 blue .8 purple .9 red
+    vector<float> hues = {0.0f, 0.7f, 0.8f, 0.1f, 0.5f, 0.6f, 0.1f, 0.8f};
+    float hue = 0.0f;
     for (unsigned int ii = 0; ii < cmdOptions.datafiles.size(); ++ii) {
-        rtn += addVisMod (v, cmdOptions.datafiles[ii], cmdOptions);
+        if (ii < hues.size()) {
+            hue = hues[ii];
+        } else {
+            hue = 0.8f;
+        }
+        rtn += addVisMod (v, cmdOptions.datafiles[ii], cmdOptions, hue);
+    }
+
+    // And landmarks
+    if (cmdOptions.show_landmarks_all) {
+        for (unsigned int ii = 0; ii < cmdOptions.datafiles.size(); ++ii) {
+            rtn += addLandmarks (v, cmdOptions.datafiles[ii], cmdOptions);
+        }
+    } else {
+        if (cmdOptions.show_landmarks > 0 && static_cast<int>(cmdOptions.datafiles.size()) >= cmdOptions.show_landmarks) {
+            rtn += addLandmarks (v, cmdOptions.datafiles[cmdOptions.show_landmarks-1], cmdOptions);
+        }
+    }
+
+    // Add requested flattened map
+    if (cmdOptions.show_flattened > 0 && static_cast<int>(cmdOptions.datafiles.size()) >= cmdOptions.show_flattened) {
+        rtn += addFlattened (v, cmdOptions.datafiles[cmdOptions.show_flattened-1], cmdOptions);
     }
 
     try {

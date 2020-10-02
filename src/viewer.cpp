@@ -87,9 +87,9 @@ int main (int argc, char** argv)
 
             // Check first frame for alignments
             bool lmalignComputed = false;
-            d.read_val ("Frame001/lmalign/computed", lmalignComputed);
+            d.read_val ("/Frame001/lmalign/computed", lmalignComputed);
             bool autoalignComputed = false;
-            d.read_val ("Frame001/autoalign/computed", autoalignComputed);
+            d.read_val ("/Frame001/autoalign/computed", autoalignComputed);
 
             string frameName("");
             for (int i = 1; i<=nf; ++i) {
