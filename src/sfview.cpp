@@ -43,7 +43,7 @@ void zeroCmdOptions (CmdOptions* copts)
     copts->scale_perslice = 0;
     copts->use_autoalign = 0;
     copts->show_ribbons = 0;
-    copts->show_landmarks = 0;
+    copts->show_landmarks = 1;
     copts->show_landmarks_all = 0;
     copts->show_flattened = 0;
     copts->flattened_type = 0;
@@ -192,13 +192,10 @@ int addVisMod (morph::Visual& v, const string& datafile, const CmdOptions& co, c
         vector<array<float, 12>> quads_autoaligned; // Get from HDF5
         vector<array<float, 12>> quads_lmaligned;
         vector<array<float, 12>> quads_scaled;
-        vector<array<float, 12>> fquads; // Flat quads, for the flat visualization
         vector<morph::Vector<float>> points_autoaligned; // Centres of boxes; for smooth surface (points rows)
         vector<morph::Vector<float>> points_lmaligned; // Centres of boxes; for smooth surface (points rows)
         vector<morph::Vector<float>> points_scaled; // Centres of boxes; for smooth surface (points rows)
-
         vector<float> means;
-        vector<float> fmeans;
 
         {
             cout << "Opening H5 file " << datafile << endl;
@@ -286,59 +283,8 @@ int addVisMod (morph::Visual& v, const string& datafile, const CmdOptions& co, c
                 points_lmaligned.insert (points_lmaligned.end(), framePoints_lmaligned.begin(), framePoints_lmaligned.end());
                 points_autoaligned.insert (points_autoaligned.end(), framePoints_autoaligned.begin(), framePoints_autoaligned.end());
                 points_scaled.insert (points_scaled.end(), framePoints_scaled.begin(), framePoints_scaled.end());
-
-                // Load in linear stuff as well, to make up flat boxes? Or easier to do at source?
-                vector<float> linbins;
-                // linear distance boxes:
-                // str = frameName+"/scaled/flattened/sbox_linear_distance";
-                // angle based boxes:
-                // str = frameName+"/lmalign/flattened/sbox_angles";
-                // linear distance based on 0 angle starting point:
-                if (lmalignComputed == true && align_lm == true) {
-                    str = frameName+"/lmalign/flattened/sbox_linear_distance";
-                } else {
-                    str = frameName+"/autoalign/flattened/sbox_linear_distance";
-                }
-                d.read_contained_vals (str.c_str(), linbins);
-
-                vector<array<float,12>> flatsurf_boxes;
-                array<float, 12> sbox;
-                for (unsigned int j = 1; j < linbins.size(); ++j) {
-                    // c1 x,y,z
-                    sbox[0] = xx-thickness; // x
-                    sbox[1] = linbins[j-1]; // y
-                    sbox[2] = 0.0;          // z
-                    // c2 x,y,z
-                    sbox[3] = xx-thickness;
-                    sbox[4] = linbins[j];
-                    sbox[5] = 0.0;
-                    // c3 x,y,z
-                    sbox[6] = xx;
-                    sbox[7] = linbins[j];
-                    sbox[8] = 0.0;
-                    // c4 x,y,z
-                    sbox[9] = xx;
-                    sbox[10] = linbins[j-1];
-                    sbox[11] = 0.0;
-
-                    flatsurf_boxes.push_back (sbox);
-                }
-
-                fquads.insert (fquads.end(), flatsurf_boxes.begin(), flatsurf_boxes.end());
-                fmeans.insert (fmeans.end(), frameMeansF.begin(), --frameMeansF.end());
             }
             unsigned int visId = 0;
-
-// With multiple surfaces, don't want all maps
-//#define SHOW_FLATTENED_MAP 1
-#ifdef SHOW_FLATTENED_MAP
-            // This is the flattened map; showing it alongside the 3D map for now
-            offset[0]=-5.0;
-            visId = v.addVisualModel (new morph::QuadsVisual<float> (v.shaderprog,
-                                                                     &fquads, offset,
-                                                                     &fmeans, scale,
-                                                                     morph::ColourMapType::Greyscale));
-#endif
 
             offset[0]=0.0;
 
