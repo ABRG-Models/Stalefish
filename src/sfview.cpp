@@ -503,7 +503,8 @@ int main (int argc, char** argv)
         {"datafile", 'f',
          POPT_ARG_STRING, &(cmdOptions.datafile), 0,
          "Add a data file to visualise in 3D. Provide an argument like /path/to/file.h5. "
-         "This option can be used multiple times."},
+         "This option can be used multiple times, and you can even leave the -f out; any "
+         "'non-option' strings on your command line will be interpreted as data files."},
 
         POPT_AUTOALIAS
         POPT_TABLEEND
@@ -511,6 +512,12 @@ int main (int argc, char** argv)
     poptContext con;
     con = poptGetContext (argv[0], argc, (const char**)argv, opt, 0);
     while (poptGetNextOpt(con) != -1) {}
+    const char* argg = (char*)0;
+    while ((argg = poptGetArg(con)) != (char*)0) {
+        // Treat any extra args as files.
+        //string df(argg);
+        cmdOptions.datafiles.push_back (string(argg));
+    }
 
     try {
         if (cmdOptions.datafiles.empty()) {
