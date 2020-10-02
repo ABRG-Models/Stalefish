@@ -46,10 +46,10 @@ with h5py.File (filename, 'r') as f:
         print ('frame: {0}'.format(frame))
 
         # The means of the sampled boxes are in means or means_autoscaled
-        key = '{0}/box_signal_means'.format(frame)
+        key = '{0}/signal/postproc/boxes/means'.format(frame)
         means_ = list(f[key])
 
-        key = '{0}/box_signal_means_autoscaled'.format(frame)
+        key = '{0}/signal/postproc/boxes/means_autoscaled'.format(frame)
         means_autoscaled_ = list(f[key])
 
         # The position on the 3D x-axis is in class/layer_x:
@@ -60,7 +60,7 @@ with h5py.File (filename, 'r') as f:
         x_ = list(f[key]) * len(means_)
 
         # For y values, use sbox_linear_distance
-        key = '{0}/sbox_linear_distance'.format(frame)
+        key = '{0}/lmalign/flattened/sbox_linear_distance'.format(frame)
         y_ = list(f[key])
         #print ('y_ = {0}'.format(y_))
 
