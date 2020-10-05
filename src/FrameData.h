@@ -118,6 +118,13 @@ public:
     //! match the other 'marks' and b) in case in the future it might be desirable to
     //! define more than one axis through the brain.
     std::vector<cv::Point> AM;
+    //! Axismark points scaled by pixels_per_mm
+    std::vector<cv::Point2d> AM_scaled;
+    //! We'll also save out the autoaligned axismarks, just like we save out autoaligned landmarks
+    std::vector<cv::Point2d> AM_autoalign_translated;
+    std::vector<cv::Point2d> AM_autoaligned;
+    //! As part of alignment, have to hold a copy of the aligned axismarks
+    std::vector<cv::Point2d> AM_lmaligned;
 
     //! The means computed for the boxes. This is "mean_signal".
     std::vector<float> box_signal_means;
@@ -1001,6 +1008,16 @@ public:
             // Do nothing on exception. Move on to next.
             std::cout << "No CM_points to read" << std::endl;
         }
+
+        // Axismark points
+        dname = frameName + "/class/AM";
+        this->AM.clear();
+        try {
+            df.read_contained_vals (dname.c_str(), this->AM);
+        } catch (...) {
+            // Do nothing on exception. Move on to next.
+            std::cout << "No axismarks to read for this frame" << std::endl;
+        }
     }
 
     //! Import the user-supplied coordinates used to create fitted Bezier curves as well
@@ -1178,7 +1195,7 @@ public:
         }
     }
 
-    //! Export landmark and circlemark points for this frame
+    //! Export landmark, axismark and circlemark points for this frame
     void exportLandmarks (morph::HdfData& df) const
     {
         std::string frameName = this->getFrameName();
@@ -1201,6 +1218,12 @@ public:
             df.add_contained_vals (dname.c_str(), cmi->second);
             ++cmi;
         }
+
+        // The axismark points
+        dname = frameName + "/class/AM";
+        df.add_contained_vals (dname.c_str(), this->AM);
+        dname = frameName + "/class/AM_scaled";
+        df.add_contained_vals (dname.c_str(), this->AM_scaled);
     }
 
     //! Write the data out to an HdfData file \a df.
@@ -1757,6 +1780,7 @@ private:
         }
         this->transform (this->fitted_scaled, this->fitted_autoaligned, this->autoalign_translation, this->autoalign_theta);
         this->transform (this->LM_scaled, this->LM_autoaligned, this->autoalign_translation, this->autoalign_theta);
+        this->transform (this->AM_scaled, this->AM_autoaligned, this->autoalign_translation, this->autoalign_theta);
 
         this->autoalignComputed = true;
     }
@@ -1873,6 +1897,7 @@ private:
         }
 
         this->transform (this->LM_scaled, this->LM_lmaligned, this->lm_translation, this->lm_theta);
+        this->transform (this->AM_scaled, this->AM_lmaligned, this->lm_translation, this->lm_theta);
         this->transform (this->fitted_scaled, this->fitted_lmaligned, this->lm_translation, this->lm_theta);
 
         this->lmalignComputed = true;
@@ -1898,6 +1923,14 @@ public:
 
             // Scale the landmarks
             this->scalePoints (this->LM, this->LM_scaled);
+        }
+
+        if (!this->AM.empty()) {
+            this->AM_scaled.resize(this->AM.size());
+            this->AM_lmaligned.resize(this->AM.size());
+            this->AM_autoalign_translated.resize(this->AM.size());
+            this->AM_autoaligned.resize(this->AM.size());
+            this->scalePoints (this->AM, this->AM_scaled);
         }
 
         // Set variables saying aligned_with_centroids = false; aligned_with_landmarks =

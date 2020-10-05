@@ -20,6 +20,7 @@
 #define SF_GREEN    cv::Scalar(0,255,0,10)
 #define SF_RED      cv::Scalar(0,0,255,10)
 #define SF_YELLOW   cv::Scalar(0,255,255,10)
+#define SF_ORANGE   cv::Scalar(25,136,249,10)
 #define SF_PURPLE   cv::Scalar(238,121,159,50)
 #define SF_BLACK    cv::Scalar(0,0,0)
 #define SF_WHITE    cv::Scalar(255,255,255)
@@ -213,6 +214,8 @@ public:
         } else if (this->input_mode == InputMode::Landmark) {
             this->input_mode = InputMode::Circlemark;
         } else if (this->input_mode == InputMode::Circlemark) {
+            this->input_mode = InputMode::Axismark;
+        } else if (this->input_mode == InputMode::Axismark) {
             this->input_mode = InputMode::Bezier;
         } else {
             // Shouldn't get here...
@@ -909,6 +912,29 @@ public:
 #endif
     }
 
+    //! Draw the axis marks
+    void draw_axismarks (const cv::Point& pt)
+    {
+        DM* _this = DM::i();
+        cv::Mat* pImg = _this->getImg();
+        FrameData* cf = _this->gcf();
+
+        // circle under the cursor
+        if (cf->ct == InputMode::Axismark) {
+            circle (*pImg, pt, 7, SF_ORANGE, 1);
+        }
+
+        // Draw circles for the axismarks, with a number next to each one.
+        cv::Point toffset(8,5); // a text offset
+        for (size_t ii=0; ii<cf->AM.size(); ii++) {
+            circle (*pImg, cf->AM[ii], 5, SF_ORANGE, -1);
+            std::stringstream ss;
+            ss << 'a' << (1+ii);
+            cv::Point tpt(cf->AM[ii]);
+            putText (*pImg, ss.str(), tpt+toffset, cv::FONT_HERSHEY_SIMPLEX, 0.8, SF_BLACK, 1, cv::LINE_AA);
+        }
+    }
+
     //! Input mode for drawing the numbered alignment marks
     void draw_landmarks (const cv::Point& pt)
     {
@@ -1022,6 +1048,7 @@ public:
         _this->draw_curves (pt);
         _this->draw_freehand (pt);
         _this->draw_landmarks (pt);
+        _this->draw_axismarks (pt);
         _this->draw_circlemarks (pt);
 
         std::stringstream ss;
