@@ -96,6 +96,7 @@ int addLandmarks (morph::Visual& v, const string& datafile, const CmdOptions& co
 
         vector<morph::Vector<float>> landmarks_autoaligned;
         vector<morph::Vector<float>> landmarks_lmaligned;
+
         vector<float> landmarks_id;
 
         {
@@ -197,6 +198,9 @@ int addVisMod (morph::Visual& v, const string& datafile, const CmdOptions& co, c
         vector<morph::Vector<float>> points_scaled; // Centres of boxes; for smooth surface (points rows)
         vector<float> means;
 
+        vector<morph::Vector<float>> centres_lmaligned;
+        vector<float> centres_id;
+
         {
             cout << "Opening H5 file " << datafile << endl;
             morph::HdfData d(datafile, true); // true for read
@@ -224,6 +228,25 @@ int addVisMod (morph::Visual& v, const string& datafile, const CmdOptions& co, c
                 d.read_val (str.c_str(), xx);
                 str = frameName+"/class/thickness";
                 d.read_val (str.c_str(), thickness);
+
+                // Centres. Get the index into the fitted_lmaligned, to get y/z coordinates of centre locations
+                std::cout << "CENTRES....\n";
+                str = frameName+"/centre_lmaligned";
+                int clm_idx = 0;
+                d.read_val (str.c_str(), clm_idx);
+                std::cout << "centre index: " << clm_idx << std::endl;
+                std::vector<cv::Point2d> fitted_lmaligned;
+                str = frameName+"/lmalign/fitted";
+                d.read_contained_vals (str.c_str(), fitted_lmaligned);
+                std::cout << "fitted_lmalgined[centre indx]: " << fitted_lmaligned[clm_idx].x << "," << fitted_lmaligned[clm_idx].y << std::endl;
+                morph::Vector<float> cp;
+                cp[0] = xx;
+                cout << "xx:"  << xx << "\n";
+                cp[1] = fitted_lmaligned[clm_idx].x;
+                cp[2] = fitted_lmaligned[clm_idx].y;
+                centres_lmaligned.push_back (cp);
+                centres_id.push_back (0.1f*(float)i);
+                std::cout << "done\n";
 
                 vector<array<float, 12>> frameQuads_scaled;
                 vector<array<float, 12>> frameQuads_lmaligned;
@@ -318,6 +341,12 @@ int addVisMod (morph::Visual& v, const string& datafile, const CmdOptions& co, c
                 }
                 std::cout << "Autoalign layer with visId " << visId << " created\n";
             }
+
+
+            visId = v.addVisualModel (new morph::ScatterVisual<float> (v.shaderprog,
+                                                                       &centres_lmaligned, offset,
+                                                                       &centres_id, 0.03f, scale,
+                                                                       morph::ColourMapType::Plasma));
 
             cout << "Added Visual with visId " << visId << endl;
         }

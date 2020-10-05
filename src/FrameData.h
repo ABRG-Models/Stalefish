@@ -99,6 +99,13 @@ public:
     //! As part of alignment, have to hold a copy of the aligned landmarks
     std::vector<cv::Point2d> LM_lmaligned;
 
+    //! A point, on the fitted curve, that is defined as being the 'centre' of the
+    //! curve. This is used as a starting point from which to unwrap the 3D map into a
+    //! 2D map. This is an index into fitted_lmaligned
+    int centre_lmaligned = 0;
+    //! Corresponding centre for auto-aligned curves - index into fitted_autoaligned
+    int centre_autoaligned = 0;
+
     // Circlemarks. For every 3 circlemarks, we effectively add a landmark. So
     // circlemark mode simply adds landmarks, but by placing 3 points on a circle. The
     // difference comes when deleting, I suppose. Usually don't expect to see more than
@@ -125,6 +132,11 @@ public:
     std::vector<cv::Point2d> AM_autoaligned;
     //! As part of alignment, have to hold a copy of the aligned axismarks
     std::vector<cv::Point2d> AM_lmaligned;
+
+    //! This holds the offset, on this frame, compute from axis marks on other
+    //! frames. Computed by DM before frames are written. This offset is used when
+    //! generating 2D maps in FrameData::write()
+    std::vector<cv::Point2d> AM_offset;
 
     //! The means computed for the boxes. This is "mean_signal".
     std::vector<float> box_signal_means;
@@ -1304,6 +1316,12 @@ public:
         std::vector<float> means_autoscaled = morph::MathAlgo::autoscale (this->box_signal_means, 0.0, 1.0);
         df.add_contained_vals (dname.c_str(), means_autoscaled);
 
+        dname = frameName + "/centre_lmaligned";
+        std::cout << "Writing " << this->centre_lmaligned << " into centre_lmaligned.\n";
+        df.add_val (dname.c_str(), this->centre_lmaligned);
+        dname = frameName + "/centre_autoaligned";
+        df.add_val (dname.c_str(), this->centre_autoaligned);
+
         // Save box_coords_pixels, box_coords_autoalign, box_coords_lmalign
         // Inflates the output files significantly. May be worth making this optional.
         if (this->savePerPixelData == true) {
@@ -1639,6 +1657,8 @@ public:
         }
 
         if (this->saveLMAlignData == true && !this->fitted_lmaligned.empty()) {
+
+            // Compute the angles about the coordinate zero axis
             std::vector<double> lmalign_angles (this->fitted_lmaligned.size()-1, 0.0);
             for (size_t i = 1; i < this->fitted_lmaligned.size(); ++i) {
                 lmalign_angles[i-1] = std::atan2(0.5 * (this->fitted_lmaligned[i].x + this->fitted_lmaligned[i-1].x),
@@ -1677,6 +1697,96 @@ public:
         }
 
         std::cout << "write() completed for one frame." << std::endl;
+    }
+
+    cv::Point2d getCentreLmaligned() const
+    {
+        cv::Point2d rtn(.0, .0);
+        if (this->centre_lmaligned > -1 && static_cast<size_t>(this->centre_lmaligned) < this->fitted_lmaligned.size()) {
+            rtn = this->fitted_lmaligned[this->centre_lmaligned];
+        }
+        return rtn;
+    }
+    cv::Point2d getCentreAutoaligned() const
+    {
+        cv::Point2d rtn(.0, .0);
+        if (this->centre_autoaligned > -1 && static_cast<size_t>(this->centre_autoaligned) < this->fitted_autoaligned.size()) {
+            rtn = this->fitted_autoaligned[this->centre_autoaligned];
+        }
+        return rtn;
+    }
+
+    //! Given a centre point location \a othercentre, find the points on
+    //! fitted_lmaligned and fitted_autoaligned which are closest and mark these as
+    //! centre_lmaligned/centre_autoaligned.
+    void setMiddle (const FrameData& otherframe)
+    {
+        double diff_min = 1e9;
+        int i_min = 0;
+        cv::Point2d opoint = otherframe.getCentreLmaligned();
+        std::cout << "setting middle from other point " << opoint << std::endl;
+        for (int i=0; i<this->nBins; ++i) {
+            cv::Point2d diff = fitted_lmaligned[i] - opoint;
+            double diff_len = std::sqrt(diff.x*diff.x + diff.y*diff.y);
+            if (diff_len < diff_min) {
+                diff_min = diff_len;
+                i_min = i;
+            }
+        }
+        std::cout << "set centre_lmaligned = " << i_min << std::endl;
+        this->centre_lmaligned = i_min;
+
+        diff_min = 1e9;
+        i_min = 0;
+        for (int i=0; i<this->nBins; ++i) {
+            cv::Point2d diff = fitted_autoaligned[i] - otherframe.getCentreAutoaligned();
+            double diff_len = std::sqrt(diff.x*diff.x + diff.y*diff.y);
+            if (diff_len < diff_min) {
+                diff_min = diff_len;
+                i_min = i;
+            }
+        }
+        this->centre_autoaligned = i_min;
+    }
+
+    //! Set a centre location in the yz plane (for the purpose of unwrapping the 3D
+    //! image into 2D) using the given angle (in radians).
+    void setMiddle (double theta_middle)
+    {
+        // For landmark alignment, find the index of the box whose angle is closest to
+        // theta_middle (or where one of its corners is closest)
+        double diff_min = 1e9;
+        int i_min = 0;
+        for (int i=0; i<this->nBins; ++i) {
+            // May be convenient to use - for second arg:
+            std::cout << "fit point (x,y): " << fitted_lmaligned[i] << std::endl;
+            double angle = std::atan2 (fitted_lmaligned[i].x, -fitted_lmaligned[i].y);
+            std::cout << "point " << i << " angle = " << angle << std::endl;
+            double diff = std::abs (theta_middle - angle);
+            std::cout << "point " << i << " diff = " << diff << std::endl;
+            if (diff < diff_min) {
+                diff_min = diff;
+                i_min = i;
+            }
+        }
+        // The fit point at i_min is the one, mark it as such.
+        std::cout << "From theta_middle, setting centre_lmaligned to " << i_min << " (diff_min: " << diff_min << ")" <<  std::endl;
+        this->centre_lmaligned = i_min;
+
+        // Now repeat for autoalignment
+        diff_min = 1e9;
+        i_min = 0;
+        for (int i=0; i<this->nBins; ++i) {
+            // May be convenient to use - for second arg:
+            double angle = std::atan2 (fitted_autoaligned[i].x, fitted_autoaligned[i].y);
+            double diff = std::abs (theta_middle - angle);
+            if (diff < diff_min) {
+                diff_min = diff;
+                i_min = i;
+            }
+        }
+        // The fit point at i_min is the one, mark it as such.
+        this->centre_autoaligned = i_min;
     }
 
     //! Mirror the image and mark in the flags that it was mirrored
