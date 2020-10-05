@@ -20,17 +20,19 @@
 #include <morph/MathConst.h>
 #include <morph/Winder.h>
 
-// This is the "input mode". So in Bezier mode, you add points for the curve fitting; in
-// freehand mode you draw a loop, and in Landmark mode, you give landmarks for slice
-// alignment.
+// This is the input mode (or you could think of them as tools). So in Bezier mode, you
+// add points for the curve fitting; in freehand mode you draw a loop, and in Landmark
+// mode, you give landmarks for slice alignment.
 enum class InputMode
 {
     Bezier,    // Cubic Bezier: "curve drawing mode"
     Freehand,  // A freehand drawn loop enclosing a region
     Landmark,  // User provides alignment landmark locations on each slice
     ReverseBezier, // Curve drawing mode but adding/deleting points at the start of the curve
-    Circlemark // Circular landmarks that are large and require 3 points to estimate
-               // their centre. Developed to handle needle alignment holes.
+    Circlemark, // Circular landmarks that are large and require 3 points to estimate
+                // their centre. Developed to handle needle alignment holes.
+    Axismark   // Allows user to define two locations that mark a linear axis through
+               // the brain. To help construct nice 2D maps from 3D reconstructions.
 };
 
 // What sort of colour model is in use?
@@ -110,6 +112,12 @@ public:
     //! the index into LM for the associated landmark, which is the centre of the circle
     //! defined by the triplets.
     std::map<size_t, std::vector<cv::Point>> CM;
+
+    //! Axismark points. For linear axis, just have 2 of these in the whole set of
+    //! slices, so may be unset for most FrameData instances. This is a vector a) to
+    //! match the other 'marks' and b) in case in the future it might be desirable to
+    //! define more than one axis through the brain.
+    std::vector<cv::Point> AM;
 
     //! The means computed for the boxes. This is "mean_signal".
     std::vector<float> box_signal_means;
@@ -455,6 +463,8 @@ public:
             ss << ". Landmark mode";
         } else if (this->ct == InputMode::Circlemark) {
             ss << ". Circlemark mode";
+        } else if (this->ct == InputMode::Axismark) {
+            ss << ". Axismark mode";
         } else {
             ss << ". unknown mode";
         }
@@ -721,6 +731,8 @@ public:
         } else if (this->ct == InputMode::Circlemark) {
             // Also removes the associated landmark
             this->removeLastCirclepoint();
+        } else if (this->ct == InputMode::Axismark) {
+            this->removeLastAxismark();
         } else {
             this->removeLastPoint();
         }
@@ -819,6 +831,18 @@ public:
                 }
             }
         }
+    }
+
+    //! addAxismark. Note this enforces 1 axismark in AM for now.
+    void addAxismark (const cv::Point& pt)
+    {
+        if (this->AM.empty()) { this->AM.push_back (pt); }
+    }
+
+    //! Remove the last axis mark coordinate
+    void removeLastAxismark()
+    {
+        if (!this->AM.empty()) { this->AM.pop_back(); }
     }
 
     //! Remove the last landmark coordinate

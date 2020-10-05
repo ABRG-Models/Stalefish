@@ -1000,6 +1000,8 @@ public:
                 cf->LM.push_back (pt);
             } else if (cf->ct == InputMode::Circlemark) {
                 cf->addCirclepoint (pt);
+            } else if (cf->ct == InputMode::Axismark) {
+                cf->addAxismark (pt);
             }
         } else if (event == cv::EVENT_LBUTTONUP) {
             cf->loopFinished = false;
