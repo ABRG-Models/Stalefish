@@ -1116,6 +1116,12 @@ public:
             putText (*sImg, ss3.str(), cv::Point(xh,80), cv::FONT_HERSHEY_SIMPLEX, 1.2*fontsz, SF_WHITE, 1, cv::LINE_AA);
         }
 
+        // Draw text with cursor coordinates on bottom left of screen in a small font
+        std::stringstream css;
+        css << "px(y=" << x << ", z=" << y << ") "
+            << "mm[x=" << cf->layer_x << ", y=" << (x/cf->pixels_per_mm) << ", z=" << (y/cf->pixels_per_mm) << "]";
+        putText (*pImg, css.str(), cv::Point(xh,cf->frame.rows-20), cv::FONT_HERSHEY_SIMPLEX, fontsz/2.0f, SF_BLACK, 1, cv::LINE_AA);
+
         int yh = 90;
         int yinc = 40;
         if (_this->flags.test(AppShowHelp)) {

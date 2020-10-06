@@ -1748,6 +1748,7 @@ public:
     //! given set of fitted points. Place result in \a middle_index.
     void setMiddle (double theta_middle, std::vector<cv::Point2d>& fitted_points, int& middle_index)
     {
+        std::cout << "setMiddle(theta_middle=" << theta_middle<<", fitted_points, middle_index) called\n";
         // For landmark alignment, find the index of the box whose angle is closest to
         // theta_middle (or where one of its corners is closest). BUT make sure that if
         // there are two options, one closer than the other, we prefer the one that's
@@ -1759,14 +1760,14 @@ public:
         double min_cand_rad = 1e9;
         for (int i=0; i<n_points; ++i) {
 
-            double angle = std::atan2 (fitted_lmaligned[i].x, -fitted_lmaligned[i].y);
+            double angle = std::atan2 (fitted_points[i].x, fitted_points[i].y);
             // Find angle diff to neighbouring bin
             int i_n = i>0 ? i-1 : i+1;
-            double d_to_n = std::abs(std::atan2 (fitted_lmaligned[i_n].x, fitted_lmaligned[i_n].y) - angle);
+            double d_to_n = std::abs(std::atan2 (fitted_points[i_n].x, fitted_points[i_n].y) - angle);
             d_to_n = (d_to_n > morph::PI_x3_OVER_2_D) ? std::abs(d_to_n - morph::TWO_PI_D) : d_to_n;
 
             // Prevent the above from containing multiples of 2pi
-            double radius = std::sqrt(fitted_lmaligned[i].x * fitted_lmaligned[i].x + fitted_lmaligned[i].y * fitted_lmaligned[i].y);
+            double radius = std::sqrt(fitted_points[i].x * fitted_points[i].x + fitted_points[i].y * fitted_points[i].y);
             double diff = std::abs (theta_middle - angle);
             diff = (diff > morph::PI_x3_OVER_2_D) ? std::abs(diff - morph::TWO_PI_D) : diff;
 
