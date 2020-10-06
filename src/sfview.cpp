@@ -199,11 +199,13 @@ int addVisMod (morph::Visual& v, const string& datafile, const CmdOptions& co, c
         vector<float> means;
 
         vector<morph::Vector<float>> centres_lmaligned;
+        vector<morph::Vector<float>> AM_origins_lmaligned;
         vector<float> centres_id;
 
         {
             cout << "Opening H5 file " << datafile << endl;
             morph::HdfData d(datafile, true); // true for read
+            d.read_error_action = morph::ReadErrorAction::Exception;
             int nf = 0;
             d.read_val ("/nframes", nf);
 
@@ -234,7 +236,7 @@ int addVisMod (morph::Visual& v, const string& datafile, const CmdOptions& co, c
                 str = frameName+"/centre_lmaligned";
                 int clm_idx = 0;
                 d.read_val (str.c_str(), clm_idx);
-                std::cout << "centre index: " << clm_idx << std::endl;
+
                 std::vector<cv::Point2d> fitted_lmaligned;
                 str = frameName+"/lmalign/fitted";
                 d.read_contained_vals (str.c_str(), fitted_lmaligned);
@@ -246,7 +248,20 @@ int addVisMod (morph::Visual& v, const string& datafile, const CmdOptions& co, c
                 cp[2] = fitted_lmaligned[clm_idx].y;
                 centres_lmaligned.push_back (cp);
                 centres_id.push_back (0.1f*(float)i);
-                std::cout << "done\n";
+
+                // axis alignment marks are optional, and the data may not exist in the h5 file.
+                try {
+                    std::vector<cv::Point2d> AM_lmaligned;
+                    str = frameName+"/lmalign/alignmark_origins";
+                    d.read_contained_vals (str.c_str(), AM_lmaligned);
+                    std::cout << "AM_lmalgined[0]: " << AM_lmaligned[0].x << "," << AM_lmaligned[0].y << std::endl;
+                    cp[1] = AM_lmaligned[0].x;
+                    cp[2] = AM_lmaligned[0].y;
+                    AM_origins_lmaligned.push_back (cp);
+                } catch (const exception& ee) {
+                    // Ignore missing AM_origins
+                    std::cout << "Missing alignmark_origins: " << ee.what() << std::endl;
+                }
 
                 vector<array<float, 12>> frameQuads_scaled;
                 vector<array<float, 12>> frameQuads_lmaligned;
@@ -342,11 +357,17 @@ int addVisMod (morph::Visual& v, const string& datafile, const CmdOptions& co, c
                 std::cout << "Autoalign layer with visId " << visId << " created\n";
             }
 
-
             visId = v.addVisualModel (new morph::ScatterVisual<float> (v.shaderprog,
                                                                        &centres_lmaligned, offset,
                                                                        &centres_id, 0.08f, scale,
                                                                        morph::ColourMapType::Jet));
+
+            if (!AM_origins_lmaligned.empty()) {
+                visId = v.addVisualModel (new morph::ScatterVisual<float> (v.shaderprog,
+                                                                           &AM_origins_lmaligned, offset,
+                                                                           &centres_id, 0.08f, scale,
+                                                                           morph::ColourMapType::Magma));
+            }
 
             cout << "Added Visual with visId " << visId << endl;
         }
@@ -469,7 +490,7 @@ int addFlattened (morph::Visual& v, const string& datafile, const CmdOptions& co
             unsigned int visId = 0;
 
             // This is the flattened map; showing it alongside the 3D map for now
-            offset[0]=-5.0;
+            offset[0]=-5.5;
             visId = v.addVisualModel (new morph::QuadsVisual<float> (v.shaderprog,
                                                                      &fquads, offset,
                                                                      &fmeans, scale,

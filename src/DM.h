@@ -356,18 +356,100 @@ public:
         // Align all by angle. Problematic if the origin x axis does not run all the way
         // through the 'centre' of the brain - when, for a given mapAlignAngle, there
         // are >1 brain surfaces available to choose between.
+        cv::Point2d am_start_lm;
+        cv::Point2d am_start_aa;
+        float x_start;
+        bool got_start = false;
+        cv::Point2d am_end_lm;
+        cv::Point2d am_end_aa;
+        float x_end;
+        bool got_end = false;
+        for (auto& f : this->vFrameData) {
+            // Work just with one axis mark for now
+            if (!f.AM_lmaligned.empty() && got_start && !got_end) {
+                am_end_lm = f.AM_lmaligned[0];
+                am_end_aa = f.AM_autoaligned[0];
+                x_end = f.layer_x;
+                got_end = true;
+            }
+            if (!f.AM_scaled.empty() && !got_start) {
+                am_start_lm = f.AM_lmaligned[0];
+                am_start_aa = f.AM_autoaligned[0];
+                x_start = f.layer_x;
+                got_start = true;
+            }
+            // Just use the first two axis marks we come upon, ignoring the rest.
+            if (got_start == true && got_end == true) { break; }
+        }
 
-        // FIXME: Implement use of alignment marks
-        // if (there are alignment marks) {
-        //      align around that axis
-        // } else {
-        //      align around the origin:
-        for (auto& f : this->vFrameData) { f.setMiddle (this->mapAlignAngle); }
-        // }
+        // If we have alignment marks, then compute them for each frame
+        if (got_start == true && got_end == true) {
+            std::cout << "Have alignment marks; compute AM_origins from start / end: " << am_start_lm << "/" << am_end_lm << "\n";
+            double x1 = (double)x_start;
+            double x2 = (double)x_end;
+            for (auto& f : this->vFrameData) {
+
+                // First compute for the landmark aligned coordinate system
+                double x = (double)f.layer_x;
+                double y1 = am_start_lm.x;
+                double y2 = am_end_lm.x;
+                double z1 = am_start_lm.y;
+                double z2 = am_end_lm.y;
+                // Compute components of the slope, my and mz.
+                double my = (y2-y1)/(x2-x1);
+                double mz = (z2-z1)/(x2-x1);
+                // Find the offsets, c
+                double cy = y1 - my*x1;
+                double cz = z1 - mz*x1;
+                // Compute y and z for this slice
+                double y = my * x + cy;
+                double z = mz * x + cz;
+
+                std::cout << "(lm) y = " << y << ", z = " << z << std::endl;
+                cv::Point2d origin_new(y,z);
+                std::cout << "alignmark origin (lm): " << origin_new << std::endl;
+                if (f.AM_origins_lmaligned.empty()) {
+                    f.AM_origins_lmaligned.push_back (origin_new);
+                } else {
+                    f.AM_origins_lmaligned[0] = origin_new;
+                }
+                // Now compute for the autoaligned coordinate system
+                y1 = am_start_aa.x;
+                y2 = am_end_aa.x;
+                z1 = am_start_aa.y;
+                z2 = am_end_aa.y;
+                // Compute components of the slope, my and mz.
+                my = (y2-y1)/(x2-x1);
+                mz = (z2-z1)/(x2-x1);
+                // Find the offsets, c
+                cy = y1 - my*x1;
+                cz = z1 - mz*x1;
+                // Compute y and z for this slice
+                y = my * x + cy;
+                z = mz * x + cz;
+                std::cout << "(aa) y = " << y << ", z = " << z << std::endl;
+                origin_new.x = y;
+                origin_new.y = z;
+                std::cout << "alignmark origin (aa): " << origin_new << std::endl;
+                if (f.AM_origins_autoaligned.empty()) {
+                    f.AM_origins_autoaligned.push_back (origin_new);
+                } else {
+                    f.AM_origins_autoaligned[0] = origin_new;
+                }
+            }
+        }
+
+        if (got_start == true && got_end == true) {
+            // We have alignment marks; define and then align around that axis
+            for (auto& f : this->vFrameData) { f.setMiddle (this->mapAlignAngle, f.AM_origins_lmaligned[0], f.AM_origins_autoaligned[0]); }
+        } else {
+            // just align around the origin:
+            for (auto& f : this->vFrameData) { f.setMiddle (this->mapAlignAngle); }
+        }
 #endif
 
         morph::HdfData d(this->datafile);
-        for (auto f : this->vFrameData) { f.write (d); }
+        for (auto& f : this->vFrameData) { f.write (d); }
 
         int nf = this->vFrameData.size();
         d.add_val("/nframes", nf);

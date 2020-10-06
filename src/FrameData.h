@@ -133,10 +133,11 @@ public:
     //! As part of alignment, have to hold a copy of the aligned axismarks
     std::vector<cv::Point2d> AM_lmaligned;
 
-    //! This holds the offset, on this frame, compute from axis marks on other
+    //! This holds the offset, on this frame, computed from axis marks on other
     //! frames. Computed by DM before frames are written. This offset is used when
     //! generating 2D maps in FrameData::write()
-    std::vector<cv::Point2d> AM_offset;
+    std::vector<cv::Point2d> AM_origins_lmaligned;
+    std::vector<cv::Point2d> AM_origins_autoaligned;
 
     //! The means computed for the boxes. This is "mean_signal".
     std::vector<float> box_signal_means;
@@ -1236,6 +1237,11 @@ public:
         df.add_contained_vals (dname.c_str(), this->AM);
         dname = frameName + "/class/AM_scaled";
         df.add_contained_vals (dname.c_str(), this->AM_scaled);
+
+        dname = frameName + "/lmalign/alignmark_origins";
+        df.add_contained_vals (dname.c_str(), this->AM_origins_lmaligned);
+        dname = frameName + "/autoalign/alignmark_origins";
+        df.add_contained_vals (dname.c_str(), this->AM_origins_autoaligned);
     }
 
     //! Write the data out to an HdfData file \a df.
@@ -1746,7 +1752,9 @@ public:
 
     //! Set a centre location in the yz plane using the given angle (in radians) for the
     //! given set of fitted points. Place result in \a middle_index.
-    void setMiddle (double theta_middle, std::vector<cv::Point2d>& fitted_points, int& middle_index)
+    void setMiddle (double theta_middle,
+                    std::vector<cv::Point2d>& fitted_points, int& middle_index,
+                    const cv::Point2d& angle_origin)
     {
         std::cout << "setMiddle(theta_middle=" << theta_middle<<", fitted_points, middle_index) called\n";
         // For landmark alignment, find the index of the box whose angle is closest to
@@ -1760,14 +1768,18 @@ public:
         double min_cand_rad = 1e9;
         for (int i=0; i<n_points; ++i) {
 
-            double angle = std::atan2 (fitted_points[i].x, fitted_points[i].y);
+            // Offset the point wrt the angle origin
+            cv::Point2d pt = fitted_points[i] - angle_origin;
             // Find angle diff to neighbouring bin
             int i_n = i>0 ? i-1 : i+1;
-            double d_to_n = std::abs(std::atan2 (fitted_points[i_n].x, fitted_points[i_n].y) - angle);
+            cv::Point2d pt_n = fitted_points[i_n] - angle_origin;
+
+            double angle = std::atan2 (pt.x, pt.y);
+            double d_to_n = std::abs(std::atan2 (pt_n.x, pt_n.y) - angle);
             d_to_n = (d_to_n > morph::PI_x3_OVER_2_D) ? std::abs(d_to_n - morph::TWO_PI_D) : d_to_n;
 
             // Prevent the above from containing multiples of 2pi
-            double radius = std::sqrt(fitted_points[i].x * fitted_points[i].x + fitted_points[i].y * fitted_points[i].y);
+            double radius = std::sqrt(pt.x * pt.x + pt.y * pt.y);
             double diff = std::abs (theta_middle - angle);
             diff = (diff > morph::PI_x3_OVER_2_D) ? std::abs(diff - morph::TWO_PI_D) : diff;
 
@@ -1806,8 +1818,15 @@ public:
     //! image into 2D) using the given angle (in radians).
     void setMiddle (double theta_middle)
     {
-        this->setMiddle (theta_middle, fitted_lmaligned, this->centre_lmaligned);
-        this->setMiddle (theta_middle, fitted_autoaligned, this->centre_autoaligned);
+        cv::Point2d ao(0,0);
+        this->setMiddle (theta_middle, fitted_lmaligned, this->centre_lmaligned, ao);
+        this->setMiddle (theta_middle, fitted_autoaligned, this->centre_autoaligned, ao);
+    }
+
+    void setMiddle (double theta_middle, const cv::Point2d& angle_origin_lm, const cv::Point2d& angle_origin_auto)
+    {
+        this->setMiddle (theta_middle, fitted_lmaligned, this->centre_lmaligned, angle_origin_lm);
+        this->setMiddle (theta_middle, fitted_autoaligned, this->centre_autoaligned, angle_origin_auto);
     }
 
     //! Mirror the image and mark in the flags that it was mirrored
@@ -1963,6 +1982,10 @@ private:
                          this->lm_translation + (*this->parentStack)[0].curve_centroid,
                          this->lm_theta);
 
+        this->transform (this->AM_scaled, this->AM_lmaligned,
+                         this->lm_translation + (*this->parentStack)[0].curve_centroid,
+                         this->lm_theta);
+
         this->transform (this->fitted_scaled, this->fitted_lmaligned,
                          this->lm_translation + (*this->parentStack)[0].curve_centroid,
                          this->lm_theta);
@@ -2028,6 +2051,7 @@ private:
         }
 
         this->transform (this->LM_scaled, this->LM_lmaligned, this->lm_translation, this->lm_theta);
+        std::cout << "Transform AM_scaled size " << this->AM_scaled.size() << " into this->AM_lmaligned size " << this->AM_lmaligned.size() << std::endl;
         this->transform (this->AM_scaled, this->AM_lmaligned, this->lm_translation, this->lm_theta);
         this->transform (this->fitted_scaled, this->fitted_lmaligned, this->lm_translation, this->lm_theta);
 
@@ -2061,7 +2085,12 @@ public:
             this->AM_lmaligned.resize(this->AM.size());
             this->AM_autoalign_translated.resize(this->AM.size());
             this->AM_autoaligned.resize(this->AM.size());
+            std::cout << "Scaling AM into AM_scaled...\n";
             this->scalePoints (this->AM, this->AM_scaled);
+            if (!this->AM.empty()) {
+                std::cout << "AM[0]: " << AM[0] << std::endl;
+                std::cout << "AM_scaled[0]: " << AM_scaled[0] << std::endl;
+            }
         }
 
         // Set variables saying aligned_with_centroids = false; aligned_with_landmarks =
@@ -2702,7 +2731,7 @@ private:
         if (target_aligned_alignment_coords.size() != alignment_coords.size()
             || neighbour_aligned_alignment_coords.size() != alignment_coords.size()) {
             std::stringstream ee;
-            ee << "Same number of alignment coords in both frames please! target_aligned..: "
+            ee << "alignOptimallyByRotation: Same number of alignment coords in both frames please! target_aligned..: "
                << target_aligned_alignment_coords.size()
                << ", alignment_coords: " << alignment_coords.size()
                << ", neighbour_aligned_alignment_coords: " << neighbour_aligned_alignment_coords.size();
@@ -2796,7 +2825,7 @@ private:
         if (target_aligned_alignment_coords.size() != alignment_coords.size()
             || neighbour_aligned_alignment_coords.size() != alignment_coords.size()) {
             std::stringstream ee;
-            ee << "Same number of alignment coords in both frames please! target_aligned..: "
+            ee << "alignOptimally: Same number of alignment coords in both frames please! target_aligned..: "
                << target_aligned_alignment_coords.size()
                << ", alignment_coords: " << alignment_coords.size()
                << ", neighbour_aligned_alignment_coords: " << neighbour_aligned_alignment_coords.size();
@@ -2901,7 +2930,7 @@ private:
         // Check that target frame has same number of coords, if not throw exception
         if (target_aligned_alignment_coords.size() != alignment_coords.size()) {
             std::stringstream ee;
-            ee << "Same number of alignment coords in both frames please! target_aligned..: "
+            ee << "alignOptimally(2): Same number of alignment coords in both frames please! target_aligned..: "
                << target_aligned_alignment_coords.size() << ", alignment_coords: " << alignment_coords.size();
             std::cout << ee.str() << std::endl;
             return;

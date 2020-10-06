@@ -172,6 +172,10 @@ Each of **FrameNNN/autoalign** or **FrameNNN/lmalign** may contain:
  * **theta**: The rotational transformation applied to this slice after
     the *translation* was applied.
 
+ * **alignmark_origins**: The alignment mark axis passes through the slice
+   at this coordinate. User gives two alignment marks per project and
+   a linear fit is made to these two.
+
 From the list above, **FrameNNN/scaled** may contain **fitted**,
  **flattened**, **sbox_centers** and **signal**, only.
 
