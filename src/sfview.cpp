@@ -345,8 +345,8 @@ int addVisMod (morph::Visual& v, const string& datafile, const CmdOptions& co, c
 
             visId = v.addVisualModel (new morph::ScatterVisual<float> (v.shaderprog,
                                                                        &centres_lmaligned, offset,
-                                                                       &centres_id, 0.03f, scale,
-                                                                       morph::ColourMapType::Plasma));
+                                                                       &centres_id, 0.08f, scale,
+                                                                       morph::ColourMapType::Jet));
 
             cout << "Added Visual with visId " << visId << endl;
         }
@@ -561,7 +561,9 @@ int main (int argc, char** argv)
     // End processing options. Can now access options via cmdOptions
 
     // Visual scene for all models
-    morph::Visual v(1024, 768, cmdOptions.datafiles[0]);
+    morph::Vector<float> coordArrowLocn = {0,0,0};
+    morph::Vector<float> coordArrowLengths = {6,2,2};
+    morph::Visual v(1024, 768, cmdOptions.datafiles[0], coordArrowLocn, coordArrowLengths, 0.4);
     v.zNear = 0.001;
     v.zFar = 40.0;
     v.setZDefault (-15.4);

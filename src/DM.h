@@ -62,6 +62,9 @@ private:
     //! The application configuration
     morph::Config conf;
 
+    //! The angle which marks a point about half way around the slices, with respect to the origin axes
+    double mapAlignAngle = 1.57;
+
     //! Colour space parameters
     std::string colourmodel = "monochrome";
     std::array<float, 9> colour_rot; // Colour space rotation
@@ -340,15 +343,28 @@ public:
         // Before writing, apply the slice alignment algorithms
         for (auto& f : this->vFrameData) { f.updateAlignments(); }
 
-        // If there are axismarks, then compute the 'axismark offset' for each frame. OR
-        // better? For the middle slice, find the location of the 'surface box at zero
+#ifdef ALIGN_BY_DISTANCE // Using the minimum distance in the y-z plane
+        // For the middle slice, find the location of the 'surface box at zero
         // degrees', then for each slice, find the location of the surface box which is
         // closest to the middle slice one.
         size_t middleslice = this->vFrameData.size()/2;
-        this->vFrameData[middleslice].setMiddle (1.57);
+        this->vFrameData[middleslice].setMiddle (this->mapAlignAngle);
         for (auto& f : this->vFrameData) {
             f.setMiddle (this->vFrameData[middleslice]);
         }
+#else
+        // Align all by angle. Problematic if the origin x axis does not run all the way
+        // through the 'centre' of the brain - when, for a given mapAlignAngle, there
+        // are >1 brain surfaces available to choose between.
+
+        // FIXME: Implement use of alignment marks
+        // if (there are alignment marks) {
+        //      align around that axis
+        // } else {
+        //      align around the origin:
+        for (auto& f : this->vFrameData) { f.setMiddle (this->mapAlignAngle); }
+        // }
+#endif
 
         morph::HdfData d(this->datafile);
         for (auto f : this->vFrameData) { f.write (d); }
@@ -375,7 +391,7 @@ public:
             this->exportCurves();
         } else if (cf->ct == InputMode::Freehand) {
             this->exportFreehand();
-        } else if (cf->ct == InputMode::Landmark || cf->ct == InputMode::Circlemark) {
+        } else if (cf->ct == InputMode::Landmark || cf->ct == InputMode::Circlemark || cf->ct == InputMode::Axismark) {
             this->exportLandmarks();
         } else {
             std::cerr << "Unknown mode for export\n";
@@ -632,6 +648,8 @@ public:
         // Set parameters for background offsetting.
         this->bgBlurScreenProportion = conf.getDouble ("bg_blur_screen_proportion", 0.1667);
         this->bgBlurSubtractionOffset = conf.getDouble ("bg_blur_subtraction_offset", 255.0f);
+
+        this->mapAlignAngle = conf.getDouble ("map_align_angle", 1.57);
 
         this->default_mode = InputMode::Bezier;
 

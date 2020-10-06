@@ -1671,7 +1671,6 @@ public:
             // Linear distance, but centered using the landmark aligned slices
             float total_linear_distance = 0.0f;
             float middle_distance = 0.0f;
-            double min_ang = 1e10;
             std::vector<float> linear_distances (this->nBins, 0.0f);
             for (int i=1; i<this->nBins; ++i) {
                 // Compute distance from Previous to current
@@ -1680,13 +1679,9 @@ public:
                 total_linear_distance += d;
                 linear_distances[i] = total_linear_distance;
 
-                double angle = std::atan2 (0.5 * (surface_box_centroids_lmaligned[i][0] + surface_box_centroids_lmaligned[i-1][0]),
-                                           -0.5 * (surface_box_centroids_lmaligned[i][1] + surface_box_centroids_lmaligned[i-1][1]));
-
-                // If we got to the zero-angle location, then mark the middle distance
-                if (std::abs(angle) < min_ang) {
+                if (i == this->centre_lmaligned) {
                     middle_distance = total_linear_distance;
-                    min_ang = std::abs(angle);
+                    std::cout << "middle_distance: " << middle_distance << " for centre i=" << i << std::endl;
                 }
             }
             // Now offset the linear distances so that the middle is the 0 degree location
@@ -1749,44 +1744,69 @@ public:
         this->centre_autoaligned = i_min;
     }
 
+    //! Set a centre location in the yz plane using the given angle (in radians) for the
+    //! given set of fitted points. Place result in \a middle_index.
+    void setMiddle (double theta_middle, std::vector<cv::Point2d>& fitted_points, int& middle_index)
+    {
+        // For landmark alignment, find the index of the box whose angle is closest to
+        // theta_middle (or where one of its corners is closest). BUT make sure that if
+        // there are two options, one closer than the other, we prefer the one that's
+        // further away.
+        int n_points = fitted_points.size();
+
+        std::vector<std::pair<int, morph::Vector<double, 2>>> candidates;
+        double max_cand_rad = -1e9;
+        double min_cand_rad = 1e9;
+        for (int i=0; i<n_points; ++i) {
+
+            double angle = std::atan2 (fitted_lmaligned[i].x, -fitted_lmaligned[i].y);
+            // Find angle diff to neighbouring bin
+            int i_n = i>0 ? i-1 : i+1;
+            double d_to_n = std::abs(std::atan2 (fitted_lmaligned[i_n].x, fitted_lmaligned[i_n].y) - angle);
+            d_to_n = (d_to_n > morph::PI_x3_OVER_2_D) ? std::abs(d_to_n - morph::TWO_PI_D) : d_to_n;
+
+            // Prevent the above from containing multiples of 2pi
+            double radius = std::sqrt(fitted_lmaligned[i].x * fitted_lmaligned[i].x + fitted_lmaligned[i].y * fitted_lmaligned[i].y);
+            double diff = std::abs (theta_middle - angle);
+            diff = (diff > morph::PI_x3_OVER_2_D) ? std::abs(diff - morph::TWO_PI_D) : diff;
+
+            if (diff < d_to_n) {
+                // It's a candidate
+                //std::cout << "Candidate point i = " << i << " diff = " << diff
+                //          << " (diff to neigb i_n = " << i_n << ": " << d_to_n << "), radius = " << radius << std::endl;
+                morph::Vector<double, 2> cand_dr = {diff, radius};
+                std::pair<int, morph::Vector<double, 2>> candidate = std::make_pair(i, cand_dr);
+                candidates.push_back (candidate);
+                if (radius > max_cand_rad) { max_cand_rad = radius; }
+                if (radius < min_cand_rad) { min_cand_rad = radius; }
+            }
+        }
+
+        double mean_radius = (max_cand_rad + min_cand_rad) / 2.0;
+        double diff_min = 1e9;
+        int i_min = 0;
+        for (std::pair<int, morph::Vector<double, 2>> candidate : candidates) {
+            // Test if the candidates radius is greater than the mean:
+            if (candidate.second[1] >= mean_radius) {
+                // The find the best difference:
+                if (candidate.second[0] < diff_min) {
+                    diff_min = candidate.second[0];
+                    i_min = candidate.first;
+                }
+            }
+        }
+
+        // The fit point at i_min is the one, mark it as such.
+        std::cout << "From theta_middle, setting middle_index to " << i_min << " (diff_min: " << diff_min << ")" <<  std::endl;
+        middle_index = i_min;
+    }
+
     //! Set a centre location in the yz plane (for the purpose of unwrapping the 3D
     //! image into 2D) using the given angle (in radians).
     void setMiddle (double theta_middle)
     {
-        // For landmark alignment, find the index of the box whose angle is closest to
-        // theta_middle (or where one of its corners is closest)
-        double diff_min = 1e9;
-        int i_min = 0;
-        for (int i=0; i<this->nBins; ++i) {
-            // May be convenient to use - for second arg:
-            std::cout << "fit point (x,y): " << fitted_lmaligned[i] << std::endl;
-            double angle = std::atan2 (fitted_lmaligned[i].x, -fitted_lmaligned[i].y);
-            std::cout << "point " << i << " angle = " << angle << std::endl;
-            double diff = std::abs (theta_middle - angle);
-            std::cout << "point " << i << " diff = " << diff << std::endl;
-            if (diff < diff_min) {
-                diff_min = diff;
-                i_min = i;
-            }
-        }
-        // The fit point at i_min is the one, mark it as such.
-        std::cout << "From theta_middle, setting centre_lmaligned to " << i_min << " (diff_min: " << diff_min << ")" <<  std::endl;
-        this->centre_lmaligned = i_min;
-
-        // Now repeat for autoalignment
-        diff_min = 1e9;
-        i_min = 0;
-        for (int i=0; i<this->nBins; ++i) {
-            // May be convenient to use - for second arg:
-            double angle = std::atan2 (fitted_autoaligned[i].x, fitted_autoaligned[i].y);
-            double diff = std::abs (theta_middle - angle);
-            if (diff < diff_min) {
-                diff_min = diff;
-                i_min = i;
-            }
-        }
-        // The fit point at i_min is the one, mark it as such.
-        this->centre_autoaligned = i_min;
+        this->setMiddle (theta_middle, fitted_lmaligned, this->centre_lmaligned);
+        this->setMiddle (theta_middle, fitted_autoaligned, this->centre_autoaligned);
     }
 
     //! Mirror the image and mark in the flags that it was mirrored
