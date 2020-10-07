@@ -259,8 +259,6 @@ public:
     bool saveFrameToH5 = true;
     //! Maximum and minimum pixel values of frame
     std::pair<int, int> frame_maxmin;
-    //! A copy of the image data in float format (in range 0 to 1, rather than 0 to 255). CV_32FC3
-    cv::Mat frameF;
     //! A blurred copy of the image data. CV_32FC3.
     cv::Mat blurred;
     float blurmean  = 0.0f;
@@ -269,17 +267,18 @@ public:
     double bgBlurScreenProportion = 0.1667;
     //! An offset used when subtracting blurred BG from image.
     float bgBlurSubtractionOffset = 255.0f;
+    //! The signal frame, CV_32FC3 format. 1.0f - frame_bgoff. In previous code I've
+    //! converted this to CV_8UC3 format because that means that text and lines drawn
+    //! onto the photo can be antialiased. To save memory, I've foregone this.
+    cv::Mat frame_signal;
+    //! Holds the max and min of the signal in frame_signal.
+    std::pair<float, float> frame_signal_maxmin;
     //! The frame, with the blurred background offset, including the user-supplied
     //! bgBlurSubtractionOffset to give values between approx 0 and 1 and in CV_32FC3
-    //! format. From frame_bgoff we calculate the signal.
-    cv::Mat frame_bgoff;
-    //! The signal frame, CV_32FC3 format. 1.0f - frame_bgoff.
-    cv::Mat frame_signal;
-    std::pair<float, float> frame_signal_maxmin;
-    //! CV_8UC3 version of FrameData::frame_bgoff, possibly truncated at the ends of the
-    //! ranges, but useful for display?
+    //! format. From a temporary (CV_32FC3) frame_bgoff we calculate the signal,
+    //! frame_signal. We keep a CV_8UC3 version of frame_bgoff, possibly truncated at
+    //! the ends of the ranges, but useful for display.
     cv::Mat frame_bgoffU;
-    cv::Mat frame_signalU;
 
     //! The frame image filename from which frame was loaded. Stored so it can be
     //! recorded when writing out.
@@ -352,9 +351,11 @@ public:
     void setupFrames()
     {
         this->frame_maxmin = this->showMaxMinU (this->frame, "frame (original)");
-        // Scale and convert frame to float format
-        this->frame.convertTo (this->frameF, CV_32FC3, 1/255.0);
-        this->showMaxMin (this->frameF, "frameF (float)");
+        // Scale and convert frame to float format. frameF is a copy of the image data
+        // in float format (in range 0 to 1, rather than 0 to 255). CV_32FC3
+        cv::Mat frameF;
+        this->frame.convertTo (frameF, CV_32FC3, 1/255.0);
+        this->showMaxMin (frameF, "frameF (float)");
         // NB: Init these before the next three resize() calls
         this->setBins (100);
         // Init flags
@@ -363,14 +364,14 @@ public:
         this->flags.set (ShowBoxes);
 
         // Make a blurred copy of the floating point format frame, for estimating lighting background
-        this->blurred = cv::Mat::zeros (this->frameF.rows, this->frameF.cols, CV_32FC3);
+        this->blurred = cv::Mat::zeros (frameF.rows, frameF.cols, CV_32FC3);
         cv::Size ksz;
-        ksz.width = this->frameF.cols * 2.0 * this->bgBlurScreenProportion;
+        ksz.width = frameF.cols * 2.0 * this->bgBlurScreenProportion;
         ksz.width += (ksz.width%2 == 1) ? 0 : 1; // ensure ksz.width is odd
-        ksz.height = this->frameF.rows/3;
+        ksz.height = frameF.rows/3;
         ksz.height += (ksz.height%2 == 1) ? 0 : 1;
-        double sigma = (double)this->frameF.cols * this->bgBlurScreenProportion;
-        cv::GaussianBlur (this->frameF, this->blurred, ksz, sigma);
+        double sigma = (double)frameF.cols * this->bgBlurScreenProportion;
+        cv::GaussianBlur (frameF, this->blurred, ksz, sigma);
         std::cout << "Blur mean = " << cv::mean (this->blurred) << std::endl;
         this->blurmean = cv::mean(this->blurred)[0];
         this->blurmeanU = static_cast<unsigned int>(this->blurmean * 255.0f);
@@ -382,15 +383,15 @@ public:
         // show max mins (For debugging)
         this->showMaxMin (this->blurred, "this->blurred");
         this->showMaxMin (suboffset_minus_blurred, "suboffset_minus_blurred (const-blurred)");
-        // Add suboffset_minus_blurred to this->frameF to get frame_bgoff.
-        cv::add (this->frameF, suboffset_minus_blurred, this->frame_bgoff, cv::noArray(), CV_32FC3);
-        this->showMaxMin (this->frame_bgoff, "frame_bgoff");
+        // Add suboffset_minus_blurred to frameF to get frame_bgoff.
+        cv::Mat frame_bgoff;
+        cv::add (frameF, suboffset_minus_blurred, frame_bgoff, cv::noArray(), CV_32FC3);
+        this->showMaxMin (frame_bgoff, "frame_bgoff");
         // Invert frame_bgoff to create the signal frame
-        cv::subtract (1.0f, this->frame_bgoff, this->frame_signal, cv::noArray(), CV_32FC3);
+        cv::subtract (1.0f, frame_bgoff, this->frame_signal, cv::noArray(), CV_32FC3);
         this->frame_signal_maxmin = this->showMaxMin (this->frame_signal, "frame_signal");
-        // frame_bgoff is for number crunching. For viewing, it's better to use a CV_8UC3 version (?):
-        this->frame_bgoff.convertTo (this->frame_bgoffU, CV_8UC3, 255.0);
-        this->frame_signal.convertTo (this->frame_signalU, CV_8UC3, 255.0);
+        // frame_bgoff is for number crunching. For viewing, it's better to use a CV_8UC3 version.
+        frame_bgoff.convertTo (this->frame_bgoffU, CV_8UC3, 255.0);
     }
 
     //! Show the max and the min of a
@@ -1839,11 +1840,8 @@ public:
     void mirror_image_only()
     {
         this->compute_mirror (this->frame);
-        this->compute_mirror (this->frameF);
-        this->compute_mirror (this->frame_bgoff);
         this->compute_mirror (this->frame_signal);
         this->compute_mirror (this->frame_bgoffU);
-        this->compute_mirror (this->frame_signalU);
     }
 
     //! Flip the image & mark as such in flags
@@ -1856,11 +1854,8 @@ public:
     void flip_image_only()
     {
         this->compute_flip (this->frame);
-        this->compute_flip (this->frameF);
-        this->compute_flip (this->frame_bgoff);
         this->compute_flip (this->frame_signal);
         this->compute_flip (this->frame_bgoffU);
-        this->compute_flip (this->frame_signalU);
     }
 
     //! Check landmarks on each slice. If there are n landmarks on every slice, and n >=
