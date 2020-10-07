@@ -411,6 +411,21 @@ int addFlattened (morph::Visual& v, const string& datafile, const CmdOptions& co
             bool autoalignComputed = false;
             d.read_val ("/Frame001/autoalign/computed", autoalignComputed);
 
+            if (co.flattened_type == 1) {
+                // linear distance boxes:
+                std::cout << "Showing centered, linear distance as y axis for 2D map.\n";
+            } else if (co.flattened_type == 2) {
+                // angle based boxes:
+                std::cout << "Showing angle as y axis for 2D map.\n";
+            } else {
+                // linear distance based on 0 angle starting point:
+                if (lmalignComputed == true && align_lm == true) {
+                    std::cout << "Showing linear distance unwrapped from 3D landmark aligned reconstruction as y axis for 2D map.\n";
+                } else {
+                    std::cout << "Showing linear distance unwrapped from 3D auto-aligned reconstruction as y axis for 2D map.\n";
+                }
+            }
+
             string frameName("");
             for (int i = 1; i<=nf; ++i) {
 
