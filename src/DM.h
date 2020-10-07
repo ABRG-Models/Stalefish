@@ -449,7 +449,7 @@ public:
 #endif
 
         morph::HdfData d(this->datafile);
-        for (auto& f : this->vFrameData) { f.write (d); }
+        for (auto f : this->vFrameData) { f.write (d); }
 
         int nf = this->vFrameData.size();
         d.add_val("/nframes", nf);
