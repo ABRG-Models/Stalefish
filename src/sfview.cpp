@@ -14,6 +14,62 @@
 
 using namespace std;
 
+// Derive Visual to add the extra sfview-specific keyhandling callback
+class SFVisual : public morph::Visual
+{
+public:
+    SFVisual (int width, int height, const std::string& title,
+              const morph::Vector<float> caOffset, const morph::Vector<float> caLength, const float caThickness)
+        : morph::Visual (width, height, title, caOffset, caLength, caThickness) {}
+
+    //! Vector of VisualModel IDs for the landmarks. To hide landmarks, hide these.
+    std::vector<unsigned int> landmarks;
+    //! The 'angle=0' lines - in Jet colours
+    std::vector<unsigned int> angle_centres;
+    //! The axis (or axes) from 'axis marks'
+    std::vector<unsigned int> axes;
+    //! The 3D surfaces
+    std::vector<unsigned int> surfaces_3d;
+    //! 2D surfaces
+    std::vector<unsigned int> surfaces_2d;
+
+protected:
+    //! Act on keys and toggle 'hidden' for the relevant VisualModels
+    virtual void key_callback_extra (GLFWwindow* window, int key, int scancode, int action, int mods)
+    {
+        // Landmarks
+        if (key == GLFW_KEY_F && action == GLFW_PRESS) {
+            for (auto id : this->landmarks) { this->vm[id]->toggleHide(); }
+        }
+        // Angle markers
+        if (key == GLFW_KEY_G && action == GLFW_PRESS) {
+            for (auto id : this->angle_centres) { this->vm[id]->toggleHide(); }
+        }
+        // axes
+        if (key == GLFW_KEY_D && action == GLFW_PRESS) {
+            for (auto id : this->axes) { this->vm[id]->toggleHide(); }
+        }
+        // 2D map
+        if (key == GLFW_KEY_J && action == GLFW_PRESS) {
+            for (auto id : this->surfaces_2d) { this->vm[id]->toggleHide(); }
+        }
+        // 3D map
+        if (key == GLFW_KEY_K && action == GLFW_PRESS) {
+            for (auto id : this->surfaces_3d) { this->vm[id]->toggleHide(); }
+        }
+
+        // Additional help
+        if (key == GLFW_KEY_H && action == GLFW_PRESS) {
+            std::cout << "sfview help:\n";
+            std::cout << "f: toggle (show/hide) landmarks\n";
+            std::cout << "g: toggle zero angle marks\n";
+            std::cout << "d: toggle user-defined brain axis\n";
+            std::cout << "j: toggle 2D brain map\n";
+            std::cout << "j: toggle 3D brain surface\n";
+        }
+    }
+};
+
 //! libpopt features - the features that are available to change on the command line.
 struct CmdOptions
 {
@@ -81,7 +137,7 @@ void popt_option_callback (poptContext con,
 }
 
 //! Add just the landmarks in the datafile
-int addLandmarks (morph::Visual& v, const string& datafile, const CmdOptions& co)
+int addLandmarks (SFVisual& v, const string& datafile, const CmdOptions& co)
 {
     int rtn = 0;
 
@@ -162,7 +218,7 @@ int addLandmarks (morph::Visual& v, const string& datafile, const CmdOptions& co
                                                                            &landmarks_id, 0.07f, scale,
                                                                            morph::ColourMapType::Plasma));
             }
-            cout << "Added landmarks with visId " << visId << endl;
+            v.landmarks.push_back (visId);
         }
     } catch (const exception& e) {
         cerr << "Caught exception: " << e.what() << endl;
@@ -173,7 +229,7 @@ int addLandmarks (morph::Visual& v, const string& datafile, const CmdOptions& co
 }
 
 //! Add a visual model for the expression surface, created from the file datafile, to the scene v
-int addVisMod (morph::Visual& v, const string& datafile, const CmdOptions& co, const float hue)
+int addVisMod (SFVisual& v, const string& datafile, const CmdOptions& co, const float hue)
 {
     int rtn = 0;
 
@@ -362,19 +418,22 @@ int addVisMod (morph::Visual& v, const string& datafile, const CmdOptions& co, c
                                                                                  &means, scale,
                                                                                  morph::ColourMapType::Monochrome, hue));
                 }
+                v.surfaces_3d.push_back (visId);
+
                 visId = v.addVisualModel (new morph::ScatterVisual<float> (v.shaderprog,
                                                                            &centres_lmaligned, offset,
                                                                            &centres_id, 0.03f, scale,
                                                                            morph::ColourMapType::Jet));
+                v.angle_centres.push_back (visId);
 
                 if (!AM_origins_lmaligned.empty()) {
                     visId = v.addVisualModel (new morph::ScatterVisual<float> (v.shaderprog,
                                                                                &AM_origins_lmaligned, offset,
                                                                                &centres_id, 0.05f, scale,
                                                                                morph::ColourMapType::Magma));
+                    v.axes.push_back (visId);
                 }
 
-                std::cout << "Landmark layer with visId " << visId << " created\n";
             } else {
 
                 if (showribbons) {
@@ -383,28 +442,27 @@ int addVisMod (morph::Visual& v, const string& datafile, const CmdOptions& co, c
                                                                              &means, scale,
                                                                              morph::ColourMapType::Monochrome, hue));
                 } else {
-
                     visId = v.addVisualModel (new morph::PointRowsVisual<float> (v.shaderprog,
                                                                                  &points_autoaligned, offset,
                                                                                  &means, scale,
                                                                                  morph::ColourMapType::Monochrome, hue));
                 }
+                v.surfaces_3d.push_back (visId);
+
                 visId = v.addVisualModel (new morph::ScatterVisual<float> (v.shaderprog,
                                                                            &centres_autoaligned, offset,
                                                                            &centres_id, 0.03f, scale,
                                                                            morph::ColourMapType::Jet));
+                v.angle_centres.push_back (visId);
 
                 if (!AM_origins_autoaligned.empty()) {
                     visId = v.addVisualModel (new morph::ScatterVisual<float> (v.shaderprog,
                                                                                &AM_origins_autoaligned, offset,
                                                                                &centres_id, 0.05f, scale,
                                                                                morph::ColourMapType::Magma));
+                    v.axes.push_back (visId);
                 }
-
-                std::cout << "Autoalign layer with visId " << visId << " created\n";
             }
-
-            cout << "Added Visual with visId " << visId << endl;
         }
     } catch (const exception& e) {
         cerr << "Caught exception: " << e.what() << endl;
@@ -415,7 +473,7 @@ int addVisMod (morph::Visual& v, const string& datafile, const CmdOptions& co, c
 }
 
 //! Add flattened map
-int addFlattened (morph::Visual& v, const string& datafile, const CmdOptions& co)
+int addFlattened (SFVisual& v, const string& datafile, const CmdOptions& co)
 {
     int rtn = 0;
 
@@ -567,6 +625,7 @@ int addFlattened (morph::Visual& v, const string& datafile, const CmdOptions& co
                                                                      &fquads, offset,
                                                                      &fmeans, scale,
                                                                      morph::ColourMapType::Greyscale));
+            v.surfaces_2d.push_back (visId);
 
             // Add a row of points for the centre marker, for debugging
             vector<morph::Vector<float>> centres_;
@@ -591,8 +650,7 @@ int addFlattened (morph::Visual& v, const string& datafile, const CmdOptions& co
                                                                        &centres_, offset,
                                                                        &centres_id, 0.03f, scale,
                                                                        morph::ColourMapType::Jet));
-
-            cout << "Added Visual with visId " << visId << endl;
+            v.angle_centres.push_back (visId);
         }
     } catch (const exception& e) {
         cerr << "Caught exception: " << e.what() << endl;
@@ -681,7 +739,7 @@ int main (int argc, char** argv)
     // Visual scene for all models
     morph::Vector<float> coordArrowLocn = {0,0,0};
     morph::Vector<float> coordArrowLengths = {6,2,2};
-    morph::Visual v(1024, 768, cmdOptions.datafiles[0], coordArrowLocn, coordArrowLengths, 0.4);
+    SFVisual v(1024, 768, cmdOptions.datafiles[0], coordArrowLocn, coordArrowLengths, 0.4);
     v.zNear = 0.001;
     v.zFar = 40.0;
     v.setZDefault (-15.4);
