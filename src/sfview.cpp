@@ -199,7 +199,9 @@ int addVisMod (morph::Visual& v, const string& datafile, const CmdOptions& co, c
         vector<float> means;
 
         vector<morph::Vector<float>> centres_lmaligned;
+        vector<morph::Vector<float>> centres_autoaligned;
         vector<morph::Vector<float>> AM_origins_lmaligned;
+        vector<morph::Vector<float>> AM_origins_autoaligned;
         vector<float> centres_id;
 
         {
@@ -232,21 +234,30 @@ int addVisMod (morph::Visual& v, const string& datafile, const CmdOptions& co, c
                 d.read_val (str.c_str(), thickness);
 
                 // Centres. Get the index into the fitted_lmaligned, to get y/z coordinates of centre locations
-                std::cout << "CENTRES....\n";
                 str = frameName+"/centre_lmaligned";
                 int clm_idx = 0;
                 d.read_val (str.c_str(), clm_idx);
 
+                str = frameName+"/centre_autoaligned";
+                int caa_idx = 0;
+                d.read_val (str.c_str(), caa_idx);
+
                 std::vector<cv::Point2d> fitted_lmaligned;
                 str = frameName+"/lmalign/fitted";
                 d.read_contained_vals (str.c_str(), fitted_lmaligned);
-                std::cout << "fitted_lmalgined[centre indx]: " << fitted_lmaligned[clm_idx].x << "," << fitted_lmaligned[clm_idx].y << std::endl;
+
+                std::vector<cv::Point2d> fitted_autoaligned;
+                str = frameName+"/autoalign/fitted";
+                d.read_contained_vals (str.c_str(), fitted_autoaligned);
+
                 morph::Vector<float> cp;
                 cp[0] = xx;
-                cout << "xx:"  << xx << "\n";
                 cp[1] = fitted_lmaligned[clm_idx].x;
                 cp[2] = fitted_lmaligned[clm_idx].y;
                 centres_lmaligned.push_back (cp);
+                cp[1] = fitted_autoaligned[caa_idx].x;
+                cp[2] = fitted_autoaligned[caa_idx].y;
+                centres_autoaligned.push_back (cp);
                 centres_id.push_back (0.1f*(float)i);
 
                 // axis alignment marks are optional, and the data may not exist in the h5 file.
@@ -254,10 +265,22 @@ int addVisMod (morph::Visual& v, const string& datafile, const CmdOptions& co, c
                     std::vector<cv::Point2d> AM_lmaligned;
                     str = frameName+"/lmalign/alignmark_origins";
                     d.read_contained_vals (str.c_str(), AM_lmaligned);
-                    std::cout << "AM_lmalgined[0]: " << AM_lmaligned[0].x << "," << AM_lmaligned[0].y << std::endl;
                     cp[1] = AM_lmaligned[0].x;
                     cp[2] = AM_lmaligned[0].y;
                     AM_origins_lmaligned.push_back (cp);
+                } catch (const exception& ee) {
+                    // Ignore missing AM_origins
+                    std::cout << "Missing alignmark_origins: " << ee.what() << std::endl;
+                }
+
+                // axis alignment marks are optional, and the data may not exist in the h5 file.
+                try {
+                    std::vector<cv::Point2d> AM_autoaligned;
+                    str = frameName+"/autoalign/alignmark_origins";
+                    d.read_contained_vals (str.c_str(), AM_autoaligned);
+                    cp[1] = AM_autoaligned[0].x;
+                    cp[2] = AM_autoaligned[0].y;
+                    AM_origins_autoaligned.push_back (cp);
                 } catch (const exception& ee) {
                     // Ignore missing AM_origins
                     std::cout << "Missing alignmark_origins: " << ee.what() << std::endl;
@@ -339,6 +362,18 @@ int addVisMod (morph::Visual& v, const string& datafile, const CmdOptions& co, c
                                                                                  &means, scale,
                                                                                  morph::ColourMapType::Monochrome, hue));
                 }
+                visId = v.addVisualModel (new morph::ScatterVisual<float> (v.shaderprog,
+                                                                           &centres_lmaligned, offset,
+                                                                           &centres_id, 0.03f, scale,
+                                                                           morph::ColourMapType::Jet));
+
+                if (!AM_origins_lmaligned.empty()) {
+                    visId = v.addVisualModel (new morph::ScatterVisual<float> (v.shaderprog,
+                                                                               &AM_origins_lmaligned, offset,
+                                                                               &centres_id, 0.05f, scale,
+                                                                               morph::ColourMapType::Magma));
+                }
+
                 std::cout << "Landmark layer with visId " << visId << " created\n";
             } else {
 
@@ -354,19 +389,19 @@ int addVisMod (morph::Visual& v, const string& datafile, const CmdOptions& co, c
                                                                                  &means, scale,
                                                                                  morph::ColourMapType::Monochrome, hue));
                 }
-                std::cout << "Autoalign layer with visId " << visId << " created\n";
-            }
-
-            visId = v.addVisualModel (new morph::ScatterVisual<float> (v.shaderprog,
-                                                                       &centres_lmaligned, offset,
-                                                                       &centres_id, 0.08f, scale,
-                                                                       morph::ColourMapType::Jet));
-
-            if (!AM_origins_lmaligned.empty()) {
                 visId = v.addVisualModel (new morph::ScatterVisual<float> (v.shaderprog,
-                                                                           &AM_origins_lmaligned, offset,
-                                                                           &centres_id, 0.08f, scale,
-                                                                           morph::ColourMapType::Magma));
+                                                                           &centres_autoaligned, offset,
+                                                                           &centres_id, 0.03f, scale,
+                                                                           morph::ColourMapType::Jet));
+
+                if (!AM_origins_autoaligned.empty()) {
+                    visId = v.addVisualModel (new morph::ScatterVisual<float> (v.shaderprog,
+                                                                               &AM_origins_autoaligned, offset,
+                                                                               &centres_id, 0.05f, scale,
+                                                                               morph::ColourMapType::Magma));
+                }
+
+                std::cout << "Autoalign layer with visId " << visId << " created\n";
             }
 
             cout << "Added Visual with visId " << visId << endl;
@@ -500,6 +535,25 @@ int addFlattened (morph::Visual& v, const string& datafile, const CmdOptions& co
                     sbox[10] = linbins[j-1];
                     sbox[11] = 0.0;
 
+                    // For angle based view, have to tweak the box angles by +-2pi to avoid boxes that span the whole ribbon.
+                    if (co.flattened_type == 2) {
+                        if (std::abs(sbox[1] - sbox[4])  > morph::PI_F && std::abs(sbox[7] - sbox[10]) > morph::PI_F) {
+                            //std::cout << "PROBLEM BOX\n";
+                            if (sbox[4] < 0) {
+                                sbox[4] += morph::TWO_PI_F;
+                                sbox[7] += morph::TWO_PI_F;
+                            } else {
+                                sbox[4] -= morph::TWO_PI_F;
+                                sbox[7] -= morph::TWO_PI_F;
+                            }
+                        }
+                    }
+#if 0 // DEBUG
+                    std::cout << "c1: " << sbox[0] << "," << sbox[1] << "," << sbox[2];
+                    std::cout << "   c2: " << sbox[3] << "," << sbox[4] << "," << sbox[5];
+                    std::cout << "   c3: " << sbox[6] << "," << sbox[7] << "," << sbox[8];
+                    std::cout << "   c4: " << sbox[9] << "," << sbox[10] << "," << sbox[11] << std::endl;
+#endif
                     flatsurf_boxes.push_back (sbox);
                 }
                 fquads.insert (fquads.end(), flatsurf_boxes.begin(), flatsurf_boxes.end());
@@ -513,6 +567,31 @@ int addFlattened (morph::Visual& v, const string& datafile, const CmdOptions& co
                                                                      &fquads, offset,
                                                                      &fmeans, scale,
                                                                      morph::ColourMapType::Greyscale));
+
+            // Add a row of points for the centre marker, for debugging
+            vector<morph::Vector<float>> centres_;
+            vector<float> centres_id;
+            for (int i = 1; i < nf; ++i) {
+                stringstream ss;
+                ss << "/Frame";
+                ss.width(3);
+                ss.fill('0');
+                ss << i;
+                frameName = ss.str();
+                string str = frameName+"/class/layer_x";
+                d.read_val (str.c_str(), xx);
+                morph::Vector<float> cp;
+                cp[0] = xx;
+                cp[1] = 0;
+                cp[2] = 0;
+                centres_.push_back (cp);
+                centres_id.push_back (0.1f*(float)i);
+            }
+            visId = v.addVisualModel (new morph::ScatterVisual<float> (v.shaderprog,
+                                                                       &centres_, offset,
+                                                                       &centres_id, 0.03f, scale,
+                                                                       morph::ColourMapType::Jet));
+
             cout << "Added Visual with visId " << visId << endl;
         }
     } catch (const exception& e) {

@@ -1246,7 +1246,7 @@ public:
     }
 
     //! A subroutine of FrameData::write.
-    void saveAutoAlignAngles (morph::HdfData& df, const double mapAlignAngle,
+    void saveAutoAlignAngles (morph::HdfData& df, const double theta_middle,
                             const std::vector<std::array<float,3>>& surface_box_centroids_autoaligned)
     {
         std::string frameName = this->getFrameName();
@@ -1254,14 +1254,21 @@ public:
         std::vector<double> autoalign_angles (this->fitted_autoaligned.size()-1, 0.0);
         for (size_t i = 1; i < this->fitted_autoaligned.size(); ++i) {
             if (this->AM_origins_autoaligned.empty()) {
-                autoalign_angles[i-1] = mapAlignAngle  + std::atan2 (0.5 * (this->fitted_autoaligned[i].x + this->fitted_autoaligned[i-1].x),
-                                                                     0.5 * (this->fitted_autoaligned[i].y + this->fitted_autoaligned[i-1].y));
+                autoalign_angles[i-1] = std::atan2 (0.5 * (this->fitted_autoaligned[i].x + this->fitted_autoaligned[i-1].x),
+                                                    0.5 * (this->fitted_autoaligned[i].y + this->fitted_autoaligned[i-1].y)) - theta_middle;
             } else {
                 // We have a user-supplied brain axis, so compute angles about that axis.
                 cv::Point2d angle_origin = this->AM_origins_autoaligned[0];
                 cv::Point2d a = this->fitted_autoaligned[i] - angle_origin;
                 cv::Point2d b = this->fitted_autoaligned[i-1] - angle_origin;
-                autoalign_angles[i-1] = mapAlignAngle + std::atan2 (0.5 * (a.x + b.x), 0.5 * (a.y + b.y));
+                autoalign_angles[i-1] = std::atan2 (0.5 * (a.x + b.x), 0.5 * (a.y + b.y)) - theta_middle;
+
+                // Correct angles to lie in range (-pi, pi]
+                if (autoalign_angles[i-1] > morph::PI_D) {
+                    autoalign_angles[i-1] -= morph::TWO_PI_D;
+                } else if (autoalign_angles[i-1] <= -morph::PI_D) {
+                    autoalign_angles[i-1] += morph::TWO_PI_D;
+                }
             }
         }
         std::string dname = frameName + "/autoalign/flattened/sbox_angles";
@@ -1287,7 +1294,7 @@ public:
     }
 
     //! A subroutine of FrameData::write.
-    void saveLmAlignAngles (morph::HdfData& df, const double mapAlignAngle,
+    void saveLmAlignAngles (morph::HdfData& df, const double theta_middle,
                             const std::vector<std::array<float,3>>& surface_box_centroids_lmaligned)
     {
         std::string frameName = this->getFrameName();
@@ -1295,14 +1302,21 @@ public:
         std::vector<double> lmalign_angles (this->fitted_lmaligned.size()-1, 0.0);
         for (size_t i = 1; i < this->fitted_lmaligned.size(); ++i) {
             if (this->AM_origins_lmaligned.empty()) {
-                lmalign_angles[i-1] = mapAlignAngle + std::atan2 (0.5 * (this->fitted_lmaligned[i].x + this->fitted_lmaligned[i-1].x),
-                                                                  0.5 * (this->fitted_lmaligned[i].y + this->fitted_lmaligned[i-1].y));
+                lmalign_angles[i-1] = std::atan2 (0.5 * (this->fitted_lmaligned[i].x + this->fitted_lmaligned[i-1].x),
+                                                  0.5 * (this->fitted_lmaligned[i].y + this->fitted_lmaligned[i-1].y)) - theta_middle;
             } else {
                 // We have a user-supplied brain axis, so compute angles about that axis.
                 cv::Point2d angle_origin = this->AM_origins_lmaligned[0];
                 cv::Point2d a = this->fitted_lmaligned[i] - angle_origin;
                 cv::Point2d b = this->fitted_lmaligned[i-1] - angle_origin;
-                lmalign_angles[i-1] = mapAlignAngle + std::atan2 (0.5 * (a.x + b.x), 0.5 * (a.y + b.y));
+                lmalign_angles[i-1] = std::atan2 (0.5 * (a.x + b.x), 0.5 * (a.y + b.y)) - theta_middle;
+
+                // Correct angles to lie in range (-pi, pi]
+                if (lmalign_angles[i-1] > morph::PI_D) {
+                    lmalign_angles[i-1] -= morph::TWO_PI_D;
+                } else if (lmalign_angles[i-1] <= -morph::PI_D) {
+                    lmalign_angles[i-1] += morph::TWO_PI_D;
+                }
                 //std::cout << "Set lmalign_angles[" << (i-1) << "] to " << lmalign_angles[i-1] << std::endl;
             }
         }
@@ -1328,10 +1342,10 @@ public:
         df.add_contained_vals (dname.c_str(), linear_distances);
     }
 
-    //! Write the data out to an HdfData file \a df. mapAlignAngle is an angular offset
+    //! Write the data out to an HdfData file \a df. theta_middle is an angular offset
     //! for the 'zero angle' about either the origin x axis, or the axis specified by
     //! axismarks.
-    void write (morph::HdfData& df, const double mapAlignAngle)
+    void write (morph::HdfData& df, const double theta_middle)
     {
         // Update box means. not const
         this->computeBoxMeans();
@@ -1409,7 +1423,7 @@ public:
         df.add_contained_vals (dname.c_str(), means_autoscaled);
 
         dname = frameName + "/centre_lmaligned";
-        std::cout << "Writing " << this->centre_lmaligned << " into centre_lmaligned.\n";
+        //std::cout << "Writing " << this->centre_lmaligned << " into centre_lmaligned.\n";
         df.add_val (dname.c_str(), this->centre_lmaligned);
         dname = frameName + "/centre_autoaligned";
         df.add_val (dname.c_str(), this->centre_autoaligned);
@@ -1714,14 +1728,14 @@ public:
         // From 3D data, compute a 2D map. 3D data always centred around 0! Cool.
         // So, for each slice, compute each surface box's angle from the centroid and save these values.
         if (this->saveAutoAlignData == true && !this->fitted_autoaligned.empty()) {
-            this->saveAutoAlignAngles (df, mapAlignAngle, surface_box_centroids_autoaligned);
+            this->saveAutoAlignAngles (df, theta_middle, surface_box_centroids_autoaligned);
         }
 
         if (this->saveLMAlignData == true && !this->fitted_lmaligned.empty()) {
-            this->saveLmAlignAngles (df, mapAlignAngle, surface_box_centroids_lmaligned);
+            this->saveLmAlignAngles (df, theta_middle, surface_box_centroids_lmaligned);
         }
 
-        std::cout << "write() completed for one frame." << std::endl;
+        std::cout << "write() completed for " << frameName << std::endl;
     }
 
     //! Returns the cv::Point2d coordinate of the point on FrameData::fitted_lmaligned
