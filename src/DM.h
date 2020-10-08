@@ -1165,7 +1165,7 @@ public:
         std::stringstream ss;
         int xh = 30;
         ss << "Frame: " << _this->getFrameNum() << "/" << _this->getNumFrames()
-           << " " << cf->getFitInfo() << ". 'h' to toggle help.";
+           << " " << cf->getFitInfo() << ".";
         ss << " Range: " << cf->frame_maxmin.second << "," << cf->frame_maxmin.first;
         ss.precision(3);
         ss << " (bm:"<< cf->blurmeanU << ")";
@@ -1198,6 +1198,10 @@ public:
             putText (*pImg, ss3.str(), cv::Point(xh,80), cv::FONT_HERSHEY_SIMPLEX, 1.2*fontsz, SF_BLACK, 1, cv::LINE_AA);
             putText (*sImg, ss3.str(), cv::Point(xh,80), cv::FONT_HERSHEY_SIMPLEX, 1.2*fontsz, SF_WHITE, 1, cv::LINE_AA);
         }
+
+        // h for help
+        std::string hs("Press 'h' for help");
+        putText (*pImg, hs, cv::Point(cf->frame.cols-300,cf->frame.rows-20), cv::FONT_HERSHEY_SIMPLEX, fontsz, SF_BLACK, 1, cv::LINE_AA);
 
         // Draw text with cursor coordinates on bottom left of screen in a small font
         std::stringstream css;

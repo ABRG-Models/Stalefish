@@ -471,7 +471,7 @@ public:
                 }
             }
         }
-        ss << "Bezier order: " << bb.str() << ", Bins: " << this->nBins;
+        ss << "Bezier order: " << bb.str() << ", Bins: " << this->nBins << "/A"<< this->binA << ":B" << this->binB;
 
         if (this->ct == InputMode::Bezier) {
             ss << ". Curve mode (end)";
