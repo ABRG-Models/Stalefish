@@ -405,9 +405,9 @@ public:
                 double y = my * x + cy;
                 double z = mz * x + cz;
 
-                std::cout << "(lm) y = " << y << ", z = " << z << std::endl;
+                //std::cout << "(lm) y = " << y << ", z = " << z << std::endl;
                 cv::Point2d origin_new(y,z);
-                std::cout << "alignmark origin (lm): " << origin_new << std::endl;
+                //std::cout << "alignmark origin (lm): " << origin_new << std::endl;
                 if (f.AM_origins_lmaligned.empty()) {
                     f.AM_origins_lmaligned.push_back (origin_new);
                 } else {
@@ -427,10 +427,10 @@ public:
                 // Compute y and z for this slice
                 y = my * x + cy;
                 z = mz * x + cz;
-                std::cout << "(aa) y = " << y << ", z = " << z << std::endl;
+                //std::cout << "(aa) y = " << y << ", z = " << z << std::endl;
                 origin_new.x = y;
                 origin_new.y = z;
-                std::cout << "alignmark origin (aa): " << origin_new << std::endl;
+                //std::cout << "alignmark origin (aa): " << origin_new << std::endl;
                 if (f.AM_origins_autoaligned.empty()) {
                     f.AM_origins_autoaligned.push_back (origin_new);
                 } else {
@@ -449,7 +449,8 @@ public:
 #endif
 
         morph::HdfData d(this->datafile);
-        for (auto f : this->vFrameData) { f.write (d); }
+        // Pass in mapAlignAngle for generating the angle maps
+        for (auto f : this->vFrameData) { f.write (d, this->mapAlignAngle); }
 
         int nf = this->vFrameData.size();
         d.add_val("/nframes", nf);

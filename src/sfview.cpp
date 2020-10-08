@@ -477,6 +477,9 @@ int addFlattened (morph::Visual& v, const string& datafile, const CmdOptions& co
                 }
                 d.read_contained_vals (str.c_str(), linbins);
 
+                // now - if the linbins we loaded were the sbox_angles, then we need to
+                // sort linbins, while sorting, at the same time, the signals.
+
                 vector<array<float,12>> flatsurf_boxes;
                 array<float, 12> sbox;
                 for (unsigned int j = 1; j < linbins.size(); ++j) {
