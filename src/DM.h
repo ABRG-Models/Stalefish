@@ -333,8 +333,8 @@ public:
         }
     }
 
-    //! Write frames to HdfData
-    void writeFrames()
+    //! Update the curve fits, re-collect signal data and perform alignment, to ready the project for writing out.
+    void writePrep()
     {
         // Call updateAllFits() before writing only to ensure that all the boxes have
         // been refreshed. Seems these are not read out of the .h5 file. Bit of a hack, this.
@@ -441,16 +441,101 @@ public:
 
         if (got_start == true && got_end == true) {
             // We have alignment marks; define and then align around that axis
-            for (auto& f : this->vFrameData) { f.setMiddle (this->mapAlignAngle, f.AM_origins_lmaligned[0], f.AM_origins_autoaligned[0]); }
+            for (auto& f : this->vFrameData) {
+                f.setMiddle (this->mapAlignAngle, f.AM_origins_lmaligned[0], f.AM_origins_autoaligned[0]);
+            }
         } else {
             // just align around the origin:
             for (auto& f : this->vFrameData) { f.setMiddle (this->mapAlignAngle); }
         }
 #endif
+    }
+
+    //! Write only the frames to a separate data file
+    void writeMap()
+    {
+        // First writeFrames anyway
+        this->writeFrames();
+
+        std::string mapfile = "map.h5";
+        {
+            // Get these things from the datafile: For each layer: Layer001/class/layer_x
+            morph::HdfData d_in(datafile, true);
+            morph::HdfData d_out(mapfile);
+
+            std::vector<float> map_x;
+            std::vector<float> map_y_lmalign;
+            std::vector<float> map_y_autoalign;
+            std::vector<float> map_means;
+
+            d_in.read_contained_vals ("/map/x", map_x);
+            d_in.read_contained_vals ("/map/y_lmalign", map_y_lmalign);
+            d_in.read_contained_vals ("/map/y_autoalign", map_y_autoalign);
+            d_in.read_contained_vals ("/map/means", map_means);
+
+            d_out.add_contained_vals ("/map/x", map_x);
+            d_out.add_contained_vals ("/map/y_lmalign", map_y_lmalign);
+            d_out.add_contained_vals ("/map/y_autoalign", map_y_autoalign);
+            d_out.add_contained_vals ("/map/means", map_means);
+        }
+
+        std::cout << "writeMap complete: 2D map written to HDF5" << std::endl;
+    }
+
+    //! Write frames to HdfData
+    void writeFrames()
+    {
+        this->writePrep();
 
         morph::HdfData d(this->datafile);
         // Pass in mapAlignAngle for generating the angle maps
-        for (auto f : this->vFrameData) { f.write (d, this->mapAlignAngle); }
+        for (auto f : this->vFrameData) {
+            f.write (d, this->mapAlignAngle);
+        }
+
+        // For each frame also collect 2d Map data. That's /class/layer_x, /signal/postproc/boxes/means, lmalign/flattened/sbox_linear_distance
+        std::vector<float> map_x;
+        std::vector<float> map_y_lmalign;
+        std::vector<float> map_y_autoalign;
+        std::vector<float> map_means;
+        for (auto f : this->vFrameData) {
+            std::string frameName;
+            {
+                std::stringstream ss;
+                ss << "/Frame";
+                ss.width(3);
+                ss.fill('0');
+                ss << (1+f.idx);
+                frameName = ss.str();
+            }
+
+            std::string pth = frameName + "/signal/postproc/boxes/means";
+            std::vector<float> _means;
+            d.read_contained_vals(pth.c_str(), _means);
+
+            pth = frameName + "/lmalign/flattened/sbox_linear_distance";
+            std::vector<float> _lmalign_lin_distances;
+            d.read_contained_vals(pth.c_str(), _lmalign_lin_distances);
+
+            pth = frameName + "/autoalign/flattened/sbox_linear_distance";
+            std::vector<float> _autoalign_lin_distances;
+            d.read_contained_vals(pth.c_str(), _autoalign_lin_distances);
+
+            pth = frameName + "/class/layer_x";
+            float _x;
+            d.read_val(pth.c_str(), _x);
+            std::vector<float> _xx (_means.size(), _x);
+
+            map_x.insert(map_x.end(), _xx.begin(), _xx.end());
+            map_y_lmalign.insert(map_y_lmalign.end(), _lmalign_lin_distances.begin(), _lmalign_lin_distances.end());
+            map_y_autoalign.insert(map_y_autoalign.end(), _autoalign_lin_distances.begin(), _autoalign_lin_distances.end());
+            map_means.insert(map_means.end(), _means.begin(), _means.end());
+        }
+        // Now write map/x etc into the HdfData.
+        d.add_contained_vals ("/map/x", map_x);
+        d.add_contained_vals ("/map/y_lmalign", map_y_lmalign);
+        d.add_contained_vals ("/map/y_autoalign", map_y_autoalign);
+        d.add_contained_vals ("/map/means", map_means);
 
         int nf = this->vFrameData.size();
         d.add_val("/nframes", nf);
@@ -1240,7 +1325,7 @@ public:
                      cv::Point(xh,yh), cv::FONT_HERSHEY_SIMPLEX, fontsz, SF_BLACK, 1, cv::LINE_AA);
             yh += yinc;
             std::stringstream hh;
-            hh << "w:   Save to file: " << _this->datafile;
+            hh << "w:   Save to file: " << _this->datafile << " (W: Save this and also the 2D map to ./map.h5)";
             putText (*pImg, hh.str(),
                      cv::Point(xh,yh), cv::FONT_HERSHEY_SIMPLEX, fontsz, SF_BLACK, 1, cv::LINE_AA);
             yh += yinc;
