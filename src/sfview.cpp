@@ -65,7 +65,7 @@ protected:
             std::cout << "g: toggle zero angle marks\n";
             std::cout << "d: toggle user-defined brain axis\n";
             std::cout << "j: toggle 2D brain map\n";
-            std::cout << "j: toggle 3D brain surface\n";
+            std::cout << "k: toggle 3D brain surface\n";
         }
     }
 };
