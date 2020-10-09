@@ -130,6 +130,10 @@ Each of **FrameNNN/autoalign** or **FrameNNN/lmalign** may contain:
  * **box_depth**: Contains **FrameNNN/n_boxes** array of values, for each
      sample box
 
+ * **centre_box_index**: The index of the sample box which is on the
+     designated 'centre line' (usually defined as being at some angle
+     about the brain axis).
+
  * **computed**: A boolean. If 0, then the autoalign (or lmalign) process
      was not computed.
 
