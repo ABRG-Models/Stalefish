@@ -1422,10 +1422,9 @@ public:
         std::vector<float> means_autoscaled = morph::MathAlgo::autoscale (this->box_signal_means, 0.0, 1.0);
         df.add_contained_vals (dname.c_str(), means_autoscaled);
 
-        dname = frameName + "/centre_lmaligned";
-        //std::cout << "Writing " << this->centre_lmaligned << " into centre_lmaligned.\n";
+        dname = frameName + "/lmalign/centre_box_index";
         df.add_val (dname.c_str(), this->centre_lmaligned);
-        dname = frameName + "/centre_autoaligned";
+        dname = frameName + "/autoalign/centre_box_index";
         df.add_val (dname.c_str(), this->centre_autoaligned);
 
         // Save box_coords_pixels, box_coords_autoalign, box_coords_lmalign
