@@ -290,11 +290,11 @@ int addVisMod (SFVisual& v, const string& datafile, const CmdOptions& co, const 
                 d.read_val (str.c_str(), thickness);
 
                 // Centres. Get the index into the fitted_lmaligned, to get y/z coordinates of centre locations
-                str = frameName+"/centre_lmaligned";
+                str = frameName+"/lmalign/centre_box_index";
                 int clm_idx = 0;
                 d.read_val (str.c_str(), clm_idx);
 
-                str = frameName+"/centre_autoaligned";
+                str = frameName+"/autoalign/centre_box_index";
                 int caa_idx = 0;
                 d.read_val (str.c_str(), caa_idx);
 
