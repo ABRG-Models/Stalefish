@@ -30,6 +30,9 @@
     "desc_rotate_align_landmarks" : "If true, then in 'rotate about landmark 1 mode' align the other landmarks, instead of the curves.",
     "rotate_align_landmarks" : false,
 
+    "desc_map_align_angle" : "The angle, around the origin, at which to draw a line through the brain to use as the centre line for unwrapping the slice ribbons to make a 2D map. Try pi radians, if the middles of your curves are at the top of the screen in stalefish",
+    "map_align_angle" : 3.14159267,
+
     "desc_slices" : "The brain slices in the y-z plane, where y points to the anterior, z points dorsally (and so x is the lateral dimension).",
 
     "slices": [

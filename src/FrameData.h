@@ -20,17 +20,19 @@
 #include <morph/MathConst.h>
 #include <morph/Winder.h>
 
-// This is the "input mode". So in Bezier mode, you add points for the curve fitting; in
-// freehand mode you draw a loop, and in Landmark mode, you give landmarks for slice
-// alignment.
+// This is the input mode (or you could think of them as tools). So in Bezier mode, you
+// add points for the curve fitting; in freehand mode you draw a loop, and in Landmark
+// mode, you give landmarks for slice alignment.
 enum class InputMode
 {
     Bezier,    // Cubic Bezier: "curve drawing mode"
     Freehand,  // A freehand drawn loop enclosing a region
     Landmark,  // User provides alignment landmark locations on each slice
     ReverseBezier, // Curve drawing mode but adding/deleting points at the start of the curve
-    Circlemark // Circular landmarks that are large and require 3 points to estimate
-               // their centre. Developed to handle needle alignment holes.
+    Circlemark, // Circular landmarks that are large and require 3 points to estimate
+                // their centre. Developed to handle needle alignment holes.
+    Axismark   // Allows user to define two locations that mark a linear axis through
+               // the brain. To help construct nice 2D maps from 3D reconstructions.
 };
 
 // What sort of colour model is in use?
@@ -97,6 +99,13 @@ public:
     //! As part of alignment, have to hold a copy of the aligned landmarks
     std::vector<cv::Point2d> LM_lmaligned;
 
+    //! A point, on the fitted curve, that is defined as being the 'centre' of the
+    //! curve. This is used as a starting point from which to unwrap the 3D map into a
+    //! 2D map. This is an index into fitted_lmaligned
+    int centre_lmaligned = 0;
+    //! Corresponding centre for auto-aligned curves - index into fitted_autoaligned
+    int centre_autoaligned = 0;
+
     // Circlemarks. For every 3 circlemarks, we effectively add a landmark. So
     // circlemark mode simply adds landmarks, but by placing 3 points on a circle. The
     // difference comes when deleting, I suppose. Usually don't expect to see more than
@@ -110,6 +119,25 @@ public:
     //! the index into LM for the associated landmark, which is the centre of the circle
     //! defined by the triplets.
     std::map<size_t, std::vector<cv::Point>> CM;
+
+    //! Axismark points. For linear axis, just have 2 of these in the whole set of
+    //! slices, so may be unset for most FrameData instances. This is a vector a) to
+    //! match the other 'marks' and b) in case in the future it might be desirable to
+    //! define more than one axis through the brain.
+    std::vector<cv::Point> AM;
+    //! Axismark points scaled by pixels_per_mm
+    std::vector<cv::Point2d> AM_scaled;
+    //! We'll also save out the autoaligned axismarks, just like we save out autoaligned landmarks
+    std::vector<cv::Point2d> AM_autoalign_translated;
+    std::vector<cv::Point2d> AM_autoaligned;
+    //! As part of alignment, have to hold a copy of the aligned axismarks
+    std::vector<cv::Point2d> AM_lmaligned;
+
+    //! This holds the offset, on this frame, computed from axis marks on other
+    //! frames. Computed by DM before frames are written. This offset is used when
+    //! generating 2D maps in FrameData::write()
+    std::vector<cv::Point2d> AM_origins_lmaligned;
+    std::vector<cv::Point2d> AM_origins_autoaligned;
 
     //! The means computed for the boxes. This is "mean_signal".
     std::vector<float> box_signal_means;
@@ -231,8 +259,6 @@ public:
     bool saveFrameToH5 = true;
     //! Maximum and minimum pixel values of frame
     std::pair<int, int> frame_maxmin;
-    //! A copy of the image data in float format (in range 0 to 1, rather than 0 to 255). CV_32FC3
-    cv::Mat frameF;
     //! A blurred copy of the image data. CV_32FC3.
     cv::Mat blurred;
     float blurmean  = 0.0f;
@@ -241,17 +267,18 @@ public:
     double bgBlurScreenProportion = 0.1667;
     //! An offset used when subtracting blurred BG from image.
     float bgBlurSubtractionOffset = 255.0f;
+    //! The signal frame, CV_32FC3 format. 1.0f - frame_bgoff. In previous code I've
+    //! converted this to CV_8UC3 format because that means that text and lines drawn
+    //! onto the photo can be antialiased. To save memory, I've foregone this.
+    cv::Mat frame_signal;
+    //! Holds the max and min of the signal in frame_signal.
+    std::pair<float, float> frame_signal_maxmin;
     //! The frame, with the blurred background offset, including the user-supplied
     //! bgBlurSubtractionOffset to give values between approx 0 and 1 and in CV_32FC3
-    //! format. From frame_bgoff we calculate the signal.
-    cv::Mat frame_bgoff;
-    //! The signal frame, CV_32FC3 format. 1.0f - frame_bgoff.
-    cv::Mat frame_signal;
-    std::pair<float, float> frame_signal_maxmin;
-    //! CV_8UC3 version of FrameData::frame_bgoff, possibly truncated at the ends of the
-    //! ranges, but useful for display?
+    //! format. From a temporary (CV_32FC3) frame_bgoff we calculate the signal,
+    //! frame_signal. We keep a CV_8UC3 version of frame_bgoff, possibly truncated at
+    //! the ends of the ranges, but useful for display.
     cv::Mat frame_bgoffU;
-    cv::Mat frame_signalU;
 
     //! The frame image filename from which frame was loaded. Stored so it can be
     //! recorded when writing out.
@@ -324,9 +351,11 @@ public:
     void setupFrames()
     {
         this->frame_maxmin = this->showMaxMinU (this->frame, "frame (original)");
-        // Scale and convert frame to float format
-        this->frame.convertTo (this->frameF, CV_32FC3, 1/255.0);
-        this->showMaxMin (this->frameF, "frameF (float)");
+        // Scale and convert frame to float format. frameF is a copy of the image data
+        // in float format (in range 0 to 1, rather than 0 to 255). CV_32FC3
+        cv::Mat frameF;
+        this->frame.convertTo (frameF, CV_32FC3, 1/255.0);
+        this->showMaxMin (frameF, "frameF (float)");
         // NB: Init these before the next three resize() calls
         this->setBins (100);
         // Init flags
@@ -335,14 +364,14 @@ public:
         this->flags.set (ShowBoxes);
 
         // Make a blurred copy of the floating point format frame, for estimating lighting background
-        this->blurred = cv::Mat::zeros (this->frameF.rows, this->frameF.cols, CV_32FC3);
+        this->blurred = cv::Mat::zeros (frameF.rows, frameF.cols, CV_32FC3);
         cv::Size ksz;
-        ksz.width = this->frameF.cols * 2.0 * this->bgBlurScreenProportion;
+        ksz.width = frameF.cols * 2.0 * this->bgBlurScreenProportion;
         ksz.width += (ksz.width%2 == 1) ? 0 : 1; // ensure ksz.width is odd
-        ksz.height = this->frameF.rows/3;
+        ksz.height = frameF.rows/3;
         ksz.height += (ksz.height%2 == 1) ? 0 : 1;
-        double sigma = (double)this->frameF.cols * this->bgBlurScreenProportion;
-        cv::GaussianBlur (this->frameF, this->blurred, ksz, sigma);
+        double sigma = (double)frameF.cols * this->bgBlurScreenProportion;
+        cv::GaussianBlur (frameF, this->blurred, ksz, sigma);
         std::cout << "Blur mean = " << cv::mean (this->blurred) << std::endl;
         this->blurmean = cv::mean(this->blurred)[0];
         this->blurmeanU = static_cast<unsigned int>(this->blurmean * 255.0f);
@@ -354,15 +383,15 @@ public:
         // show max mins (For debugging)
         this->showMaxMin (this->blurred, "this->blurred");
         this->showMaxMin (suboffset_minus_blurred, "suboffset_minus_blurred (const-blurred)");
-        // Add suboffset_minus_blurred to this->frameF to get frame_bgoff.
-        cv::add (this->frameF, suboffset_minus_blurred, this->frame_bgoff, cv::noArray(), CV_32FC3);
-        this->showMaxMin (this->frame_bgoff, "frame_bgoff");
+        // Add suboffset_minus_blurred to frameF to get frame_bgoff.
+        cv::Mat frame_bgoff;
+        cv::add (frameF, suboffset_minus_blurred, frame_bgoff, cv::noArray(), CV_32FC3);
+        this->showMaxMin (frame_bgoff, "frame_bgoff");
         // Invert frame_bgoff to create the signal frame
-        cv::subtract (1.0f, this->frame_bgoff, this->frame_signal, cv::noArray(), CV_32FC3);
+        cv::subtract (1.0f, frame_bgoff, this->frame_signal, cv::noArray(), CV_32FC3);
         this->frame_signal_maxmin = this->showMaxMin (this->frame_signal, "frame_signal");
-        // frame_bgoff is for number crunching. For viewing, it's better to use a CV_8UC3 version (?):
-        this->frame_bgoff.convertTo (this->frame_bgoffU, CV_8UC3, 255.0);
-        this->frame_signal.convertTo (this->frame_signalU, CV_8UC3, 255.0);
+        // frame_bgoff is for number crunching. For viewing, it's better to use a CV_8UC3 version.
+        frame_bgoff.convertTo (this->frame_bgoffU, CV_8UC3, 255.0);
     }
 
     //! Show the max and the min of a
@@ -442,7 +471,7 @@ public:
                 }
             }
         }
-        ss << "Bezier order: " << bb.str() << ", Bins: " << this->nBins;
+        ss << "Bezier order: " << bb.str() << ", Bins: " << this->nBins << "/A"<< this->binA << ":B" << this->binB;
 
         if (this->ct == InputMode::Bezier) {
             ss << ". Curve mode (end)";
@@ -455,6 +484,8 @@ public:
             ss << ". Landmark mode";
         } else if (this->ct == InputMode::Circlemark) {
             ss << ". Circlemark mode";
+        } else if (this->ct == InputMode::Axismark) {
+            ss << ". Axismark mode";
         } else {
             ss << ". unknown mode";
         }
@@ -721,6 +752,8 @@ public:
         } else if (this->ct == InputMode::Circlemark) {
             // Also removes the associated landmark
             this->removeLastCirclepoint();
+        } else if (this->ct == InputMode::Axismark) {
+            this->removeLastAxismark();
         } else {
             this->removeLastPoint();
         }
@@ -819,6 +852,18 @@ public:
                 }
             }
         }
+    }
+
+    //! addAxismark. Note this enforces 1 axismark in AM for now.
+    void addAxismark (const cv::Point& pt)
+    {
+        if (this->AM.empty()) { this->AM.push_back (pt); }
+    }
+
+    //! Remove the last axis mark coordinate
+    void removeLastAxismark()
+    {
+        if (!this->AM.empty()) { this->AM.pop_back(); }
     }
 
     //! Remove the last landmark coordinate
@@ -976,6 +1021,16 @@ public:
         } catch (...) {
             // Do nothing on exception. Move on to next.
             std::cout << "No CM_points to read" << std::endl;
+        }
+
+        // Axismark points
+        dname = frameName + "/class/AM";
+        this->AM.clear();
+        try {
+            df.read_contained_vals (dname.c_str(), this->AM);
+        } catch (...) {
+            // Do nothing on exception. Move on to next.
+            std::cout << "No axismarks to read for this frame" << std::endl;
         }
     }
 
@@ -1154,7 +1209,7 @@ public:
         }
     }
 
-    //! Export landmark and circlemark points for this frame
+    //! Export landmark, axismark and circlemark points for this frame
     void exportLandmarks (morph::HdfData& df) const
     {
         std::string frameName = this->getFrameName();
@@ -1177,10 +1232,120 @@ public:
             df.add_contained_vals (dname.c_str(), cmi->second);
             ++cmi;
         }
+
+        // The axismark points
+        dname = frameName + "/class/AM";
+        df.add_contained_vals (dname.c_str(), this->AM);
+        dname = frameName + "/class/AM_scaled";
+        df.add_contained_vals (dname.c_str(), this->AM_scaled);
+
+        dname = frameName + "/lmalign/alignmark_origins";
+        df.add_contained_vals (dname.c_str(), this->AM_origins_lmaligned);
+        dname = frameName + "/autoalign/alignmark_origins";
+        df.add_contained_vals (dname.c_str(), this->AM_origins_autoaligned);
     }
 
-    //! Write the data out to an HdfData file \a df.
-    void write (morph::HdfData& df)
+    //! A subroutine of FrameData::write.
+    void saveAutoAlignAngles (morph::HdfData& df, const double theta_middle,
+                            const std::vector<std::array<float,3>>& surface_box_centroids_autoaligned)
+    {
+        std::string frameName = this->getFrameName();
+
+        std::vector<double> autoalign_angles (this->fitted_autoaligned.size()-1, 0.0);
+        for (size_t i = 1; i < this->fitted_autoaligned.size(); ++i) {
+            if (this->AM_origins_autoaligned.empty()) {
+                autoalign_angles[i-1] = std::atan2 (0.5 * (this->fitted_autoaligned[i].x + this->fitted_autoaligned[i-1].x),
+                                                    0.5 * (this->fitted_autoaligned[i].y + this->fitted_autoaligned[i-1].y)) - theta_middle;
+            } else {
+                // We have a user-supplied brain axis, so compute angles about that axis.
+                cv::Point2d angle_origin = this->AM_origins_autoaligned[0];
+                cv::Point2d a = this->fitted_autoaligned[i] - angle_origin;
+                cv::Point2d b = this->fitted_autoaligned[i-1] - angle_origin;
+                autoalign_angles[i-1] = std::atan2 (0.5 * (a.x + b.x), 0.5 * (a.y + b.y)) - theta_middle;
+
+                // Correct angles to lie in range (-pi, pi]
+                if (autoalign_angles[i-1] > morph::PI_D) {
+                    autoalign_angles[i-1] -= morph::TWO_PI_D;
+                } else if (autoalign_angles[i-1] <= -morph::PI_D) {
+                    autoalign_angles[i-1] += morph::TWO_PI_D;
+                }
+            }
+        }
+        std::string dname = frameName + "/autoalign/flattened/sbox_angles";
+        df.add_contained_vals (dname.c_str(), autoalign_angles);
+
+        // Linear distance, but centered using the auto aligned slices
+        float total_linear_distance = 0.0f;
+        float middle_distance = 0.0f;
+        std::vector<float> linear_distances (this->nBins, 0.0f);
+        for (int i=1; i<this->nBins; ++i) {
+            // Compute distance from Previous to current
+            float d = morph::MathAlgo::distance<float> (surface_box_centroids_autoaligned[i-1],
+                                                        surface_box_centroids_autoaligned[i]);
+            total_linear_distance += d;
+            linear_distances[i] = total_linear_distance;
+            if (i == this->centre_autoaligned) { middle_distance = total_linear_distance; }
+        }
+        // Now offset the linear distances so that the middle is the 0 degree location
+        for (int i=0; i<this->nBins; ++i) { linear_distances[i] -= middle_distance; }
+
+        dname = frameName + "/autoalign/flattened/sbox_linear_distance";
+        df.add_contained_vals (dname.c_str(), linear_distances);
+    }
+
+    //! A subroutine of FrameData::write.
+    void saveLmAlignAngles (morph::HdfData& df, const double theta_middle,
+                            const std::vector<std::array<float,3>>& surface_box_centroids_lmaligned)
+    {
+        std::string frameName = this->getFrameName();
+        // Compute the angles about the coordinate zero axis
+        std::vector<double> lmalign_angles (this->fitted_lmaligned.size()-1, 0.0);
+        for (size_t i = 1; i < this->fitted_lmaligned.size(); ++i) {
+            if (this->AM_origins_lmaligned.empty()) {
+                lmalign_angles[i-1] = std::atan2 (0.5 * (this->fitted_lmaligned[i].x + this->fitted_lmaligned[i-1].x),
+                                                  0.5 * (this->fitted_lmaligned[i].y + this->fitted_lmaligned[i-1].y)) - theta_middle;
+            } else {
+                // We have a user-supplied brain axis, so compute angles about that axis.
+                cv::Point2d angle_origin = this->AM_origins_lmaligned[0];
+                cv::Point2d a = this->fitted_lmaligned[i] - angle_origin;
+                cv::Point2d b = this->fitted_lmaligned[i-1] - angle_origin;
+                lmalign_angles[i-1] = std::atan2 (0.5 * (a.x + b.x), 0.5 * (a.y + b.y)) - theta_middle;
+
+                // Correct angles to lie in range (-pi, pi]
+                if (lmalign_angles[i-1] > morph::PI_D) {
+                    lmalign_angles[i-1] -= morph::TWO_PI_D;
+                } else if (lmalign_angles[i-1] <= -morph::PI_D) {
+                    lmalign_angles[i-1] += morph::TWO_PI_D;
+                }
+                //std::cout << "Set lmalign_angles[" << (i-1) << "] to " << lmalign_angles[i-1] << std::endl;
+            }
+        }
+        std::string dname = frameName + "/lmalign/flattened/sbox_angles";
+        df.add_contained_vals (dname.c_str(), lmalign_angles);
+
+        // Linear distance, but centered using the landmark aligned slices
+        float total_linear_distance = 0.0f;
+        float middle_distance = 0.0f;
+        std::vector<float> linear_distances (this->nBins, 0.0f);
+        for (int i=1; i<this->nBins; ++i) {
+            // Compute distance from Previous to current
+            float d = morph::MathAlgo::distance<float> (surface_box_centroids_lmaligned[i-1],
+                                                        surface_box_centroids_lmaligned[i]);
+            total_linear_distance += d;
+            linear_distances[i] = total_linear_distance;
+            if (i == this->centre_lmaligned) { middle_distance = total_linear_distance; }
+        }
+        // Now offset the linear distances so that the middle is the 0 degree location
+        for (int i=0; i<this->nBins; ++i) { linear_distances[i] -= middle_distance; }
+
+        dname = frameName + "/lmalign/flattened/sbox_linear_distance";
+        df.add_contained_vals (dname.c_str(), linear_distances);
+    }
+
+    //! Write the data out to an HdfData file \a df. theta_middle is an angular offset
+    //! for the 'zero angle' about either the origin x axis, or the axis specified by
+    //! axismarks.
+    void write (morph::HdfData& df, const double theta_middle)
     {
         // Update box means. not const
         this->computeBoxMeans();
@@ -1256,6 +1421,11 @@ public:
         // this->means is vector<double>
         std::vector<float> means_autoscaled = morph::MathAlgo::autoscale (this->box_signal_means, 0.0, 1.0);
         df.add_contained_vals (dname.c_str(), means_autoscaled);
+
+        dname = frameName + "/lmalign/centre_box_index";
+        df.add_val (dname.c_str(), this->centre_lmaligned);
+        dname = frameName + "/autoalign/centre_box_index";
+        df.add_val (dname.c_str(), this->centre_autoaligned);
 
         // Save box_coords_pixels, box_coords_autoalign, box_coords_lmalign
         // Inflates the output files significantly. May be worth making this optional.
@@ -1557,79 +1727,149 @@ public:
         // From 3D data, compute a 2D map. 3D data always centred around 0! Cool.
         // So, for each slice, compute each surface box's angle from the centroid and save these values.
         if (this->saveAutoAlignData == true && !this->fitted_autoaligned.empty()) {
-            std::vector<double> autoalign_angles (this->fitted_autoaligned.size()-1, 0.0);
-            for (size_t i = 1; i < this->fitted_autoaligned.size(); ++i) {
-                autoalign_angles[i-1] = std::atan2(0.5 * (this->fitted_autoaligned[i].x + this->fitted_autoaligned[i-1].x),
-                                                   -0.5 * (this->fitted_autoaligned[i].y + this->fitted_autoaligned[i-1].y));
-            }
-            dname = frameName + "/autoalign/flattened/sbox_angles";
-            df.add_contained_vals (dname.c_str(), autoalign_angles);
-
-            // Linear distance, but centered using the auto aligned slices
-            float total_linear_distance = 0.0f;
-            float middle_distance = 0.0f;
-            double min_ang = 1e10;
-            std::vector<float> linear_distances (this->nBins, 0.0f);
-            for (int i=1; i<this->nBins; ++i) {
-                // Compute distance from Previous to current
-                float d = morph::MathAlgo::distance<float> (surface_box_centroids_autoaligned[i-1],
-                                                            surface_box_centroids_autoaligned[i]);
-                total_linear_distance += d;
-                linear_distances[i] = total_linear_distance;
-                double angle = std::atan2 (0.5 * (surface_box_centroids_autoaligned[i][0] + surface_box_centroids_autoaligned[i-1][0]),
-                                           -0.5 * (surface_box_centroids_autoaligned[i][1] + surface_box_centroids_autoaligned[i-1][1]));
-                // If we got to the zero-angle location, then mark the middle distance
-                if (std::abs(angle) < min_ang) {
-                    middle_distance = total_linear_distance;
-                    min_ang = std::abs(angle);
-                }
-            }
-            // Now offset the linear distances so that the middle is the 0 degree location
-            for (int i=0; i<this->nBins; ++i) { linear_distances[i] -= middle_distance; }
-
-            dname = frameName + "/autoalign/flattened/sbox_linear_distance";
-            df.add_contained_vals (dname.c_str(), linear_distances);
+            this->saveAutoAlignAngles (df, theta_middle, surface_box_centroids_autoaligned);
         }
 
         if (this->saveLMAlignData == true && !this->fitted_lmaligned.empty()) {
-            std::vector<double> lmalign_angles (this->fitted_lmaligned.size()-1, 0.0);
-            for (size_t i = 1; i < this->fitted_lmaligned.size(); ++i) {
-                lmalign_angles[i-1] = std::atan2(0.5 * (this->fitted_lmaligned[i].x + this->fitted_lmaligned[i-1].x),
-                                                 -0.5 * (this->fitted_lmaligned[i].y + this->fitted_lmaligned[i-1].y));
-
-            }
-            dname = frameName + "/lmalign/flattened/sbox_angles";
-            df.add_contained_vals (dname.c_str(), lmalign_angles);
-
-            // Linear distance, but centered using the landmark aligned slices
-            float total_linear_distance = 0.0f;
-            float middle_distance = 0.0f;
-            double min_ang = 1e10;
-            std::vector<float> linear_distances (this->nBins, 0.0f);
-            for (int i=1; i<this->nBins; ++i) {
-                // Compute distance from Previous to current
-                float d = morph::MathAlgo::distance<float> (surface_box_centroids_lmaligned[i-1],
-                                                            surface_box_centroids_lmaligned[i]);
-                total_linear_distance += d;
-                linear_distances[i] = total_linear_distance;
-
-                double angle = std::atan2 (0.5 * (surface_box_centroids_lmaligned[i][0] + surface_box_centroids_lmaligned[i-1][0]),
-                                           -0.5 * (surface_box_centroids_lmaligned[i][1] + surface_box_centroids_lmaligned[i-1][1]));
-
-                // If we got to the zero-angle location, then mark the middle distance
-                if (std::abs(angle) < min_ang) {
-                    middle_distance = total_linear_distance;
-                    min_ang = std::abs(angle);
-                }
-            }
-            // Now offset the linear distances so that the middle is the 0 degree location
-            for (int i=0; i<this->nBins; ++i) { linear_distances[i] -= middle_distance; }
-
-            dname = frameName + "/lmalign/flattened/sbox_linear_distance";
-            df.add_contained_vals (dname.c_str(), linear_distances);
+            this->saveLmAlignAngles (df, theta_middle, surface_box_centroids_lmaligned);
         }
 
-        std::cout << "write() completed for one frame." << std::endl;
+        std::cout << "write() completed for " << frameName << std::endl;
+    }
+
+    //! Returns the cv::Point2d coordinate of the point on FrameData::fitted_lmaligned
+    //! that has been deemed the 'middle' or 'centre' point for the curve.
+    cv::Point2d getCentreLmaligned() const
+    {
+        cv::Point2d rtn(.0, .0);
+        if (this->centre_lmaligned > -1 && static_cast<size_t>(this->centre_lmaligned) < this->fitted_lmaligned.size()) {
+            rtn = this->fitted_lmaligned[this->centre_lmaligned];
+        }
+        return rtn;
+    }
+
+    //! Returns the cv::Point2d coordinate of the point on FrameData::fitted_autoaligned
+    //! that has been deemed the 'middle' or 'centre' point for the curve.
+    cv::Point2d getCentreAutoaligned() const
+    {
+        cv::Point2d rtn(.0, .0);
+        if (this->centre_autoaligned > -1 && static_cast<size_t>(this->centre_autoaligned) < this->fitted_autoaligned.size()) {
+            rtn = this->fitted_autoaligned[this->centre_autoaligned];
+        }
+        return rtn;
+    }
+
+    //! Given a centre point location \a othercentre, find the points on
+    //! fitted_lmaligned and fitted_autoaligned which are closest and mark these as
+    //! centre_lmaligned/centre_autoaligned.
+    void setMiddle (const FrameData& otherframe)
+    {
+        double diff_min = 1e9;
+        int i_min = 0;
+        cv::Point2d opoint = otherframe.getCentreLmaligned();
+        //std::cout << "setting middle from other point " << opoint << std::endl;
+        for (int i=0; i<this->nBins; ++i) {
+            cv::Point2d diff = fitted_lmaligned[i] - opoint;
+            double diff_len = std::sqrt(diff.x*diff.x + diff.y*diff.y);
+            if (diff_len < diff_min) {
+                diff_min = diff_len;
+                i_min = i;
+            }
+        }
+        //std::cout << "set centre_lmaligned = " << i_min << std::endl;
+        this->centre_lmaligned = i_min;
+
+        diff_min = 1e9;
+        i_min = 0;
+        for (int i=0; i<this->nBins; ++i) {
+            cv::Point2d diff = fitted_autoaligned[i] - otherframe.getCentreAutoaligned();
+            double diff_len = std::sqrt(diff.x*diff.x + diff.y*diff.y);
+            if (diff_len < diff_min) {
+                diff_min = diff_len;
+                i_min = i;
+            }
+        }
+        this->centre_autoaligned = i_min;
+    }
+
+    //! Set a centre location in the yz plane using the given angle (in radians) for the
+    //! given set of fitted points. Place result in \a middle_index.
+    void setMiddle (double theta_middle,
+                    std::vector<cv::Point2d>& fitted_points, int& middle_index,
+                    const cv::Point2d& angle_origin)
+    {
+        //std::cout << "setMiddle(theta_middle=" << theta_middle<<", fitted_points, middle_index) called\n";
+
+        // For landmark alignment, find the index of the box whose angle is closest to
+        // theta_middle (or where one of its corners is closest). BUT make sure that if
+        // there are two options, one closer than the other, we prefer the one that's
+        // further away.
+        int n_points = fitted_points.size();
+
+        std::vector<std::pair<int, morph::Vector<double, 2>>> candidates;
+        double max_cand_rad = -1e9;
+        double min_cand_rad = 1e9;
+        for (int i=0; i<n_points; ++i) {
+
+            // Offset the point wrt the angle origin
+            cv::Point2d pt = fitted_points[i] - angle_origin;
+            // Find angle diff to neighbouring bin
+            int i_n = i>0 ? i-1 : i+1;
+            cv::Point2d pt_n = fitted_points[i_n] - angle_origin;
+
+            double angle = std::atan2 (pt.x, pt.y);
+            double d_to_n = std::abs(std::atan2 (pt_n.x, pt_n.y) - angle);
+            d_to_n = (d_to_n > morph::PI_x3_OVER_2_D) ? std::abs(d_to_n - morph::TWO_PI_D) : d_to_n;
+
+            // Prevent the above from containing multiples of 2pi
+            double radius = std::sqrt(pt.x * pt.x + pt.y * pt.y);
+            double diff = std::abs (theta_middle - angle);
+            diff = (diff > morph::PI_x3_OVER_2_D) ? std::abs(diff - morph::TWO_PI_D) : diff;
+
+            if (diff < d_to_n) {
+                // It's a candidate
+                //std::cout << "Candidate point i = " << i << " diff = " << diff
+                //          << " (diff to neigb i_n = " << i_n << ": " << d_to_n << "), radius = " << radius << std::endl;
+                morph::Vector<double, 2> cand_dr = {diff, radius};
+                std::pair<int, morph::Vector<double, 2>> candidate = std::make_pair(i, cand_dr);
+                candidates.push_back (candidate);
+                if (radius > max_cand_rad) { max_cand_rad = radius; }
+                if (radius < min_cand_rad) { min_cand_rad = radius; }
+            }
+        }
+
+        double mean_radius = (max_cand_rad + min_cand_rad) / 2.0;
+        double diff_min = 1e9;
+        int i_min = 0;
+        for (std::pair<int, morph::Vector<double, 2>> candidate : candidates) {
+            // Test if the candidates radius is greater than the mean:
+            if (candidate.second[1] >= mean_radius) {
+                // The find the best difference:
+                if (candidate.second[0] < diff_min) {
+                    diff_min = candidate.second[0];
+                    i_min = candidate.first;
+                }
+            }
+        }
+
+        // The fit point at i_min is the one, mark it as such.
+        //std::cout << "From theta_middle, setting middle_index to " << i_min << " (diff_min: " << diff_min << ")" <<  std::endl;
+        middle_index = i_min;
+    }
+
+    //! Set a centre location in the yz plane (for the purpose of unwrapping the 3D
+    //! image into 2D) using the given angle (in radians).
+    void setMiddle (double theta_middle)
+    {
+        cv::Point2d ao(0,0);
+        this->setMiddle (theta_middle, fitted_lmaligned, this->centre_lmaligned, ao);
+        this->setMiddle (theta_middle, fitted_autoaligned, this->centre_autoaligned, ao);
+    }
+
+    void setMiddle (double theta_middle, const cv::Point2d& angle_origin_lm, const cv::Point2d& angle_origin_auto)
+    {
+        this->setMiddle (theta_middle, fitted_lmaligned, this->centre_lmaligned, angle_origin_lm);
+        this->setMiddle (theta_middle, fitted_autoaligned, this->centre_autoaligned, angle_origin_auto);
     }
 
     //! Mirror the image and mark in the flags that it was mirrored
@@ -1642,11 +1882,8 @@ public:
     void mirror_image_only()
     {
         this->compute_mirror (this->frame);
-        this->compute_mirror (this->frameF);
-        this->compute_mirror (this->frame_bgoff);
         this->compute_mirror (this->frame_signal);
         this->compute_mirror (this->frame_bgoffU);
-        this->compute_mirror (this->frame_signalU);
     }
 
     //! Flip the image & mark as such in flags
@@ -1659,11 +1896,8 @@ public:
     void flip_image_only()
     {
         this->compute_flip (this->frame);
-        this->compute_flip (this->frameF);
-        this->compute_flip (this->frame_bgoff);
         this->compute_flip (this->frame_signal);
         this->compute_flip (this->frame_bgoffU);
-        this->compute_flip (this->frame_signalU);
     }
 
     //! Check landmarks on each slice. If there are n landmarks on every slice, and n >=
@@ -1733,6 +1967,7 @@ private:
         }
         this->transform (this->fitted_scaled, this->fitted_autoaligned, this->autoalign_translation, this->autoalign_theta);
         this->transform (this->LM_scaled, this->LM_autoaligned, this->autoalign_translation, this->autoalign_theta);
+        this->transform (this->AM_scaled, this->AM_autoaligned, this->autoalign_translation, this->autoalign_theta);
 
         this->autoalignComputed = true;
     }
@@ -1781,6 +2016,10 @@ private:
         // the centroid of this slice is roughly 0? Or better to use the actual centroid
         // of the first slice.
         this->transform (this->LM_scaled, this->LM_lmaligned,
+                         this->lm_translation + (*this->parentStack)[0].curve_centroid,
+                         this->lm_theta);
+
+        this->transform (this->AM_scaled, this->AM_lmaligned,
                          this->lm_translation + (*this->parentStack)[0].curve_centroid,
                          this->lm_theta);
 
@@ -1849,6 +2088,8 @@ private:
         }
 
         this->transform (this->LM_scaled, this->LM_lmaligned, this->lm_translation, this->lm_theta);
+        std::cout << "Transform AM_scaled size " << this->AM_scaled.size() << " into this->AM_lmaligned size " << this->AM_lmaligned.size() << std::endl;
+        this->transform (this->AM_scaled, this->AM_lmaligned, this->lm_translation, this->lm_theta);
         this->transform (this->fitted_scaled, this->fitted_lmaligned, this->lm_translation, this->lm_theta);
 
         this->lmalignComputed = true;
@@ -1874,6 +2115,19 @@ public:
 
             // Scale the landmarks
             this->scalePoints (this->LM, this->LM_scaled);
+        }
+
+        if (!this->AM.empty()) {
+            this->AM_scaled.resize(this->AM.size());
+            this->AM_lmaligned.resize(this->AM.size());
+            this->AM_autoalign_translated.resize(this->AM.size());
+            this->AM_autoaligned.resize(this->AM.size());
+            std::cout << "Scaling AM into AM_scaled...\n";
+            this->scalePoints (this->AM, this->AM_scaled);
+            if (!this->AM.empty()) {
+                std::cout << "AM[0]: " << AM[0] << std::endl;
+                std::cout << "AM_scaled[0]: " << AM_scaled[0] << std::endl;
+            }
         }
 
         // Set variables saying aligned_with_centroids = false; aligned_with_landmarks =
@@ -2514,7 +2768,7 @@ private:
         if (target_aligned_alignment_coords.size() != alignment_coords.size()
             || neighbour_aligned_alignment_coords.size() != alignment_coords.size()) {
             std::stringstream ee;
-            ee << "Same number of alignment coords in both frames please! target_aligned..: "
+            ee << "alignOptimallyByRotation: Same number of alignment coords in both frames please! target_aligned..: "
                << target_aligned_alignment_coords.size()
                << ", alignment_coords: " << alignment_coords.size()
                << ", neighbour_aligned_alignment_coords: " << neighbour_aligned_alignment_coords.size();
@@ -2608,7 +2862,7 @@ private:
         if (target_aligned_alignment_coords.size() != alignment_coords.size()
             || neighbour_aligned_alignment_coords.size() != alignment_coords.size()) {
             std::stringstream ee;
-            ee << "Same number of alignment coords in both frames please! target_aligned..: "
+            ee << "alignOptimally: Same number of alignment coords in both frames please! target_aligned..: "
                << target_aligned_alignment_coords.size()
                << ", alignment_coords: " << alignment_coords.size()
                << ", neighbour_aligned_alignment_coords: " << neighbour_aligned_alignment_coords.size();
@@ -2713,7 +2967,7 @@ private:
         // Check that target frame has same number of coords, if not throw exception
         if (target_aligned_alignment_coords.size() != alignment_coords.size()) {
             std::stringstream ee;
-            ee << "Same number of alignment coords in both frames please! target_aligned..: "
+            ee << "alignOptimally(2): Same number of alignment coords in both frames please! target_aligned..: "
                << target_aligned_alignment_coords.size() << ", alignment_coords: " << alignment_coords.size();
             std::cout << ee.str() << std::endl;
             return;

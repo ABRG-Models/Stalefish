@@ -214,6 +214,12 @@ int main (int argc, char** argv)
             DM::i()->writeFrames();
             break;
         }
+        case ('W'):
+        {
+            // Write out 2D map to separate file (only)
+            DM::i()->writeMap();
+            break;
+        }
         case (' '):
         {
             DM::i()->gcf()->nextCurve();

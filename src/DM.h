@@ -20,6 +20,7 @@
 #define SF_GREEN    cv::Scalar(0,255,0,10)
 #define SF_RED      cv::Scalar(0,0,255,10)
 #define SF_YELLOW   cv::Scalar(0,255,255,10)
+#define SF_ORANGE   cv::Scalar(25,136,249,10)
 #define SF_PURPLE   cv::Scalar(238,121,159,50)
 #define SF_BLACK    cv::Scalar(0,0,0)
 #define SF_WHITE    cv::Scalar(255,255,255)
@@ -60,6 +61,9 @@ private:
     float thickness = 0.05f;
     //! The application configuration
     morph::Config conf;
+
+    //! The angle which marks a point about half way around the slices, with respect to the origin axes
+    double mapAlignAngle = 1.57;
 
     //! Colour space parameters
     std::string colourmodel = "monochrome";
@@ -214,6 +218,8 @@ public:
         } else if (this->input_mode == InputMode::Landmark) {
             this->input_mode = InputMode::Circlemark;
         } else if (this->input_mode == InputMode::Circlemark) {
+            this->input_mode = InputMode::Axismark;
+        } else if (this->input_mode == InputMode::Axismark) {
             this->input_mode = InputMode::Bezier;
         } else {
             // Shouldn't get here...
@@ -324,12 +330,12 @@ public:
         this->img = this->vFrameData[this->I].frame.clone();
         FrameData* cf = this->gcf();
         if (cf) {
-            this->sImg = cf->frame_signalU.clone(); // Don't get an alpha channel with frame_signal, unlike frame_bgoffU
+            this->sImg = cf->frame_signal.clone(); // Don't get an alpha channel with frame_signal, unlike frame_bgoffU
         }
     }
 
-    //! Write frames to HdfData
-    void writeFrames()
+    //! Update the curve fits, re-collect signal data and perform alignment, to ready the project for writing out.
+    void writePrep()
     {
         // Call updateAllFits() before writing only to ensure that all the boxes have
         // been refreshed. Seems these are not read out of the .h5 file. Bit of a hack, this.
@@ -338,8 +344,199 @@ public:
         // Before writing, apply the slice alignment algorithms
         for (auto& f : this->vFrameData) { f.updateAlignments(); }
 
+#ifdef ALIGN_BY_DISTANCE // Using the minimum distance in the y-z plane
+        // For the middle slice, find the location of the 'surface box at zero
+        // degrees', then for each slice, find the location of the surface box which is
+        // closest to the middle slice one.
+        size_t middleslice = this->vFrameData.size()/2;
+        this->vFrameData[middleslice].setMiddle (this->mapAlignAngle);
+        for (auto& f : this->vFrameData) {
+            f.setMiddle (this->vFrameData[middleslice]);
+        }
+#else
+        // Align all by angle. Problematic if the origin x axis does not run all the way
+        // through the 'centre' of the brain - when, for a given mapAlignAngle, there
+        // are >1 brain surfaces available to choose between.
+        cv::Point2d am_start_lm;
+        cv::Point2d am_start_aa;
+        float x_start;
+        bool got_start = false;
+        cv::Point2d am_end_lm;
+        cv::Point2d am_end_aa;
+        float x_end;
+        bool got_end = false;
+        for (auto& f : this->vFrameData) {
+            // Work just with one axis mark for now
+            if (!f.AM_lmaligned.empty() && got_start && !got_end) {
+                am_end_lm = f.AM_lmaligned[0];
+                am_end_aa = f.AM_autoaligned[0];
+                x_end = f.layer_x;
+                got_end = true;
+            }
+            if (!f.AM_scaled.empty() && !got_start) {
+                am_start_lm = f.AM_lmaligned[0];
+                am_start_aa = f.AM_autoaligned[0];
+                x_start = f.layer_x;
+                got_start = true;
+            }
+            // Just use the first two axis marks we come upon, ignoring the rest.
+            if (got_start == true && got_end == true) { break; }
+        }
+
+        // If we have alignment marks, then compute them for each frame
+        if (got_start == true && got_end == true) {
+            std::cout << "Have alignment marks; compute AM_origins from start / end: " << am_start_lm << "/" << am_end_lm << "\n";
+            double x1 = (double)x_start;
+            double x2 = (double)x_end;
+            for (auto& f : this->vFrameData) {
+
+                // First compute for the landmark aligned coordinate system
+                double x = (double)f.layer_x;
+                double y1 = am_start_lm.x;
+                double y2 = am_end_lm.x;
+                double z1 = am_start_lm.y;
+                double z2 = am_end_lm.y;
+                // Compute components of the slope, my and mz.
+                double my = (y2-y1)/(x2-x1);
+                double mz = (z2-z1)/(x2-x1);
+                // Find the offsets, c
+                double cy = y1 - my*x1;
+                double cz = z1 - mz*x1;
+                // Compute y and z for this slice
+                double y = my * x + cy;
+                double z = mz * x + cz;
+
+                //std::cout << "(lm) y = " << y << ", z = " << z << std::endl;
+                cv::Point2d origin_new(y,z);
+                //std::cout << "alignmark origin (lm): " << origin_new << std::endl;
+                if (f.AM_origins_lmaligned.empty()) {
+                    f.AM_origins_lmaligned.push_back (origin_new);
+                } else {
+                    f.AM_origins_lmaligned[0] = origin_new;
+                }
+                // Now compute for the autoaligned coordinate system
+                y1 = am_start_aa.x;
+                y2 = am_end_aa.x;
+                z1 = am_start_aa.y;
+                z2 = am_end_aa.y;
+                // Compute components of the slope, my and mz.
+                my = (y2-y1)/(x2-x1);
+                mz = (z2-z1)/(x2-x1);
+                // Find the offsets, c
+                cy = y1 - my*x1;
+                cz = z1 - mz*x1;
+                // Compute y and z for this slice
+                y = my * x + cy;
+                z = mz * x + cz;
+                //std::cout << "(aa) y = " << y << ", z = " << z << std::endl;
+                origin_new.x = y;
+                origin_new.y = z;
+                //std::cout << "alignmark origin (aa): " << origin_new << std::endl;
+                if (f.AM_origins_autoaligned.empty()) {
+                    f.AM_origins_autoaligned.push_back (origin_new);
+                } else {
+                    f.AM_origins_autoaligned[0] = origin_new;
+                }
+            }
+        }
+
+        if (got_start == true && got_end == true) {
+            // We have alignment marks; define and then align around that axis
+            for (auto& f : this->vFrameData) {
+                f.setMiddle (this->mapAlignAngle, f.AM_origins_lmaligned[0], f.AM_origins_autoaligned[0]);
+            }
+        } else {
+            // just align around the origin:
+            for (auto& f : this->vFrameData) { f.setMiddle (this->mapAlignAngle); }
+        }
+#endif
+    }
+
+    //! Write only the frames to a separate data file
+    void writeMap()
+    {
+        // First writeFrames anyway
+        this->writeFrames();
+
+        std::string mapfile = "map.h5";
+        {
+            // Get these things from the datafile: For each layer: Layer001/class/layer_x
+            morph::HdfData d_in(datafile, true);
+            morph::HdfData d_out(mapfile);
+
+            std::vector<float> map_x;
+            std::vector<float> map_y_lmalign;
+            std::vector<float> map_y_autoalign;
+            std::vector<float> map_means;
+
+            d_in.read_contained_vals ("/map/x", map_x);
+            d_in.read_contained_vals ("/map/y_lmalign", map_y_lmalign);
+            d_in.read_contained_vals ("/map/y_autoalign", map_y_autoalign);
+            d_in.read_contained_vals ("/map/means", map_means);
+
+            d_out.add_contained_vals ("/map/x", map_x);
+            d_out.add_contained_vals ("/map/y_lmalign", map_y_lmalign);
+            d_out.add_contained_vals ("/map/y_autoalign", map_y_autoalign);
+            d_out.add_contained_vals ("/map/means", map_means);
+        }
+
+        std::cout << "writeMap complete: 2D map written to HDF5" << std::endl;
+    }
+
+    //! Write frames to HdfData
+    void writeFrames()
+    {
+        this->writePrep();
+
         morph::HdfData d(this->datafile);
-        for (auto f : this->vFrameData) { f.write (d); }
+        // Pass in mapAlignAngle for generating the angle maps
+        for (auto f : this->vFrameData) {
+            f.write (d, this->mapAlignAngle);
+        }
+
+        // For each frame also collect 2d Map data. That's /class/layer_x, /signal/postproc/boxes/means, lmalign/flattened/sbox_linear_distance
+        std::vector<float> map_x;
+        std::vector<float> map_y_lmalign;
+        std::vector<float> map_y_autoalign;
+        std::vector<float> map_means;
+        for (auto f : this->vFrameData) {
+            std::string frameName;
+            {
+                std::stringstream ss;
+                ss << "/Frame";
+                ss.width(3);
+                ss.fill('0');
+                ss << (1+f.idx);
+                frameName = ss.str();
+            }
+
+            std::string pth = frameName + "/signal/postproc/boxes/means";
+            std::vector<float> _means;
+            d.read_contained_vals(pth.c_str(), _means);
+
+            pth = frameName + "/lmalign/flattened/sbox_linear_distance";
+            std::vector<float> _lmalign_lin_distances;
+            d.read_contained_vals(pth.c_str(), _lmalign_lin_distances);
+
+            pth = frameName + "/autoalign/flattened/sbox_linear_distance";
+            std::vector<float> _autoalign_lin_distances;
+            d.read_contained_vals(pth.c_str(), _autoalign_lin_distances);
+
+            pth = frameName + "/class/layer_x";
+            float _x;
+            d.read_val(pth.c_str(), _x);
+            std::vector<float> _xx (_means.size(), _x);
+
+            map_x.insert(map_x.end(), _xx.begin(), _xx.end());
+            map_y_lmalign.insert(map_y_lmalign.end(), _lmalign_lin_distances.begin(), _lmalign_lin_distances.end());
+            map_y_autoalign.insert(map_y_autoalign.end(), _autoalign_lin_distances.begin(), _autoalign_lin_distances.end());
+            map_means.insert(map_means.end(), _means.begin(), _means.end());
+        }
+        // Now write map/x etc into the HdfData.
+        d.add_contained_vals ("/map/x", map_x);
+        d.add_contained_vals ("/map/y_lmalign", map_y_lmalign);
+        d.add_contained_vals ("/map/y_autoalign", map_y_autoalign);
+        d.add_contained_vals ("/map/means", map_means);
 
         int nf = this->vFrameData.size();
         d.add_val("/nframes", nf);
@@ -363,7 +560,7 @@ public:
             this->exportCurves();
         } else if (cf->ct == InputMode::Freehand) {
             this->exportFreehand();
-        } else if (cf->ct == InputMode::Landmark || cf->ct == InputMode::Circlemark) {
+        } else if (cf->ct == InputMode::Landmark || cf->ct == InputMode::Circlemark || cf->ct == InputMode::Axismark) {
             this->exportLandmarks();
         } else {
             std::cerr << "Unknown mode for export\n";
@@ -620,6 +817,8 @@ public:
         // Set parameters for background offsetting.
         this->bgBlurScreenProportion = conf.getDouble ("bg_blur_screen_proportion", 0.1667);
         this->bgBlurSubtractionOffset = conf.getDouble ("bg_blur_subtraction_offset", 255.0f);
+
+        this->mapAlignAngle = conf.getDouble ("map_align_angle", 1.57);
 
         this->default_mode = InputMode::Bezier;
 
@@ -910,6 +1109,29 @@ public:
 #endif
     }
 
+    //! Draw the axis marks
+    void draw_axismarks (const cv::Point& pt)
+    {
+        DM* _this = DM::i();
+        cv::Mat* pImg = _this->getImg();
+        FrameData* cf = _this->gcf();
+
+        // circle under the cursor
+        if (cf->ct == InputMode::Axismark) {
+            circle (*pImg, pt, 7, SF_ORANGE, 1);
+        }
+
+        // Draw circles for the axismarks, with a number next to each one.
+        cv::Point toffset(8,5); // a text offset
+        for (size_t ii=0; ii<cf->AM.size(); ii++) {
+            circle (*pImg, cf->AM[ii], 5, SF_ORANGE, -1);
+            std::stringstream ss;
+            ss << 'a' << (1+ii);
+            cv::Point tpt(cf->AM[ii]);
+            putText (*pImg, ss.str(), tpt+toffset, cv::FONT_HERSHEY_SIMPLEX, 0.8, SF_BLACK, 1, cv::LINE_AA);
+        }
+    }
+
     //! Input mode for drawing the numbered alignment marks
     void draw_landmarks (const cv::Point& pt)
     {
@@ -1001,6 +1223,8 @@ public:
                 cf->LM.push_back (pt);
             } else if (cf->ct == InputMode::Circlemark) {
                 cf->addCirclepoint (pt);
+            } else if (cf->ct == InputMode::Axismark) {
+                cf->addAxismark (pt);
             }
         } else if (event == cv::EVENT_LBUTTONUP) {
             cf->loopFinished = false;
@@ -1021,12 +1245,13 @@ public:
         _this->draw_curves (pt);
         _this->draw_freehand (pt);
         _this->draw_landmarks (pt);
+        _this->draw_axismarks (pt);
         _this->draw_circlemarks (pt);
 
         std::stringstream ss;
         int xh = 30;
         ss << "Frame: " << _this->getFrameNum() << "/" << _this->getNumFrames()
-           << " " << cf->getFitInfo() << ". 'h' to toggle help.";
+           << " " << cf->getFitInfo() << ".";
         ss << " Range: " << cf->frame_maxmin.second << "," << cf->frame_maxmin.first;
         ss.precision(3);
         ss << " (bm:"<< cf->blurmeanU << ")";
@@ -1060,6 +1285,16 @@ public:
             putText (*sImg, ss3.str(), cv::Point(xh,80), cv::FONT_HERSHEY_SIMPLEX, 1.2*fontsz, SF_WHITE, 1, cv::LINE_AA);
         }
 
+        // h for help
+        std::string hs("Press 'h' for help");
+        putText (*pImg, hs, cv::Point(cf->frame.cols-300,cf->frame.rows-20), cv::FONT_HERSHEY_SIMPLEX, fontsz, SF_BLACK, 1, cv::LINE_AA);
+
+        // Draw text with cursor coordinates on bottom left of screen in a small font
+        std::stringstream css;
+        css << "px(y=" << x << ", z=" << y << ") "
+            << "mm[x=" << cf->layer_x << ", y=" << (x/cf->pixels_per_mm) << ", z=" << (y/cf->pixels_per_mm) << "]";
+        putText (*pImg, css.str(), cv::Point(xh,cf->frame.rows-20), cv::FONT_HERSHEY_SIMPLEX, fontsz/2.0f, SF_BLACK, 1, cv::LINE_AA);
+
         int yh = 90;
         int yinc = 40;
         if (_this->flags.test(AppShowHelp)) {
@@ -1091,7 +1326,7 @@ public:
                      cv::Point(xh,yh), cv::FONT_HERSHEY_SIMPLEX, fontsz, SF_BLACK, 1, cv::LINE_AA);
             yh += yinc;
             std::stringstream hh;
-            hh << "w:   Save to file: " << _this->datafile;
+            hh << "w:   Save to file: " << _this->datafile << " (W: Save this and also the 2D map to ./map.h5)";
             putText (*pImg, hh.str(),
                      cv::Point(xh,yh), cv::FONT_HERSHEY_SIMPLEX, fontsz, SF_BLACK, 1, cv::LINE_AA);
             yh += yinc;
