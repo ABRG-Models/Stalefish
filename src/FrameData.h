@@ -756,6 +756,8 @@ public:
             this->removeLastAxismark();
         } else {
             this->removeLastPoint();
+            this->updateFit();
+            this->refreshBoxes (-this->binA, this->binB);
         }
     }
 
@@ -2146,16 +2148,9 @@ public:
     //! Re-compute the boxes from the curve (double version)
     void refreshBoxes (const double lenA, const double lenB)
     {
-        // Don't refresh boxes for Freehand mode
-        if (this->ct == InputMode::Freehand) {
-            // Or perhaps hide stuff? Delete points in P? or leave the points in P,
-            // and have a separate store of the points in a freehand loop.
-            return;
-        }
-
-        if (this->fitted.empty()) {
-            return;
-        }
+        // Don't refresh boxes for Freehand mode or if this->fitted is empty
+        if (this->ct == InputMode::Freehand) { return; }
+        if (this->fitted.empty()) { return; }
 
         this->pointsInner.resize(this->nFit);
         this->pointsOuter.resize(this->nFit);
@@ -2447,6 +2442,11 @@ private:
     {
         if (this->PP.empty()) {
             std::cout << "Too few points to fit" << std::endl;
+            this->bcp.reset();
+            this->fitted.clear();
+            this->tangents.clear();
+            this->normals.clear();
+            this->clearBoxes();
             return;
         }
 
@@ -2456,9 +2456,7 @@ private:
         for (auto _P : this->PP) {
             std::vector<std::pair<double,double>> user_points;
             user_points.clear();
-            for (auto pt : _P) {
-                user_points.push_back (std::make_pair(pt.x, pt.y));
-            }
+            for (auto pt : _P) { user_points.push_back (std::make_pair(pt.x, pt.y)); }
 
             morph::BezCurve<double> bc;
             if (this->bcp.isNull()) {
@@ -2473,7 +2471,6 @@ private:
                 this->bcp.removeCurve();
                 this->bcp.addCurve (last);
                 this->bcp.addCurve (bc);
-
             }
         }
 
