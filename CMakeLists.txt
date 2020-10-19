@@ -33,17 +33,23 @@ else()
   set(CMAKE_CXX_FLAGS "${CMAKE_C_FLAGS} -Wall -Wfatal-errors -g")
 endif()
 
+# Tell clang to be quiet about brace initialisers
+if(CMAKE_CXX_COMPILER_ID MATCHES Clang)
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-missing-braces")
+endif()
+
 # Following `cmake --help-policy CMP0072`
 set(OpenGL_GL_PREFERENCE "GLVND")
 
 # Additional GL compiler flags.
-# maybe -DGL_GLEXT_PROTOTYPES
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DGL3_PROTOTYPES -DGL_GLEXT_PROTOTYPES")
+if(APPLE)
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DGL_SILENCE_DEPRECATION")
+endif()
 
 # Lib finding
 find_package(OpenCV REQUIRED)
 find_package(OpenGL REQUIRED)
-#find_package(GLUT REQUIRED) # Really? Check on Mac?
 find_package(HDF5 REQUIRED)
 find_package(jsoncpp REQUIRED)
 find_package(LAPACK REQUIRED)
