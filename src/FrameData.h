@@ -1900,22 +1900,19 @@ public:
         this->compute_flip (this->frame_bgoffU);
     }
 
-    //! Check landmarks on each slice. If there are n landmarks on every slice, and n >=
-    //! 1, return n, else return 0 (or perhaps -n where n is the median number of landmarks).
+    //! Check landmarks on each slice. If there are at least n landmarks on every slice,
+    //! and n >= 1, return n, else return 0 (or perhaps -n where n is the median number
+    //! of landmarks).
     int landmarkCheck()
     {
-        int n = static_cast<int>(this->LM.size());
-        // Only if we have at least 2 landmarks is it worth checking any further
-        if (n >= 1) {
-            // Ok, so now see if all the other frames have n landmarks. If so, then we
-            // could apply the landmark based alignment (and should return true)
-            for (auto fr : (*this->parentStack)) {
-                if (static_cast<int>(fr.LM.size()) != n) {
-                    n = 0;
-                    break;
-                }
-            }
+        // Find minimum number of landmarks on any one slice
+        int n = 100000;
+        for (auto fr : (*this->parentStack)) {
+            int _n = static_cast<int>(fr.LM.size());
+            n = (_n < n) ? _n : n;
         }
+        // Perhaps there were no frames, in which case, had better return 0:
+        if (n == 100000) { n = 0; }
         return n;
     }
 

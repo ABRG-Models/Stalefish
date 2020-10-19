@@ -1145,9 +1145,9 @@ public:
 
         // Draw circles for the landmarks, with a number next to each one.
         cv::Point toffset(8,5); // a text offset
-        bool lm_ok = cf->landmarkCheck(); // True if all landmarks are present and correct
+        int lm_ok = cf->landmarkCheck(); // True if all landmarks are present and correct
         for (size_t ii=0; ii<cf->LM.size(); ii++) {
-            circle (*pImg, cf->LM[ii], 5, (lm_ok ? SF_BLACK : SF_RED), -1);
+            circle (*pImg, cf->LM[ii], 5, (static_cast<int>(ii)<lm_ok ? SF_BLACK : SF_RED), -1);
 
             std::stringstream ss;
             ss << (1+ii);
