@@ -43,16 +43,13 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DGL3_PROTOTYPES -DGL_GLEXT_PROTOTYPES")
 # Lib finding
 find_package(OpenCV REQUIRED)
 find_package(OpenGL REQUIRED)
-find_package(GLUT REQUIRED)
-find_package(X11 REQUIRED)
+#find_package(GLUT REQUIRED) # Really? Check on Mac?
 find_package(HDF5 REQUIRED)
 find_package(jsoncpp REQUIRED)
 find_package(LAPACK REQUIRED)
-find_package(glfw3 QUIET)
+find_package(glfw3 REQUIRED)
 find_package(Armadillo REQUIRED)
-
-# Find libmorphologica using pkgconfig
-find_package(morphologica CONFIG REQUIRED)
+find_package(morphologica REQUIRED)
 
 # Library code is compiled up as a shared library in lib/ (could also
 # be compiled static if needed)
