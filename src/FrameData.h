@@ -82,7 +82,7 @@ public:
     std::deque<cv::Point> P;
     //! user-supplied points for potential addition to PP at its *start*.
     std::deque<cv::Point> sP;
-    //! A deque or deques of points for multi-section Bezier curves
+    //! A deque of deques of points for multi-section Bezier curves
     std::deque<std::deque<cv::Point>> PP;
     //! Index into PP
     int pp_idx = 0;

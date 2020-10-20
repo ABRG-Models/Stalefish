@@ -1375,7 +1375,7 @@ public:
         _this->firstCall = false;
 
         // Optionally show blurry window...
-        if (_this->showBlurWin == true) {
+        if (_this->showBlurWin) {
             if (_this->blurWin == "") {
                 _this->blurWin = "blurWin";
                 cv::namedWindow (_this->blurWin, cv::WINDOW_NORMAL|cv::WINDOW_FREERATIO);
@@ -1390,7 +1390,7 @@ public:
         }
 
         // ...and the offset window
-        if (_this->showOffsWin == true) {
+        if (_this->showOffsWin) {
             //if (_this->offsWin == "") { // Always re-draw offset window, as it has items on itx
             _this->offsWin = "offsWin";
             cv::namedWindow (_this->offsWin, cv::WINDOW_NORMAL|cv::WINDOW_FREERATIO);
@@ -1436,6 +1436,8 @@ public:
         FrameData* cf = _this->gcf();
         _this->bgBlurScreenProportion = ((double)val)/100;
         cf->updateFit();
+        if (_this->showBlurWin)
+        	imshow (_this->blurWin, *cf->getBlur());
         DM::onmouse (cv::EVENT_MOUSEMOVE, -1, -1, 0, NULL);
     }
     static void createTrackbars()
@@ -1457,6 +1459,7 @@ public:
         cv::setTrackbarPos (tbNBins, _this->winName, _this->nBinsTarg);
         cv::createTrackbar (gBlur, _this->winName, &bgBlurScreenProportion_int, 100, ontrackbar_blur);
         cv::setTrackbarPos (gBlur, _this->winName, bgBlurScreenProportion_int);
+        _this->bgBlurScreenProportion = (double)bgBlurScreenProportion_int / 100; //This is done because OpenCV Trackbars work only with ints, not doubles
     }
 
     static void updateTrackbars()
