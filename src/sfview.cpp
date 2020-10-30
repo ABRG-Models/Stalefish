@@ -10,6 +10,8 @@
 #include <array>
 #include <morph/PointRowsVisual.h>
 #include <morph/ScatterVisual.h>
+#include <morph/QuadsVisual.h>
+#include <morph/RodVisual.h>
 #include <popt.h>
 
 using namespace std;
@@ -427,10 +429,11 @@ int addVisMod (SFVisual& v, const string& datafile, const CmdOptions& co, const 
                 v.angle_centres.push_back (visId);
 
                 if (!AM_origins_lmaligned.empty()) {
-                    visId = v.addVisualModel (new morph::ScatterVisual<float> (v.shaderprog,
-                                                                               &AM_origins_lmaligned, offset,
-                                                                               &centres_id, 0.05f, scale,
-                                                                               morph::ColourMapType::Magma));
+                    size_t amo_last = AM_origins_lmaligned.size()-1;
+                    std::array<float, 3> rcol = {1.0f,1.0f,1.0f};
+                    visId = v.addVisualModel (new morph::RodVisual (v.shaderprog, offset,
+                                                                    AM_origins_lmaligned[0], AM_origins_lmaligned[amo_last],
+                                                                    0.05f, rcol));
                     v.axes.push_back (visId);
                 }
 
@@ -456,10 +459,11 @@ int addVisMod (SFVisual& v, const string& datafile, const CmdOptions& co, const 
                 v.angle_centres.push_back (visId);
 
                 if (!AM_origins_autoaligned.empty()) {
-                    visId = v.addVisualModel (new morph::ScatterVisual<float> (v.shaderprog,
-                                                                               &AM_origins_autoaligned, offset,
-                                                                               &centres_id, 0.05f, scale,
-                                                                               morph::ColourMapType::Magma));
+                    size_t amo_last = AM_origins_autoaligned.size()-1;
+                    std::array<float, 3> rcol = {1.0f,1.0f,1.0f};
+                    visId = v.addVisualModel (new morph::RodVisual (v.shaderprog, offset,
+                                                                    AM_origins_autoaligned[0], AM_origins_autoaligned[amo_last],
+                                                                    0.05f, rcol));
                     v.axes.push_back (visId);
                 }
             }
