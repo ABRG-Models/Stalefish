@@ -55,7 +55,9 @@ find_package(jsoncpp REQUIRED)
 find_package(LAPACK REQUIRED)
 find_package(glfw3 REQUIRED)
 find_package(Armadillo REQUIRED)
-find_package(morphologica REQUIRED)
+
+# Users are directed to clone morphologica in the Stalefish root.
+include_directories(BEFORE morphologica)
 
 # Library code is compiled up as a shared library in lib/ (could also
 # be compiled static if needed)
