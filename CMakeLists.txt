@@ -58,6 +58,7 @@ find_package(Armadillo REQUIRED)
 
 # Users are directed to clone morphologica in the Stalefish root.
 include_directories(BEFORE morphologica)
+include_directories(BEFORE morphologica/include)
 
 # Library code is compiled up as a shared library in lib/ (could also
 # be compiled static if needed)
