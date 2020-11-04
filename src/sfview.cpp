@@ -9,8 +9,10 @@
 #include <cmath>
 #include <array>
 #include <morph/PointRowsVisual.h>
+#include <morph/PointRowsMeshVisual.h>
 #include <morph/ScatterVisual.h>
 #include <morph/QuadsVisual.h>
+#include <morph/QuadsMeshVisual.h>
 #include <morph/RodVisual.h>
 #include <popt.h>
 
@@ -81,6 +83,10 @@ struct CmdOptions
     int use_autoalign;
     //! If true, plot ribbons for 3D instead of the smooth surface map. Useful for debugging
     int show_ribbons;
+    //! If true, plot the meshy version of the surface, with no colour
+    int show_mesh;
+    //! If true, hide colour map and plot in white.
+    int hide_colour;
     //! Show landmarks from first model
     int show_landmarks;
     //! Show landmarks from all models
@@ -101,6 +107,8 @@ void zeroCmdOptions (CmdOptions* copts)
     copts->scale_perslice = 0;
     copts->use_autoalign = 0;
     copts->show_ribbons = 0;
+    copts->show_mesh = 0;
+    copts->hide_colour = 0; // Default to showing colour
     copts->show_landmarks = 1;
     copts->show_landmarks_all = 0;
     copts->show_flattened = 0;
@@ -238,6 +246,12 @@ int addVisMod (SFVisual& v, const string& datafile, const CmdOptions& co, const 
     bool autoscale_per_slice = co.scale_perslice > 0 ? true : false;
     bool align_lm = co.use_autoalign > 0 ? false : true;
     bool showribbons = co.show_ribbons > 0 ? true : false;
+    bool showmesh = co.show_mesh > 0 ? true : false;
+    bool showcolour = co.hide_colour > 0 ? false : true;
+    float colour_sat = showcolour ? 1.0f : 0.0f;
+    std::cout << "colour_sat = " << colour_sat << std::endl;
+    morph::ColourMapType cmt = morph::ColourMapType::Monochrome;
+    if (showcolour == false) { cmt = morph::ColourMapType::Fixed; }
 
     try {
         morph::Vector<float> offset = { 0.0, 0.0, 0.0 };
@@ -410,15 +424,35 @@ int addVisMod (SFVisual& v, const string& datafile, const CmdOptions& co, const 
             // Show landmark aligned for preference:
             if (lmalignComputed == true && align_lm == true) {
                 if (showribbons) {
-                    visId = v.addVisualModel (new morph::QuadsVisual<float> (v.shaderprog,
-                                                                             &quads_lmaligned, offset,
-                                                                             &means, scale,
-                                                                             morph::ColourMapType::Monochrome, hue));
-                } else {
-                    visId = v.addVisualModel (new morph::PointRowsVisual<float> (v.shaderprog,
-                                                                                 &points_lmaligned, offset,
+                    if (showmesh) {
+                        visId = v.addVisualModel (new morph::QuadsMeshVisual<float> (v.shaderprog,
+                                                                                     &quads_lmaligned, offset,
+                                                                                     &means, scale,
+                                                                                     cmt, hue, colour_sat, 0.005f
+                                                      ));
+                    } else {
+                        visId = v.addVisualModel (new morph::QuadsVisual<float> (v.shaderprog,
+                                                                                 &quads_lmaligned, offset,
                                                                                  &means, scale,
-                                                                                 morph::ColourMapType::Monochrome, hue));
+                                                                                 cmt, hue));
+
+                    }
+                } else {
+                    // Want to be able to pass colour==off to these. That means ability to pass sat as well as hue.
+                    if (showmesh) {
+                        std::cout << "Adding pointRowsMeshVisual with colour_sat=" << colour_sat << std::endl;
+                        // hue: 1/6 for yellow. 130/360 for a green. 0 for read
+                        visId = v.addVisualModel (new morph::PointRowsMeshVisual<float> (v.shaderprog,
+                                                                                         &points_lmaligned, offset,
+                                                                                         &means, scale,
+                                                                                         cmt, hue, colour_sat, 0.9f, 0.005f,
+                                                                                         cmt, (0.0/360.0f), 1.0f, 1.0f, 0.015f));
+                    } else {
+                        visId = v.addVisualModel (new morph::PointRowsVisual<float> (v.shaderprog,
+                                                                                     &points_lmaligned, offset,
+                                                                                     &means, scale,
+                                                                                     cmt, hue));
+                    }
                 }
                 v.surfaces_3d.push_back (visId);
 
@@ -440,15 +474,15 @@ int addVisMod (SFVisual& v, const string& datafile, const CmdOptions& co, const 
             } else {
 
                 if (showribbons) {
-                    visId = v.addVisualModel (new morph::QuadsVisual<float> (v.shaderprog,
-                                                                             &quads_autoaligned, offset,
-                                                                             &means, scale,
-                                                                             morph::ColourMapType::Monochrome, hue));
+                    visId = v.addVisualModel (new morph::QuadsMeshVisual<float> (v.shaderprog,
+                                                                                 &quads_autoaligned, offset,
+                                                                                 &means, scale,
+                                                                                 cmt, hue, 0.005f));
                 } else {
                     visId = v.addVisualModel (new morph::PointRowsVisual<float> (v.shaderprog,
                                                                                  &points_autoaligned, offset,
                                                                                  &means, scale,
-                                                                                 morph::ColourMapType::Monochrome, hue));
+                                                                                 cmt, hue));
                 }
                 v.surfaces_3d.push_back (visId);
 
@@ -685,6 +719,14 @@ int main (int argc, char** argv)
         {"show_ribbons", 'r',
          POPT_ARG_NONE, &(cmdOptions.show_ribbons), 0,
          "If set, display the ribbon-like surface boxes, rather than the smoothed surface."},
+
+        {"show_mesh", 'e',
+         POPT_ARG_NONE, &(cmdOptions.show_mesh), 0,
+         "If set, display the mesh version of the surface."},
+
+        {"hide_colour", 'c',
+         POPT_ARG_NONE, &(cmdOptions.hide_colour), 0,
+         "If set, hide the colour that indicates the ISH expression data value."},
 
         {"show_landmarks", 'l',
          POPT_ARG_INT, &(cmdOptions.show_landmarks), 0,
