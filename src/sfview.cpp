@@ -85,6 +85,8 @@ struct CmdOptions
     int show_ribbons;
     //! If true, plot the meshy version of the surface, with no colour
     int show_mesh;
+    //! If true, use ambient/diffuse lighting
+    int lighting;
     //! If true, hide colour map and plot in white.
     int hide_colour;
     //! Show landmarks from first model
@@ -108,6 +110,7 @@ void zeroCmdOptions (CmdOptions* copts)
     copts->use_autoalign = 0;
     copts->show_ribbons = 0;
     copts->show_mesh = 0;
+    copts->lighting = 0;
     copts->hide_colour = 0; // Default to showing colour
     copts->show_landmarks = 1;
     copts->show_landmarks_all = 0;
@@ -724,6 +727,10 @@ int main (int argc, char** argv)
          POPT_ARG_NONE, &(cmdOptions.show_mesh), 0,
          "If set, display the mesh version of the surface."},
 
+        {"lighting", 'g',
+         POPT_ARG_NONE, &(cmdOptions.lighting), 0,
+         "If set, apply ambient/diffuse lighting in the shader."},
+
         {"hide_colour", 'c',
          POPT_ARG_NONE, &(cmdOptions.hide_colour), 0,
          "If set, hide the colour that indicates the ISH expression data value."},
@@ -785,10 +792,14 @@ int main (int argc, char** argv)
     // Visual scene for all models
     morph::Vector<float> coordArrowLocn = {0,0,0};
     morph::Vector<float> coordArrowLengths = {6,2,2};
-    SFVisual v(1024, 768, cmdOptions.datafiles[0], coordArrowLocn, coordArrowLengths, 0.4);
+    SFVisual v(2000, 1400, cmdOptions.datafiles[0], coordArrowLocn, coordArrowLengths, 0.4);
     v.zNear = 0.001;
     v.zFar = 40.0;
-    v.setZDefault (-15.4);
+    // Enable lighting if asked for, or automatically for mesh views
+    if (cmdOptions.lighting > 0 || cmdOptions.show_mesh > 0) {
+        v.lightingEffects (true);
+    }
+    v.diffuse_position = {-1, 2, -3};
 
     // For each file in cmdOptions.datafiles:
     // 0 red .2 yellow .3 green .4 cyan green .5 cyan .6 blue .7 blue .8 purple .9 red
