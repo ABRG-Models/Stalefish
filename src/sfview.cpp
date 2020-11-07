@@ -796,6 +796,7 @@ int main (int argc, char** argv)
     v.zNear = 0.001;
     v.zFar = 40.0;
     v.showTitle = false;
+    v.showCoordArrows = true;
     // Enable lighting if asked for, or automatically for mesh views
     if (cmdOptions.lighting > 0 || cmdOptions.show_mesh > 0) {
         v.lightingEffects (true);
