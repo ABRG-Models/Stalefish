@@ -2,22 +2,38 @@
 
 ## Dependencies
 
-This program links to
-[morphologica](https://github.com/ABRG-Models/morphologica) (and thus
-to the associated libraries armadillo, opencv and hdf5). So head over
-to that page and follow the instructions to build and install
+This program compiles with
+[morphologica](https://github.com/ABRG-Models/morphologica) and thus
+needs to link to the associated libraries armadillo, opencv, glfw, hdf5 and freetype). So head over
+to that page and follow the instructions to install the dependencies for
 morphologica.
 
 ## Compile Stalefish using cmake
 
 ```bash
+# clone Stalefish and change into Stalefish dir:
 git clone https://github.com/ABRG-Models/Stalefish.git
 cd Stalefish
+# Inside Stalefish dir, clone morphologica:
+git clone https://github.com/ABRG-Models/morphologica.git
+# Still in the Stalefish dir, create a build dir:
 mkdir build
 cd build
 cmake ..
 make
 ```
+
+## Updating Stalefish
+
+```
+cd /path/to/Stalefish/morphologica
+git pull -p
+cd .. # So that you are now in the Stalefish dir
+git pull -p
+cd build
+make
+```
+
 ## Running the program
 
 run using e.g.,:
