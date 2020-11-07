@@ -791,10 +791,11 @@ int main (int argc, char** argv)
 
     // Visual scene for all models
     morph::Vector<float> coordArrowLocn = {0,0,0};
-    morph::Vector<float> coordArrowLengths = {6,2,2};
-    SFVisual v(2000, 1400, cmdOptions.datafiles[0], coordArrowLocn, coordArrowLengths, 0.4);
+    morph::Vector<float> coordArrowLengths = {0.05f, 0.05f, 0.05f};
+    SFVisual v(2000, 1400, cmdOptions.datafiles[0], coordArrowLocn, coordArrowLengths, 1.5f);
     v.zNear = 0.001;
     v.zFar = 40.0;
+    v.showTitle = false;
     // Enable lighting if asked for, or automatically for mesh views
     if (cmdOptions.lighting > 0 || cmdOptions.show_mesh > 0) {
         v.lightingEffects (true);
