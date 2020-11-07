@@ -28,9 +28,9 @@ set(CMAKE_CXX_FLAGS "${STALEFISH_HOST_DEFINITION}")
 set(CMAKE_C_FLAGS "${STALEFISH_HOST_DEFINITION}")
 
 if(APPLE)
-  set(CMAKE_CXX_FLAGS "${CMAKE_C_FLAGS} -Wall -Wfatal-errors")
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wfatal-errors")
 else()
-  set(CMAKE_CXX_FLAGS "${CMAKE_C_FLAGS} -Wall -Wfatal-errors -g")
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wfatal-errors -g")
 endif()
 
 # Tell clang to be quiet about brace initialisers
@@ -55,10 +55,13 @@ find_package(jsoncpp REQUIRED)
 find_package(LAPACK REQUIRED)
 find_package(glfw3 REQUIRED)
 find_package(Armadillo REQUIRED)
+find_package(Freetype REQUIRED)
 
 # Users are directed to clone morphologica in the Stalefish root.
 include_directories(BEFORE morphologica)
 include_directories(BEFORE morphologica/include)
+# Tell Stalefish where the morph fonts are, to compile them into the binary
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DMORPH_FONTS_DIR=\"\\\"${PROJECT_SOURCE_DIR}/morphologica/fonts\\\"\"")
 
 # Library code is compiled up as a shared library in lib/ (could also
 # be compiled static if needed)

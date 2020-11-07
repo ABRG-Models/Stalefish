@@ -1,11 +1,11 @@
 # Define collections of includes that have to be made for morphologica
 set(MORPH_INC_CORE ${ARMADILLO_INCLUDE_DIR} ${ARMADILLO_INCLUDE_DIRS} ${HDF5_INCLUDE_DIR})
-set(MORPH_INC_GL ${OpenCV_INCLUDE_DIRS} ${OPENGL_INCLUDE_DIR} ${GLFW3_INCLUDE_DIR})
+set(MORPH_INC_GL ${OpenCV_INCLUDE_DIRS} ${OPENGL_INCLUDE_DIR} ${GLFW3_INCLUDE_DIR} ${FREETYPE_INCLUDE_DIRS})
 include_directories(${MORPH_INC_CORE} ${MORPH_INC_GL})
 
 # Define collections of links that have to be made for morphologica
 set(MORPH_LIBS_CORE ${ARMADILLO_LIBRARY} ${ARMADILLO_LIBRARIES} ${LAPACK_LIBRARIES} ${HDF5_C_LIBRARIES} jsoncpp_lib)
-set(MORPH_LIBS_GL ${OpenCV_LIBS} OpenGL::GL glfw)
+set(MORPH_LIBS_GL ${OpenCV_LIBS} OpenGL::GL glfw Freetype::Freetype)
 
 add_executable(stalefish stalefish.cpp)
 target_link_libraries(stalefish ${MORPH_LIBS_CORE} ${OpenCV_LIBS})
