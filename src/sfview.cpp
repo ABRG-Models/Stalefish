@@ -23,8 +23,9 @@ class SFVisual : public morph::Visual
 {
 public:
     SFVisual (int width, int height, const std::string& title,
-              const morph::Vector<float> caOffset, const morph::Vector<float> caLength, const float caThickness)
-        : morph::Visual (width, height, title, caOffset, caLength, caThickness) {}
+              const morph::Vector<float, 2> caOffset, const morph::Vector<float> caLength,
+              const float caThickness, const float caEm)
+        : morph::Visual (width, height, title, caOffset, caLength, caThickness, caEm) {}
 
     //! Vector of VisualModel IDs for the landmarks. To hide landmarks, hide these.
     std::vector<unsigned int> landmarks;
@@ -790,9 +791,9 @@ int main (int argc, char** argv)
     // End processing options. Can now access options via cmdOptions
 
     // Visual scene for all models
-    morph::Vector<float> coordArrowLocn = {0,0,0};
-    morph::Vector<float> coordArrowLengths = {0.05f, 0.05f, 0.05f};
-    SFVisual v(2000, 1400, cmdOptions.datafiles[0], coordArrowLocn, coordArrowLengths, 1.5f);
+    morph::Vector<float, 2> coordArrowLocn = {-0.75,-0.7};
+    morph::Vector<float> coordArrowLengths = {0.14f, 0.07f, 0.07f};
+    SFVisual v(2000, 1400, cmdOptions.datafiles[0], coordArrowLocn, coordArrowLengths, 1.0f, 0.01f);
     v.zNear = 0.001;
     v.zFar = 40.0;
     v.showTitle = false;
