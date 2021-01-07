@@ -4,30 +4,23 @@
 #include "FrameData.h"
 #include <opencv2/opencv.hpp>
 #include <opencv2/imgproc.hpp>
-using cv::waitKey;
 #include <iostream>
-using std::cout;
-using std::endl;
 #include <sstream>
-using std::stringstream;
 #include <string>
-using std::string;
 #include <unistd.h>
-#include <morph/Config.h>
-using morph::Config;
 
 //! Main entry point
 int main (int argc, char** argv)
 {
     if (argc < 2) {
-        cout << "Please supply path to the json conf file" << endl;
+        std::cout << "Please supply path to the json conf file" << std::endl;
         return 1;
     }
-    string paramsfile (argv[1]);
+    std::string paramsfile (argv[1]);
 
     // In case we need to do something special when upgrading data formats
     if (argc > 2) {
-        if (string(argv[2]) == string("old")) {
+        if (std::string(argv[2]) == std::string("old")) {
             DM::i()->readOldFormat = true;
         }
     }
@@ -48,7 +41,7 @@ int main (int argc, char** argv)
 # define WAIT_TIME 0 // wait infinitely
 #endif
         DM::onmouse (cv::EVENT_MOUSEMOVE, -1, -1, 0, NULL);
-        char k = waitKey (WAIT_TIME);
+        char k = cv::waitKey (WAIT_TIME);
         switch(k) {
         // 1 to 4 - select what is shown
         case ('1'):
