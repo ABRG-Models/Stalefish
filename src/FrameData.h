@@ -28,6 +28,8 @@ enum class InputMode
     Bezier,    // Cubic Bezier: "curve drawing mode"
     Freehand,  // A freehand drawn loop enclosing a region
     Landmark,  // User provides alignment landmark locations on each slice
+    GlobalLandmark, // User provides a number of landmarks, numbered across the entire slice
+                    // set, for linear transformations between individual datasets.
     ReverseBezier, // Curve drawing mode but adding/deleting points at the start of the curve
     Circlemark, // Circular landmarks that are large and require 3 points to estimate
                 // their centre. Developed to handle needle alignment holes.
@@ -138,6 +140,21 @@ public:
     //! generating 2D maps in FrameData::write()
     std::vector<cv::Point2d> AM_origins_lmaligned;
     std::vector<cv::Point2d> AM_origins_autoaligned;
+
+    //! Global landmarks are a bit like axismarks, in that there are some of them, across
+    //! the whole slice set. It's possible that there are >1 on a given slice, too.
+    std::vector<cv::Point> GLM;
+    //! Global landmark points scaled by pixels_per_mm
+    std::vector<cv::Point2d> GLM_scaled;
+    //! We'll also save out the autoaligned global landmarks, just like we save out autoaligned landmarks
+    std::vector<cv::Point2d> GLM_autoalign_translated;
+    std::vector<cv::Point2d> GLM_autoaligned;
+    //! As part of alignment, have to hold a copy of the aligned global landmarks
+    std::vector<cv::Point2d> GLM_lmaligned;
+
+    // May need:
+    //std::vector<cv::Point2d> GLM_origins_lmaligned;
+    //std::vector<cv::Point2d> GLM_origins_autoaligned;
 
     //! The means computed for the boxes. This is "mean_signal".
     std::vector<float> box_signal_means;
@@ -482,6 +499,8 @@ public:
             ss << ". Freehand mode";
         } else if (this->ct == InputMode::Landmark) {
             ss << ". Landmark mode";
+        } else if (this->ct == InputMode::GlobalLandmark) {
+            ss << ". Globalmark mode";
         } else if (this->ct == InputMode::Circlemark) {
             ss << ". Circlemark mode";
         } else if (this->ct == InputMode::Axismark) {
@@ -747,6 +766,8 @@ public:
             this->removeLastRegion();
         } else if (this->ct == InputMode::Landmark) {
             this->removeLastLandmark();
+        } else if (this->ct == InputMode::GlobalLandmark) {
+            this->removeLastGlobalLandmark();
         } else if (this->ct == InputMode::ReverseBezier) {
             this->removeFirstPoint();
         } else if (this->ct == InputMode::Circlemark) {
@@ -867,6 +888,12 @@ public:
     {
         if (!this->AM.empty()) { this->AM.pop_back(); }
     }
+
+    //! Add a global landmark
+    void addGlobalLandmark (const cv::Point& pt) { this->GLM.push_back (pt); }
+
+    //! Remove the last global landmark
+    void removeLastGlobalLandmark() { if (!this->GLM.empty()) { this->GLM.pop_back(); } }
 
     //! Remove the last landmark coordinate
     void removeLastLandmark()
@@ -1033,6 +1060,16 @@ public:
         } catch (...) {
             // Do nothing on exception. Move on to next.
             std::cout << "No axismarks to read for this frame" << std::endl;
+        }
+
+        // Global landmark points
+        dname = frameName + "/class/GLM";
+        this->GLM.clear();
+        try {
+            df.read_contained_vals (dname.c_str(), this->GLM);
+        } catch (...) {
+            // Do nothing on exception. Move on to next.
+            std::cout << "No global landmarks to read for this frame" << std::endl;
         }
     }
 
@@ -1245,11 +1282,23 @@ public:
         df.add_contained_vals (dname.c_str(), this->AM_origins_lmaligned);
         dname = frameName + "/autoalign/alignmark_origins";
         df.add_contained_vals (dname.c_str(), this->AM_origins_autoaligned);
+
+        // Global landmark points
+        dname = frameName + "/class/GLM";
+        df.add_contained_vals (dname.c_str(), this->GLM);
+        dname = frameName + "/class/GLM_scaled";
+        df.add_contained_vals (dname.c_str(), this->GLM_scaled);
+
+        // Possibly:
+        //dname = frameName + "/lmalign/global_landmark_origins";
+        //df.add_contained_vals (dname.c_str(), this->GLM_origins_lmaligned);
+        //dname = frameName + "/autoalign/global_landmark_origins";
+        //df.add_contained_vals (dname.c_str(), this->GLM_origins_autoaligned);
     }
 
     //! A subroutine of FrameData::write.
     void saveAutoAlignAngles (morph::HdfData& df, const double theta_middle,
-                            const std::vector<std::array<float,3>>& surface_box_centroids_autoaligned)
+                              const std::vector<std::array<float,3>>& surface_box_centroids_autoaligned)
     {
         std::string frameName = this->getFrameName();
 
@@ -1967,6 +2016,7 @@ private:
         this->transform (this->fitted_scaled, this->fitted_autoaligned, this->autoalign_translation, this->autoalign_theta);
         this->transform (this->LM_scaled, this->LM_autoaligned, this->autoalign_translation, this->autoalign_theta);
         this->transform (this->AM_scaled, this->AM_autoaligned, this->autoalign_translation, this->autoalign_theta);
+        this->transform (this->GLM_scaled, this->GLM_autoaligned, this->autoalign_translation, this->autoalign_theta);
 
         this->autoalignComputed = true;
     }
@@ -2019,6 +2069,10 @@ private:
                          this->lm_theta);
 
         this->transform (this->AM_scaled, this->AM_lmaligned,
+                         this->lm_translation + (*this->parentStack)[0].curve_centroid,
+                         this->lm_theta);
+
+        this->transform (this->GLM_scaled, this->GLM_lmaligned,
                          this->lm_translation + (*this->parentStack)[0].curve_centroid,
                          this->lm_theta);
 
@@ -2089,6 +2143,7 @@ private:
         this->transform (this->LM_scaled, this->LM_lmaligned, this->lm_translation, this->lm_theta);
         std::cout << "Transform AM_scaled size " << this->AM_scaled.size() << " into this->AM_lmaligned size " << this->AM_lmaligned.size() << std::endl;
         this->transform (this->AM_scaled, this->AM_lmaligned, this->lm_translation, this->lm_theta);
+        this->transform (this->GLM_scaled, this->GLM_lmaligned, this->lm_translation, this->lm_theta);
         this->transform (this->fitted_scaled, this->fitted_lmaligned, this->lm_translation, this->lm_theta);
 
         this->lmalignComputed = true;
@@ -2126,6 +2181,19 @@ public:
             if (!this->AM.empty()) {
                 std::cout << "AM[0]: " << AM[0] << std::endl;
                 std::cout << "AM_scaled[0]: " << AM_scaled[0] << std::endl;
+            }
+        }
+
+        if (!this->GLM.empty()) {
+            this->GLM_scaled.resize(this->GLM.size());
+            this->GLM_lmaligned.resize(this->GLM.size());
+            this->GLM_autoalign_translated.resize(this->GLM.size());
+            this->GLM_autoaligned.resize(this->GLM.size());
+            std::cout << "Scaling GLM into GLM_scaled...\n";
+            this->scalePoints (this->GLM, this->GLM_scaled);
+            if (!this->GLM.empty()) {
+                std::cout << "GLM[0]: " << GLM[0] << std::endl;
+                std::cout << "GLM_scaled[0]: " << GLM_scaled[0] << std::endl;
             }
         }
 

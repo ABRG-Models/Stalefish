@@ -7,6 +7,7 @@
 #include <bitset>
 #include <fstream>
 #include <limits>
+#include <utility>
 #include <opencv2/opencv.hpp>
 #include <opencv2/imgproc.hpp>
 #include <morph/HdfData.h>
@@ -17,6 +18,7 @@
 
 // OpenCV functions mostly expect colours in Blue-Green-Red order
 #define SF_BLUE     cv::Scalar(255,0,0,10)
+#define SF_BLUEISH  cv::Scalar(238,110,67)
 #define SF_GREEN    cv::Scalar(0,255,0,10)
 #define SF_RED      cv::Scalar(0,0,255,10)
 #define SF_YELLOW   cv::Scalar(0,255,255,10)
@@ -215,6 +217,8 @@ public:
         } else if (this->input_mode == InputMode::Freehand) {
             this->input_mode = InputMode::Landmark;
         } else if (this->input_mode == InputMode::Landmark) {
+            this->input_mode = InputMode::GlobalLandmark;
+        } else if (this->input_mode == InputMode::GlobalLandmark) {
             this->input_mode = InputMode::Circlemark;
         } else if (this->input_mode == InputMode::Circlemark) {
             this->input_mode = InputMode::Axismark;
@@ -492,6 +496,8 @@ public:
         for (auto f : this->vFrameData) {
             f.write (d, this->mapAlignAngle);
         }
+        std::cout << "Exporting globallandmarks... which has size " << this->globalLandmarks.size() << std::endl;
+        d.add_contained_vals ("/globallandmarks", this->globalLandmarks);
 
         // For each frame also collect 2d Map data. That's /class/layer_x, /signal/postproc/boxes/means, lmalign/flattened/sbox_linear_distance
         std::vector<float> map_x;
@@ -559,7 +565,8 @@ public:
             this->exportCurves();
         } else if (cf->ct == InputMode::Freehand) {
             this->exportFreehand();
-        } else if (cf->ct == InputMode::Landmark || cf->ct == InputMode::Circlemark || cf->ct == InputMode::Axismark) {
+        } else if (cf->ct == InputMode::Landmark || cf->ct == InputMode::GlobalLandmark
+                   || cf->ct == InputMode::Circlemark || cf->ct == InputMode::Axismark) {
             this->exportLandmarks();
         } else {
             std::cerr << "Unknown mode for export\n";
@@ -573,6 +580,8 @@ public:
         int nf = this->vFrameData.size();
         morph::HdfData d(lm_exportfile);
         for (auto f : this->vFrameData) { f.exportLandmarks (d); }
+        std::cout << "Exporting globallandmarks... which has size " << this->globalLandmarks.size() << std::endl;
+        d.add_contained_vals ("/globallandmarks", this->globalLandmarks);
         d.add_val("/nframes", nf);
         std::cout << "Exported landmarks to " << lm_exportfile << std::endl;
     }
@@ -631,6 +640,7 @@ public:
         try {
             morph::HdfData d(lm_exportfile, true);
             for (auto& f : this->vFrameData) { f.importLandmarks (d); }
+            // Now load, if possible, the index data about the global landmarks.
         } catch (...) {
             std::cout << "Failed to read " << lm_exportfile << std::endl;
         }
@@ -734,6 +744,12 @@ public:
     bool rotateLandmarkOne = false;
     //! If true, in "rotate about landmark 1 mode" align the other landmarks, instead of the curves.
     bool rotateButAlignLandmarkTwoPlus = false;
+
+    //! Global landmarks need to be identified in order, so that they can be matched
+    //! with a corresponding set of global landmarks from another data set. The pair in
+    //! the vector holds as .first, the frame number of that global landmark and as
+    //! .second, the index within FrameData::GLM.
+    std::vector<std::pair<unsigned int, unsigned int>> globalLandmarks;
 
     //! Adapted from Seb's futil library. Create unique file name for temporary file
     std::string generateRandomFilename (const std::string& prefixPath, const unsigned int numChars = 0)
@@ -897,6 +913,12 @@ public:
                     this->addFrame (frame, fn, slice_x);
                 }
             }
+        }
+
+        // Having read frames, read in any global information, which is currently just globalLandmarks
+        {
+            morph::HdfData d(this->datafile, true); // true for read
+            d.read_contained_vals ("/globallandmarks", this->globalLandmarks);
         }
 
         cv::namedWindow (this->winName, cv::WINDOW_NORMAL|cv::WINDOW_FREERATIO);
@@ -1131,6 +1153,37 @@ public:
         }
     }
 
+    //! Draw the global land marks
+    void draw_global_landmarks (const cv::Point& pt)
+    {
+        DM* _this = DM::i();
+        cv::Mat* pImg = _this->getImg();
+        FrameData* cf = _this->gcf();
+
+        // circle under the cursor
+        if (cf->ct == InputMode::GlobalLandmark) {
+            circle (*pImg, pt, 7, SF_BLUEISH, 1);
+        }
+
+        // Iterate through the frames, to find out what starting index is for the global
+        // landmarks on this slice
+        size_t start_gl = 1;
+        for (auto f : this->vFrameData) {
+            if (f.idx == cf->idx) { break; }
+            if (f.GLM.size() > 0) { start_gl += f.GLM.size(); }
+        }
+
+        // Draw circles for the axismarks, with a number next to each one.
+        cv::Point toffset(8,5); // a text offset
+        for (size_t ii=0; ii<cf->GLM.size(); ii++) {
+            circle (*pImg, cf->GLM[ii], 5, SF_BLUEISH, -1);
+            std::stringstream ss;
+            ss << "gl" << (start_gl+ii);
+            cv::Point tpt(cf->GLM[ii]);
+            putText (*pImg, ss.str(), tpt+toffset, cv::FONT_HERSHEY_SIMPLEX, 0.8, SF_BLACK, 1, cv::LINE_AA);
+        }
+    }
+
     //! Input mode for drawing the numbered alignment marks
     void draw_landmarks (const cv::Point& pt)
     {
@@ -1220,6 +1273,9 @@ public:
                 cf->addToFL (pt);
             } else if (cf->ct == InputMode::Landmark) {
                 cf->LM.push_back (pt);
+            } else if (cf->ct == InputMode::GlobalLandmark) {
+                cf->addGlobalLandmark (pt);
+                _this->globalLandmarks.push_back (std::make_pair (_this->getFrameNum(), cf->GLM.size()));
             } else if (cf->ct == InputMode::Circlemark) {
                 cf->addCirclepoint (pt);
             } else if (cf->ct == InputMode::Axismark) {
@@ -1244,6 +1300,7 @@ public:
         _this->draw_curves (pt);
         _this->draw_freehand (pt);
         _this->draw_landmarks (pt);
+        _this->draw_global_landmarks (pt);
         _this->draw_axismarks (pt);
         _this->draw_circlemarks (pt);
 
