@@ -150,7 +150,7 @@ void popt_option_callback (poptContext con,
     }
 }
 
-//! Add just the landmarks in the datafile
+//! Add just the landmarks (and global landmarks) in the datafile
 int addLandmarks (SFVisual& v, const string& datafile, const CmdOptions& co)
 {
     int rtn = 0;
@@ -166,6 +166,11 @@ int addLandmarks (SFVisual& v, const string& datafile, const CmdOptions& co)
 
         vector<morph::Vector<float>> landmarks_autoaligned;
         vector<morph::Vector<float>> landmarks_lmaligned;
+
+        // Global landmarks
+        vector<morph::Vector<float>> globlm_autoaligned;
+        vector<morph::Vector<float>> globlm_lmaligned;
+        vector<float> glm_id;
 
         vector<float> landmarks_id;
 
@@ -215,6 +220,39 @@ int addLandmarks (SFVisual& v, const string& datafile, const CmdOptions& co)
                     landmarks_lmaligned.push_back (_lm);
                 }
             }
+
+            // Now process global landmarks
+            std::vector<std::pair<unsigned int, unsigned int>> glm_table;
+            d.read_contained_vals ("/global_landmarks", glm_table);
+            for (auto glm : glm_table) {
+                std::cout << "Frame: " << glm.first << ", index: " << glm.second << std::endl;
+
+                stringstream ss;
+                ss << "/Frame";
+                ss.width(3);
+                ss.fill('0');
+                if (lmalignComputed == true && align_lm == true) {
+                    ss << glm.first << "/lmalign/global_landmarks";
+                } else {
+                    ss << glm.first << "/autoalign/global_landmarks";
+                }
+                frameName = ss.str();
+                vector<array<float, 3>> GLM;
+                //std::vector<morph::Vector<float, 3>> GLM;
+                std::cout << "Reading global landmark in " << frameName << std::endl;
+                d.read_contained_vals(frameName.c_str(), GLM);
+
+                for (auto glm : GLM) {
+                    morph::Vector<float> _glm = { glm[0], glm[1], glm[2] };
+                    if (lmalignComputed == true && align_lm == true) {
+                        globlm_lmaligned.push_back (_glm);
+                    } else {
+                        globlm_autoaligned.push_back (_glm);
+                    }
+                    glm_id.push_back (0.5f);
+                }
+            }
+
             unsigned int visId = 0;
 
             offset[0]=0.0;
@@ -226,13 +264,25 @@ int addLandmarks (SFVisual& v, const string& datafile, const CmdOptions& co)
                                                                            &landmarks_lmaligned, offset,
                                                                            &landmarks_id, 0.07f, scale,
                                                                            morph::ColourMapType::Plasma));
+                v.landmarks.push_back (visId);
+                visId = v.addVisualModel (new morph::ScatterVisual<float> (v.shaderprog,
+                                                                           &globlm_lmaligned, offset,
+                                                                           &glm_id, 0.1f, scale,
+                                                                           morph::ColourMapType::Plasma));
+                v.landmarks.push_back (visId);
             } else {
                 visId = v.addVisualModel (new morph::ScatterVisual<float> (v.shaderprog,
                                                                            &landmarks_autoaligned, offset,
                                                                            &landmarks_id, 0.07f, scale,
                                                                            morph::ColourMapType::Plasma));
-            }
-            v.landmarks.push_back (visId);
+                v.landmarks.push_back (visId);
+
+                visId = v.addVisualModel (new morph::ScatterVisual<float> (v.shaderprog,
+                                                                           &globlm_autoaligned, offset,
+                                                                           &glm_id, 0.1f, scale,
+                                                                           morph::ColourMapType::Plasma));
+                v.landmarks.push_back (visId);
+           }
         }
     } catch (const exception& e) {
         cerr << "Caught exception: " << e.what() << endl;

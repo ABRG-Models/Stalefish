@@ -1288,12 +1288,6 @@ public:
         df.add_contained_vals (dname.c_str(), this->GLM);
         dname = frameName + "/class/GLM_scaled";
         df.add_contained_vals (dname.c_str(), this->GLM_scaled);
-
-        // Possibly:
-        //dname = frameName + "/lmalign/global_landmark_origins";
-        //df.add_contained_vals (dname.c_str(), this->GLM_origins_lmaligned);
-        //dname = frameName + "/autoalign/global_landmark_origins";
-        //df.add_contained_vals (dname.c_str(), this->GLM_origins_autoaligned);
     }
 
     //! A subroutine of FrameData::write.
@@ -1651,6 +1645,27 @@ public:
             }
             dname = frameName + "/lmalign/landmarks";
             df.add_contained_vals (dname.c_str(), LM_lmaligned_3d);
+        }
+
+        // Save autoalign and lmalign translated global landmark coordinates.
+        if (this->saveAutoAlignData == true) {
+            std::vector<std::array<float,3>> GLM_autoaligned_3d (this->GLM_autoaligned.size(), {this->layer_x,0.0f,0.0f});
+            for (size_t i = 0; i < this->GLM_autoaligned.size(); ++i) {
+                GLM_autoaligned_3d[i][1] = static_cast<float>(this->GLM_autoaligned[i].x);
+                GLM_autoaligned_3d[i][2] = static_cast<float>(this->GLM_autoaligned[i].y);
+            }
+            dname = frameName + "/autoalign/global_landmarks";
+            df.add_contained_vals (dname.c_str(), GLM_autoaligned_3d);
+        }
+
+        if (this->saveLMAlignData == true) {
+            std::vector<std::array<float,3>> GLM_lmaligned_3d(this->GLM_lmaligned.size(), {this->layer_x,0.0f,0.0f});
+            for (size_t i = 0; i < this->GLM_lmaligned.size(); ++i) {
+                GLM_lmaligned_3d[i][1] = static_cast<float>(this->GLM_lmaligned[i].x);
+                GLM_lmaligned_3d[i][2] = static_cast<float>(this->GLM_lmaligned[i].y);
+            }
+            dname = frameName + "/lmalign/global_landmarks";
+            df.add_contained_vals (dname.c_str(), GLM_lmaligned_3d);
         }
 
         // Need to get from fitted to y and z. Note that fitted is in (integer) pixels...

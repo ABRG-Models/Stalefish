@@ -497,7 +497,10 @@ public:
             f.write (d, this->mapAlignAngle);
         }
         std::cout << "Exporting globallandmarks... which has size " << this->globalLandmarks.size() << std::endl;
-        d.add_contained_vals ("/globallandmarks", this->globalLandmarks);
+        // /globallandmarks is an index. See this->globalLandmarks. This gives the index
+        // of the frame and within that frame the element of FrameData::GLM for each
+        // global landmark.
+        d.add_contained_vals ("/global_landmarks", this->globalLandmarks);
 
         // For each frame also collect 2d Map data. That's /class/layer_x, /signal/postproc/boxes/means, lmalign/flattened/sbox_linear_distance
         std::vector<float> map_x;
@@ -581,7 +584,7 @@ public:
         morph::HdfData d(lm_exportfile);
         for (auto f : this->vFrameData) { f.exportLandmarks (d); }
         std::cout << "Exporting globallandmarks... which has size " << this->globalLandmarks.size() << std::endl;
-        d.add_contained_vals ("/globallandmarks", this->globalLandmarks);
+        d.add_contained_vals ("/global_landmarks", this->globalLandmarks);
         d.add_val("/nframes", nf);
         std::cout << "Exported landmarks to " << lm_exportfile << std::endl;
     }
@@ -772,6 +775,7 @@ public:
     void setup (const std::string& paramsfile)
     {
         std::string jsonfile (paramsfile);
+        bool hdf_for_reading = false;
         // Set the HDF5 data file path based on the .json file path
         std::string::size_type jsonpos = paramsfile.find(".json");
         if (jsonpos == std::string::npos) {
@@ -788,6 +792,7 @@ public:
                 // config. Put the path to the tmp file in jsonfile.
                 std::string jsoncontent("");
                 try {
+                    hdf_for_reading = true;
                     morph::HdfData d(this->datafile, true); // true for read
                     d.read_string ("/config", jsoncontent);
                     // What about on Apple. Tmp location there?
@@ -916,9 +921,9 @@ public:
         }
 
         // Having read frames, read in any global information, which is currently just globalLandmarks
-        {
+        if (hdf_for_reading == true) {
             morph::HdfData d(this->datafile, true); // true for read
-            d.read_contained_vals ("/globallandmarks", this->globalLandmarks);
+            d.read_contained_vals ("/global_landmarks", this->globalLandmarks);
         }
 
         cv::namedWindow (this->winName, cv::WINDOW_NORMAL|cv::WINDOW_FREERATIO);
