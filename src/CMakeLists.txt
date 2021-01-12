@@ -10,9 +10,6 @@ set(MORPH_LIBS_GL ${OpenCV_LIBS} OpenGL::GL glfw Freetype::Freetype)
 add_executable(stalefish stalefish.cpp)
 target_link_libraries(stalefish ${MORPH_LIBS_CORE} ${OpenCV_LIBS})
 
-# To be removed; superceded by sfview
-add_executable(viewer viewer.cpp)
-
 add_executable(sfview sfview.cpp)
 # Assume popt is in /usr/local/lib. Can't use target_link_directories without specifying minimum cmake version 3.13
 target_link_libraries(sfview ${MORPH_LIBS_CORE} ${MORPH_LIBS_GL} -L/usr/local/lib popt)
