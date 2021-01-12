@@ -238,7 +238,6 @@ int addLandmarks (SFVisual& v, const string& datafile, const CmdOptions& co)
                 }
                 frameName = ss.str();
                 vector<array<float, 3>> GLM;
-                //std::vector<morph::Vector<float, 3>> GLM;
                 std::cout << "Reading global landmark in " << frameName << std::endl;
                 d.read_contained_vals(frameName.c_str(), GLM);
 
@@ -791,7 +790,7 @@ int main (int argc, char** argv)
          "Display landmarks from the indexed (counting from 1) data file."},
 
         {"show_landmarks_all", 'L',
-         POPT_ARG_NONE, &(cmdOptions.show_landmarks), 0,
+         POPT_ARG_NONE, &(cmdOptions.show_landmarks_all), 0,
          "If set, display landmarks from ALL first data files."},
 
         {"show_flattened", 'm',
