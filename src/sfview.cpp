@@ -14,6 +14,7 @@
 #include <morph/QuadsVisual.h>
 #include <morph/QuadsMeshVisual.h>
 #include <morph/RodVisual.h>
+#include <morph/TransformMatrix.h>
 #include <popt.h>
 
 using namespace std;
@@ -98,6 +99,8 @@ struct CmdOptions
     int show_flattened;
     //! flattened_type could be 0. aligned linear distance, starting from angle 0 1. linear distance, centered, 2. angle of thing about 0.
     int flattened_type;
+    //! Apply Linear Transforms based on global landmarks
+    int linear_transforms;
     //! Temporary datafile, for adding to datafiles.
     char* datafile;
     //! The h5 files to visualize
@@ -117,6 +120,7 @@ void zeroCmdOptions (CmdOptions* copts)
     copts->show_landmarks_all = 0;
     copts->show_flattened = 0;
     copts->flattened_type = 0;
+    copts->linear_transforms = 0;
     copts->datafile = (char*)0;
     copts->datafiles.clear();
 }
@@ -150,8 +154,98 @@ void popt_option_callback (poptContext con,
     }
 }
 
+morph::TransformMatrix<float> readGlobalMatrix (const std::string& datafile)
+{
+    morph::TransformMatrix<float> A;
+    morph::HdfData d(datafile, true); // true for read
+    int nf = 0;
+    d.read_val ("/nframes", nf);
+
+    // Check first frame for alignments
+    bool lmalignComputed = false;
+    d.read_val ("/Frame001/lmalign/computed", lmalignComputed);
+    bool autoalignComputed = false;
+    d.read_val ("/Frame001/autoalign/computed", autoalignComputed);
+    string frameName("");
+
+    // Get global landmarks
+    std::vector<std::pair<unsigned int, unsigned int>> glm_table;
+    d.read_contained_vals ("/global_landmarks", glm_table);
+    vector<array<float, 3>> allGLM;
+    for (auto glmt : glm_table) {
+        //std::cout << "Frame: " << glmt.first << ", index: " << glmt.second << std::endl;
+        stringstream ss;
+        ss << "/Frame";
+        ss.width(3);
+        ss.fill('0');
+        if (lmalignComputed == true) {
+            ss << glmt.first << "/lmalign/global_landmarks";
+        } else {
+            ss << glmt.first << "/autoalign/global_landmarks";
+        }
+        frameName = ss.str();
+        vector<array<float, 3>> GLM;
+        //std::cout << "Reading global landmark in " << frameName << std::endl;
+        d.read_contained_vals(frameName.c_str(), GLM);
+
+        allGLM.push_back (GLM[glmt.second-1]);
+    }
+    if (allGLM.size() < 4) {
+        std::cerr << "Need at least 4 global landmarks.\n";
+        return A;
+    }
+
+    // Can loop through first 4 entries in GLM
+    for (size_t i = 0; i < 4; ++i) {
+        size_t start = i*4;
+        for (size_t j = 0; j<3; ++j) {
+            A[start+j] = allGLM[i][j];
+        }
+        A[start+3] = 1;
+    }
+
+    return A;
+}
+
+//! Compute linear transformations to apply to datafiles
+void computeTransforms (const vector<string>& datafiles,
+                        vector<morph::TransformMatrix<float>>& trans_mats,
+                        const CmdOptions& co)
+{
+    if (datafiles.size() < 2) {
+        // nothing to do though ensure trans_mats[0] contains identity, if necessary
+        if (datafiles.size()==1 && trans_mats.size()==1) { trans_mats[0].setToIdentity(); }
+        return;
+    }
+
+    if (datafiles.size() != trans_mats.size()) {
+        std::cerr << "WARNING: datafiles and trans_mats have to have the same size. Returning.\n";
+        return;
+    }
+
+    trans_mats[0].setToIdentity();
+
+    // now the fun stuff. Get the relevant global landmark vectors
+    bool align_lm = co.use_autoalign > 0 ? false : true;
+    morph::TransformMatrix<float> D = readGlobalMatrix (datafiles[0]);
+    //std::cout << "D (destination simplex) matrix, determined from first set of global landmarks:\n" << D << std::endl;
+
+    // Now get 'A' matrices from datafiles[1] and up
+    for (size_t di = 1; di < datafiles.size(); ++di) {
+        morph::TransformMatrix<float> A = readGlobalMatrix (datafiles[di]);
+        //std::cout << "A" << di << " =\n" << A << std::endl;
+        morph::TransformMatrix<float> Ainv = A.invert();
+        //std::cout << "inv(A" << di << "):\n" << Ainv << std::endl;
+        // Can now compute trans_mats (named M in my octave code)
+        trans_mats[di] = D * Ainv;
+        //std::cout << "M["<<di<<"]:\n" << trans_mats[di] << std::endl;
+    }
+}
+
 //! Add just the landmarks (and global landmarks) in the datafile
-int addLandmarks (SFVisual& v, const string& datafile, const CmdOptions& co)
+//! M: the transform matrix
+int addLandmarks (SFVisual& v, const string& datafile, const CmdOptions& co,
+                  const morph::TransformMatrix<float>& M, int number)
 {
     int rtn = 0;
 
@@ -210,14 +304,16 @@ int addLandmarks (SFVisual& v, const string& datafile, const CmdOptions& co)
                 float lmid = 0.0f;
                 float lmidmax = (float)LM_autoaligned.size();
                 for (auto lm : LM_autoaligned) {
-                    morph::Vector<float> _lm = {lm[0],lm[1],lm[2]};
-                    landmarks_autoaligned.push_back (_lm);
+                    // TransformMatrix can post multiply by a 3-vector, returning a 4-vector:
+                    morph::Vector<float, 4> _lm = M * morph::Vector<float, 3>({lm[0],lm[1],lm[2]});
+                    landmarks_autoaligned.push_back ({_lm[0], _lm[1], _lm[2]});
                     lmid = (float)lmcount++ / lmidmax;
                     landmarks_id.push_back (lmid);
                 }
+                //! convert from vector<array> to vector<Vector> transforming as we go
                 for (auto lm : LM_lmaligned) {
-                    morph::Vector<float> _lm = {lm[0],lm[1],lm[2]};
-                    landmarks_lmaligned.push_back (_lm);
+                    morph::Vector<float, 4> _lm = M * morph::Vector<float, 3>({lm[0],lm[1],lm[2]});
+                    landmarks_lmaligned.push_back ({_lm[0], _lm[1], _lm[2]});
                 }
             }
 
@@ -225,8 +321,7 @@ int addLandmarks (SFVisual& v, const string& datafile, const CmdOptions& co)
             std::vector<std::pair<unsigned int, unsigned int>> glm_table;
             d.read_contained_vals ("/global_landmarks", glm_table);
             for (auto glm : glm_table) {
-                std::cout << "Frame: " << glm.first << ", index: " << glm.second << std::endl;
-
+                //std::cout << "Frame: " << glm.first << ", index: " << glm.second << std::endl;
                 stringstream ss;
                 ss << "/Frame";
                 ss.width(3);
@@ -238,17 +333,17 @@ int addLandmarks (SFVisual& v, const string& datafile, const CmdOptions& co)
                 }
                 frameName = ss.str();
                 vector<array<float, 3>> GLM;
-                std::cout << "Reading global landmark in " << frameName << std::endl;
+                //std::cout << "Reading global landmark in " << frameName << std::endl;
                 d.read_contained_vals(frameName.c_str(), GLM);
 
                 for (auto glm : GLM) {
-                    morph::Vector<float> _glm = { glm[0], glm[1], glm[2] };
+                    morph::Vector<float, 4> _glm = M * morph::Vector<float, 3>({glm[0],glm[1],glm[2]});
                     if (lmalignComputed == true && align_lm == true) {
-                        globlm_lmaligned.push_back (_glm);
+                        globlm_lmaligned.push_back ({_glm[0], _glm[1], _glm[2]});
                     } else {
-                        globlm_autoaligned.push_back (_glm);
+                        globlm_autoaligned.push_back ({_glm[0], _glm[1], _glm[2]});
                     }
-                    glm_id.push_back (0.5f);
+                    glm_id.push_back (0.3f/number);
                 }
             }
 
@@ -264,10 +359,11 @@ int addLandmarks (SFVisual& v, const string& datafile, const CmdOptions& co)
                                                                            &landmarks_id, 0.07f, scale,
                                                                            morph::ColourMapType::Plasma));
                 v.landmarks.push_back (visId);
+
                 visId = v.addVisualModel (new morph::ScatterVisual<float> (v.shaderprog,
                                                                            &globlm_lmaligned, offset,
                                                                            &glm_id, 0.1f, scale,
-                                                                           morph::ColourMapType::Plasma));
+                                                                           morph::ColourMapType::Jet));
                 v.landmarks.push_back (visId);
             } else {
                 visId = v.addVisualModel (new morph::ScatterVisual<float> (v.shaderprog,
@@ -278,7 +374,7 @@ int addLandmarks (SFVisual& v, const string& datafile, const CmdOptions& co)
 
                 visId = v.addVisualModel (new morph::ScatterVisual<float> (v.shaderprog,
                                                                            &globlm_autoaligned, offset,
-                                                                           &glm_id, 0.1f, scale,
+                                                                           &glm_id, 0.1f*number, scale,
                                                                            morph::ColourMapType::Plasma));
                 v.landmarks.push_back (visId);
            }
@@ -292,7 +388,8 @@ int addLandmarks (SFVisual& v, const string& datafile, const CmdOptions& co)
 }
 
 //! Add a visual model for the expression surface, created from the file datafile, to the scene v
-int addVisMod (SFVisual& v, const string& datafile, const CmdOptions& co, const float hue)
+int addVisMod (SFVisual& v, const string& datafile, const CmdOptions& co, const float hue,
+               morph::TransformMatrix<float>& M)
 {
     int rtn = 0;
 
@@ -330,7 +427,7 @@ int addVisMod (SFVisual& v, const string& datafile, const CmdOptions& co, const 
         vector<float> centres_id;
 
         {
-            cout << "Opening H5 file " << datafile << endl;
+            cout << "addVisMod: Opening H5 file " << datafile << endl;
             morph::HdfData d(datafile, true); // true for read
             d.read_error_action = morph::ReadErrorAction::Exception;
             int nf = 0;
@@ -379,10 +476,13 @@ int addVisMod (SFVisual& v, const string& datafile, const CmdOptions& co, const 
                 cp[0] = xx;
                 cp[1] = fitted_lmaligned[clm_idx].x;
                 cp[2] = fitted_lmaligned[clm_idx].y;
-                centres_lmaligned.push_back (cp);
+                morph::Vector<float, 4> _cp = M * cp;
+                centres_lmaligned.push_back ({_cp[0], _cp[1], _cp[2]});
+
                 cp[1] = fitted_autoaligned[caa_idx].x;
                 cp[2] = fitted_autoaligned[caa_idx].y;
-                centres_autoaligned.push_back (cp);
+                _cp = M * cp;
+                centres_autoaligned.push_back ({_cp[0], _cp[1], _cp[2]});
                 centres_id.push_back (0.1f*(float)i);
 
                 // axis alignment marks are optional, and the data may not exist in the h5 file.
@@ -392,10 +492,11 @@ int addVisMod (SFVisual& v, const string& datafile, const CmdOptions& co, const 
                     d.read_contained_vals (str.c_str(), AM_lmaligned);
                     cp[1] = AM_lmaligned[0].x;
                     cp[2] = AM_lmaligned[0].y;
-                    AM_origins_lmaligned.push_back (cp);
+                     _cp = M * cp;
+                    AM_origins_lmaligned.push_back ({_cp[0], _cp[1], _cp[2]});
                 } catch (const exception& ee) {
                     // Ignore missing AM_origins
-                    std::cout << "Missing alignmark_origins: " << ee.what() << std::endl;
+                    //std::cout << "Missing alignmark_origins: " << ee.what() << std::endl;
                 }
 
                 // axis alignment marks are optional, and the data may not exist in the h5 file.
@@ -405,10 +506,11 @@ int addVisMod (SFVisual& v, const string& datafile, const CmdOptions& co, const 
                     d.read_contained_vals (str.c_str(), AM_autoaligned);
                     cp[1] = AM_autoaligned[0].x;
                     cp[2] = AM_autoaligned[0].y;
-                    AM_origins_autoaligned.push_back (cp);
+                    _cp = M * cp;
+                    AM_origins_autoaligned.push_back ({_cp[0], _cp[1], _cp[2]});
                 } catch (const exception& ee) {
                     // Ignore missing AM_origins
-                    std::cout << "Missing alignmark_origins: " << ee.what() << std::endl;
+                    //std::cout << "Missing alignmark_origins: " << ee.what() << std::endl;
                 }
 
                 vector<array<float, 12>> frameQuads_scaled;
@@ -431,15 +533,20 @@ int addVisMod (SFVisual& v, const string& datafile, const CmdOptions& co, const 
                 for (auto fq : frameQuads_autoaligned) {
                     // FIXME: Use centre of box, or even each end of box, or something
                     morph::Vector<float> pt = {fq[0],fq[1],fq[2]};
-                    framePoints_autoaligned.push_back (pt);
+                    morph::Vector<float, 4> _pt = M * pt;
+                    framePoints_autoaligned.push_back ({_pt[0], _pt[1], _pt[2]});
                 }
+
                 for (auto fq : frameQuads_lmaligned) {
-                    morph::Vector<float> pt = {fq[0],fq[1],fq[2]};
-                    framePoints_lmaligned.push_back (pt);
+                    morph::Vector<float, 4> pt = {fq[0], fq[1], fq[2], 1};
+                    morph::Vector<float, 4> _pt = M * pt;
+                    //std::cout << morph::Vector<float>({fq[0],fq[1],fq[2]}) << " transforms to " << _pt << std::endl;
+                    framePoints_lmaligned.push_back ({_pt[0], _pt[1], _pt[2]});
                 }
                 for (auto fq : frameQuads_scaled) {
                     morph::Vector<float> pt = {fq[0],fq[1],fq[2]};
-                    framePoints_scaled.push_back (pt);
+                    morph::Vector<float, 4> _pt = M * pt;
+                    framePoints_scaled.push_back ({_pt[0], _pt[1], _pt[2]});
                 }
 
                 vector<double> frameMeans;
@@ -478,12 +585,14 @@ int addVisMod (SFVisual& v, const string& datafile, const CmdOptions& co, const 
             if (lmalignComputed == true && align_lm == true) {
                 if (showribbons) {
                     if (showmesh) {
+                        std::cout << "Adding QuadsMeshVisual with hue=" << hue << std::endl;
                         visId = v.addVisualModel (new morph::QuadsMeshVisual<float> (v.shaderprog,
                                                                                      &quads_lmaligned, offset,
                                                                                      &means, scale,
                                                                                      cmt, hue, colour_sat, 0.005f
                                                       ));
                     } else {
+                        std::cout << "Adding QuadsVisual with hue=" << hue << std::endl;
                         visId = v.addVisualModel (new morph::QuadsVisual<float> (v.shaderprog,
                                                                                  &quads_lmaligned, offset,
                                                                                  &means, scale,
@@ -493,7 +602,7 @@ int addVisMod (SFVisual& v, const string& datafile, const CmdOptions& co, const 
                 } else {
                     // Want to be able to pass colour==off to these. That means ability to pass sat as well as hue.
                     if (showmesh) {
-                        std::cout << "Adding pointRowsMeshVisual with colour_sat=" << colour_sat << std::endl;
+                        std::cout << "Adding pointRowsMeshVisual with hue=" << hue << std::endl;
                         // hue: 1/6 for yellow. 130/360 for a green. 0 for read
                         visId = v.addVisualModel (new morph::PointRowsMeshVisual<float> (v.shaderprog,
                                                                                          &points_lmaligned, offset,
@@ -501,6 +610,7 @@ int addVisMod (SFVisual& v, const string& datafile, const CmdOptions& co, const 
                                                                                          cmt, hue, colour_sat, 0.9f, 0.005f,
                                                                                          cmt, (0.0/360.0f), 1.0f, 1.0f, 0.015f));
                     } else {
+                        std::cout << "Adding PointRowsVisual with hue=" << hue << std::endl;
                         visId = v.addVisualModel (new morph::PointRowsVisual<float> (v.shaderprog,
                                                                                      &points_lmaligned, offset,
                                                                                      &means, scale,
@@ -539,6 +649,7 @@ int addVisMod (SFVisual& v, const string& datafile, const CmdOptions& co, const 
                 }
                 v.surfaces_3d.push_back (visId);
 
+                std::cout << "SV6\n";
                 visId = v.addVisualModel (new morph::ScatterVisual<float> (v.shaderprog,
                                                                            &centres_autoaligned, offset,
                                                                            &centres_id, 0.03f, scale,
@@ -737,6 +848,7 @@ int addFlattened (SFVisual& v, const string& datafile, const CmdOptions& co)
                 centres_.push_back (cp);
                 centres_id.push_back (0.1f*(float)i);
             }
+
             visId = v.addVisualModel (new morph::ScatterVisual<float> (v.shaderprog,
                                                                        &centres_, offset,
                                                                        &centres_id, 0.03f, scale,
@@ -803,6 +915,11 @@ int main (int argc, char** argv)
          "distance along the curve starting from the surface box that is on the zero degree line wrt the "
          "origin. 1: Use centered surface box linear distance. 2: Plot vs. the angle of the surface box."},
 
+        {"linear_transforms", 'T',
+         POPT_ARG_NONE, &(cmdOptions.linear_transforms), 0,
+         "If >1 model, then transform each model index > 0 to match model index 0, using global "
+         "landmarks of which there should be 4 in each model."},
+
         // options following this will cause the popt_option_callback to be executed.
         { "callback", '\0',
           POPT_ARG_CALLBACK|POPT_ARGFLAG_DOC_HIDDEN, (void*)&popt_option_callback, 0,
@@ -853,6 +970,15 @@ int main (int argc, char** argv)
     }
     v.diffuse_position = {-1, 2, -3};
 
+    // Before addVisMod(), addLandmarks(), etc, and if there is more than 1 model and if
+    // the "compute linear transformations" option is true, then compute linear
+    // transformations that should be applied to each model index > 0.
+    vector<morph::TransformMatrix<float>> trans_mats(cmdOptions.datafiles.size());
+    if (cmdOptions.linear_transforms > 0 && cmdOptions.datafiles.size() > 1) {
+        std::cout << "Applying linear transforms...\n";
+        computeTransforms (cmdOptions.datafiles, trans_mats, cmdOptions);
+    }
+
     // For each file in cmdOptions.datafiles:
     // 0 red .2 yellow .3 green .4 cyan green .5 cyan .6 blue .7 blue .8 purple .9 red
     vector<float> hues = {0.0f, 0.7f, 0.8f, 0.1f, 0.5f, 0.6f, 0.1f, 0.8f};
@@ -863,18 +989,23 @@ int main (int argc, char** argv)
         } else {
             hue = 0.8f;
         }
-        rtn += addVisMod (v, cmdOptions.datafiles[ii], cmdOptions, hue);
+        // WRITEME NEXT: Pass trans_mats into addVisMod and apply to the coords therein.
+        std::cout << "Calling addVisMod (...,trans_mats["<<ii<<"]\n";
+        rtn += addVisMod (v, cmdOptions.datafiles[ii], cmdOptions, hue, trans_mats[ii]);
     }
 
     // And landmarks
     std::cout << "show_landmarks: " << cmdOptions.show_landmarks << "\n";
     if (cmdOptions.show_landmarks_all) {
         for (unsigned int ii = 0; ii < cmdOptions.datafiles.size(); ++ii) {
-            rtn += addLandmarks (v, cmdOptions.datafiles[ii], cmdOptions);
+            //std::cout << "Add landmarks, multiplying positions by\n" << trans_mats[ii] << std::endl;
+            rtn += addLandmarks (v, cmdOptions.datafiles[ii], cmdOptions, trans_mats[ii], 1+ii);
         }
     } else {
         if (cmdOptions.show_landmarks > 0 && static_cast<int>(cmdOptions.datafiles.size()) >= cmdOptions.show_landmarks) {
-            rtn += addLandmarks (v, cmdOptions.datafiles[cmdOptions.show_landmarks-1], cmdOptions);
+            unsigned int ii = cmdOptions.show_landmarks-1;
+            //std::cout << "Add landmarks (one-off), multiplying positions by\n" << trans_mats[ii] << std::endl;
+            rtn += addLandmarks (v, cmdOptions.datafiles[ii], cmdOptions, trans_mats[ii], 1);
         }
     }
 
