@@ -1269,6 +1269,8 @@ public:
                     if (*gli == cmp) {
                         std::cout << "Erasing global landmark " << cmp.first << "," << cmp.second << std::endl;
                         gli = this->globalLandmarks.erase (gli);
+                    } else {
+                        gli++;
                     }
                 }
             }
