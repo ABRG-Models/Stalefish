@@ -111,7 +111,7 @@ int main (int argc, char** argv)
         // Remove last point or freehand region (or first point if in 'work at the start' mode)
         case ('c'):
         {
-            DM::i()->gcf()->removeLastThing();
+            DM::i()->removeLastThing();
             break;
         }
         // Go to the next frame

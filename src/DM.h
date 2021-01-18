@@ -493,14 +493,22 @@ public:
 
         morph::HdfData d(this->datafile);
         // Pass in mapAlignAngle for generating the angle maps
+        size_t n_glms = 0;
         for (auto f : this->vFrameData) {
             f.write (d, this->mapAlignAngle);
+            n_glms += f.GLM.size();
         }
-        std::cout << "Exporting globallandmarks... which has size " << this->globalLandmarks.size() << std::endl;
-        // /globallandmarks is an index. See this->globalLandmarks. This gives the index
-        // of the frame and within that frame the element of FrameData::GLM for each
-        // global landmark.
-        d.add_contained_vals ("/global_landmarks", this->globalLandmarks);
+
+        if (n_glms == this->globalLandmarks.size()) {
+            std::cout << "Exporting globallandmarks... which has size " << this->globalLandmarks.size() << std::endl;
+            // /globallandmarks is an index. See this->globalLandmarks. This gives the index
+            // of the frame and within that frame the element of FrameData::GLM for each
+            // global landmark.
+            d.add_contained_vals ("/global_landmarks", this->globalLandmarks);
+        } else {
+            std::cout << "Avoid exporting globallandmarks; its size is "
+                      << this->globalLandmarks.size() << ", but n_glms is " << n_glms << std::endl;
+        }
 
         // For each frame also collect 2d Map data. That's /class/layer_x, /signal/postproc/boxes/means, lmalign/flattened/sbox_linear_distance
         std::vector<float> map_x;
@@ -688,7 +696,7 @@ public:
     void setShowCtrls (bool t) { this->flags[AppShowCtrls] = t; }
 
     //! The application window name
-    const std::string winName = "StaleFish";
+    std::string winName = "StaleFish";
     //! The Gaussian blur window
     std::string blurWin = "";
     //! If true, display the window with the Gaussian blur
@@ -822,6 +830,9 @@ public:
         } else {
             this->datafile = paramsfile.substr (0,jsonpos) + ".h5";
         }
+
+        // Put the data file in the title bar, as that's useful to see with multiple Stalefishies
+        this->winName += " " + this->datafile;
 
         this->conf.init (jsonfile);
         if (!this->conf.ready) {
@@ -1243,6 +1254,26 @@ public:
         for (size_t ii = 0; ii < cf->CM_points.size(); ++ii) {
             circle (*pImg, cf->CM_points[ii], 4, SF_RED, -1);
         }
+    }
+
+    void removeLastThing()
+    {
+        // If we're removing a global landmark, have to delete from globalLandmarks,
+        // first.
+        FrameData* cf = this->gcf();
+        if (cf->ct == InputMode::GlobalLandmark) {
+            if (!cf->GLM.empty()) {
+                std::pair<unsigned int, unsigned int> cmp = std::make_pair (this->getFrameNum(), cf->GLM.size()-1);
+                std::vector<std::pair<unsigned int, unsigned int>>::iterator gli = this->globalLandmarks.begin();
+                while (gli != this->globalLandmarks.end()) {
+                    if (*gli == cmp) {
+                        std::cout << "Erasing global landmark " << cmp.first << "," << cmp.second << std::endl;
+                        gli = this->globalLandmarks.erase (gli);
+                    }
+                }
+            }
+        }
+        cf->removeLastThing();
     }
 
     //! Actions to take on a mouse user-interface event
