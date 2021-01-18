@@ -15,6 +15,7 @@
 #include <morph/QuadsMeshVisual.h>
 #include <morph/RodVisual.h>
 #include <morph/TransformMatrix.h>
+#include <morph/Matrix33.h>
 #include <popt.h>
 
 using namespace std;
@@ -226,7 +227,6 @@ void computeTransforms (const vector<string>& datafiles,
     trans_mats[0].setToIdentity();
 
     // now the fun stuff. Get the relevant global landmark vectors
-    bool align_lm = co.use_autoalign > 0 ? false : true;
     morph::TransformMatrix<float> D = readGlobalMatrix (datafiles[0]);
     //std::cout << "D (destination simplex) matrix, determined from first set of global landmarks:\n" << D << std::endl;
 
@@ -321,7 +321,7 @@ int addLandmarks (SFVisual& v, const string& datafile, const CmdOptions& co,
             std::vector<std::pair<unsigned int, unsigned int>> glm_table;
             d.read_contained_vals ("/global_landmarks", glm_table);
             for (auto glm : glm_table) {
-                //std::cout << "Frame: " << glm.first << ", index: " << glm.second << std::endl;
+                std::cout << "Frame: " << glm.first << ", index: " << glm.second << std::endl;
                 stringstream ss;
                 ss << "/Frame";
                 ss.width(3);
@@ -333,9 +333,9 @@ int addLandmarks (SFVisual& v, const string& datafile, const CmdOptions& co,
                 }
                 frameName = ss.str();
                 vector<array<float, 3>> GLM;
-                //std::cout << "Reading global landmark in " << frameName << std::endl;
-                d.read_contained_vals(frameName.c_str(), GLM);
-
+                std::cout << "Reading global landmark in " << frameName << std::endl;
+                d.read_contained_vals (frameName.c_str(), GLM);
+                std::cout << "GLM size: " << GLM.size() << std::endl;
                 for (auto glm : GLM) {
                     morph::Vector<float, 4> _glm = M * morph::Vector<float, 3>({glm[0],glm[1],glm[2]});
                     if (lmalignComputed == true && align_lm == true) {
@@ -360,6 +360,10 @@ int addLandmarks (SFVisual& v, const string& datafile, const CmdOptions& co,
                                                                            morph::ColourMapType::Plasma));
                 v.landmarks.push_back (visId);
 
+                std::cout << "Showing LM aligned global landmarks...\n";
+                for (auto ii : globlm_lmaligned) { std::cout << ii << std::endl; }
+                std::cout << "glm_id:\n";
+                for (auto ii : glm_id) { std::cout << ii << std::endl; }
                 visId = v.addVisualModel (new morph::ScatterVisual<float> (v.shaderprog,
                                                                            &globlm_lmaligned, offset,
                                                                            &glm_id, 0.1f, scale,
@@ -372,6 +376,7 @@ int addLandmarks (SFVisual& v, const string& datafile, const CmdOptions& co,
                                                                            morph::ColourMapType::Plasma));
                 v.landmarks.push_back (visId);
 
+                std::cout << "Showing auto aligned global landmarks...\n";
                 visId = v.addVisualModel (new morph::ScatterVisual<float> (v.shaderprog,
                                                                            &globlm_autoaligned, offset,
                                                                            &glm_id, 0.1f*number, scale,
@@ -674,8 +679,95 @@ int addVisMod (SFVisual& v, const string& datafile, const CmdOptions& co, const 
     return rtn;
 }
 
+
+void computeFlatTransforms (const CmdOptions& co,
+                            vector<morph::Matrix33<float>>& trans_mats)
+{
+    if (datafiles.size() < 2) {
+        // nothing to do though ensure trans_mats[0] contains identity, if necessary
+        if (datafiles.size()==1 && trans_mats.size()==1) { trans_mats[0].setToIdentity(); }
+        return;
+    }
+
+    if (datafiles.size() != trans_mats.size()) {
+        std::cerr << "WARNING: datafiles and trans_mats have to have the same size. Returning.\n";
+        return;
+    }
+
+    trans_mats[0].setToIdentity();
+
+    // now the fun stuff. Get the relevant global landmark vectors
+    morph::Matrix33<float> D = readGlobalMatrix33 (datafiles[0]);
+    //std::cout << "D (destination simplex) matrix, determined from first set of global landmarks:\n" << D << std::endl;
+
+    // Now get 'A' matrices from datafiles[1] and up
+    for (size_t di = 1; di < datafiles.size(); ++di) {
+        morph::TransformMatrix<float> A = readGlobalMatrix (datafiles[di]);
+        //std::cout << "A" << di << " =\n" << A << std::endl;
+        morph::TransformMatrix<float> Ainv = A.invert();
+        //std::cout << "inv(A" << di << "):\n" << Ainv << std::endl;
+        // Can now compute trans_mats (named M in my octave code)
+        trans_mats[di] = D * Ainv;
+        //std::cout << "M["<<di<<"]:\n" << trans_mats[di] << std::endl;
+    }
+}
+
+//! Read 3 global landmark positions and place them in a 3x3 matrix.
+morph::Matrix33<float> readGlobalPositions (const std::string& datafile)
+{
+    morph::Matrix33<float> P;
+    morph::HdfData d(datafile, true); // true for read
+    int nf = 0;
+    d.read_val ("/nframes", nf);
+
+    // Check first frame for alignments
+    bool lmalignComputed = false;
+    d.read_val ("/Frame001/lmalign/computed", lmalignComputed);
+    bool autoalignComputed = false;
+    d.read_val ("/Frame001/autoalign/computed", autoalignComputed);
+    string frameName("");
+
+    // Get global landmarks
+    std::vector<std::pair<unsigned int, unsigned int>> glm_table;
+    d.read_contained_vals ("/global_landmarks", glm_table);
+    vector<array<float, 3>> allGLM;
+    for (auto glmt : glm_table) {
+        //std::cout << "Frame: " << glmt.first << ", index: " << glmt.second << std::endl;
+        stringstream ss;
+        ss << "/Frame";
+        ss.width(3);
+        ss.fill('0');
+        if (lmalignComputed == true) {
+            ss << glmt.first << "/lmalign/global_landmarks";
+        } else {
+            ss << glmt.first << "/autoalign/global_landmarks";
+        }
+        frameName = ss.str();
+        vector<array<float, 3>> GLM;
+        //std::cout << "Reading global landmark in " << frameName << std::endl;
+        d.read_contained_vals(frameName.c_str(), GLM);
+
+        allGLM.push_back (GLM[glmt.second-1]);
+    }
+    if (allGLM.size() < 3) {
+        std::cerr << "Need at least 3 global landmarks.\n";
+        return P;
+    }
+
+    // Can loop through first 4 entries in GLM
+    for (size_t i = 0; i < 3; ++i) {
+        size_t start = i*3;
+        for (size_t j = 0; j<3; ++j) {
+            P[start+j] = allGLM[i][j];
+        }
+    }
+
+    return P;
+}
+
 //! Add flattened map
-int addFlattened (SFVisual& v, const string& datafile, const CmdOptions& co)
+int addFlattened (SFVisual& v, const string& datafile, const CmdOptions& co,
+                  morph::Vector<float> offset = { 0.0f, 0.0f, 0.0f })
 {
     int rtn = 0;
 
@@ -683,7 +775,6 @@ int addFlattened (SFVisual& v, const string& datafile, const CmdOptions& co)
     bool align_lm = co.use_autoalign > 0 ? false : true;
 
     try {
-        morph::Vector<float> offset = { 0.0, 0.0, 0.0 };
 
         morph::Scale<float> scale;
         scale.setParams (1.0, 0.0);
@@ -822,7 +913,7 @@ int addFlattened (SFVisual& v, const string& datafile, const CmdOptions& co)
             unsigned int visId = 0;
 
             // This is the flattened map; showing it alongside the 3D map for now
-            offset[0]=-5.5;
+            offset[0]+=-5.5;
             visId = v.addVisualModel (new morph::QuadsVisual<float> (v.shaderprog,
                                                                      &fquads, offset,
                                                                      &fmeans, scale,
@@ -1011,9 +1102,25 @@ int main (int argc, char** argv)
 
     // Add requested flattened map
     std::cout << "show_flattened: " << cmdOptions.show_flattened << "\n";
+#if 0
+    // Previously I selected a particular map from multiple datafiles to be displayed
     if (cmdOptions.show_flattened > 0 && static_cast<int>(cmdOptions.datafiles.size()) >= cmdOptions.show_flattened) {
         rtn += addFlattened (v, cmdOptions.datafiles[cmdOptions.show_flattened-1], cmdOptions);
     }
+#else
+    if (cmdOptions.show_flattened > 0) {
+
+        // FIXME: Equivalent of computeTransforms() here? But need global landmarks in 3D first.
+        std::vector<morph::Matrix33<float>> trans_mats2(cmdOptions.datafiles.size());
+        computeFlatTransforms (cmdOptions, trans_mats2);
+
+        float xoffs = 0.0f;
+        for (auto df : cmdOptions.datafiles) {
+            rtn += addFlattened (v, df, cmdOptions, {xoffs, 0, 0});
+            xoffs += -6.0f;
+        }
+    }
+#endif
 
     try {
         v.render();
