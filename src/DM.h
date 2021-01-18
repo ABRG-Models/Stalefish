@@ -492,23 +492,22 @@ public:
         this->writePrep();
 
         morph::HdfData d(this->datafile);
-        // Pass in mapAlignAngle for generating the angle maps
-        size_t n_glms = 0;
+
+        // Pass in mapAlignAngle for generating the angle maps and rebuild
+        // globalLandmarks afresh from the frames.
+        this->globalLandmarks.clear();
         for (auto f : this->vFrameData) {
             f.write (d, this->mapAlignAngle);
-            n_glms += f.GLM.size();
+            for (unsigned int glmi = 0; glmi < f.GLM.size(); ++glmi) {
+                this->globalLandmarks.push_back (std::make_pair ((unsigned int)(f.idx+1), glmi));
+            }
         }
 
-        if (n_glms == this->globalLandmarks.size()) {
-            std::cout << "Exporting globallandmarks... which has size " << this->globalLandmarks.size() << std::endl;
-            // /globallandmarks is an index. See this->globalLandmarks. This gives the index
-            // of the frame and within that frame the element of FrameData::GLM for each
-            // global landmark.
-            d.add_contained_vals ("/global_landmarks", this->globalLandmarks);
-        } else {
-            std::cout << "Avoid exporting globallandmarks; its size is "
-                      << this->globalLandmarks.size() << ", but n_glms is " << n_glms << std::endl;
-        }
+        std::cout << "Exporting globallandmarks which has size " << this->globalLandmarks.size() << std::endl;
+        // /globallandmarks is an index. See this->globalLandmarks. This gives the index
+        // of the frame and within that frame the element of FrameData::GLM for each
+        // global landmark.
+        d.add_contained_vals ("/global_landmarks", this->globalLandmarks);
 
         // For each frame also collect 2d Map data. That's /class/layer_x, /signal/postproc/boxes/means, lmalign/flattened/sbox_linear_distance
         std::vector<float> map_x;
