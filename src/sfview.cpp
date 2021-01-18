@@ -189,7 +189,7 @@ morph::TransformMatrix<float> readGlobalMatrix (const std::string& datafile)
         //std::cout << "Reading global landmark in " << frameName << std::endl;
         d.read_contained_vals(frameName.c_str(), GLM);
 
-        allGLM.push_back (GLM[glmt.second-1]);
+        allGLM.push_back (GLM[glmt.second]);
     }
     if (allGLM.size() < 4) {
         std::cerr << "Need at least 4 global landmarks.\n";
@@ -548,7 +548,7 @@ int addVisMod (SFVisual& v, const string& datafile, const CmdOptions& co, const 
                     //std::cout << morph::Vector<float>({fq[0],fq[1],fq[2]}) << " transforms to " << _pt << std::endl;
                     framePoints_lmaligned.push_back ({_pt[0], _pt[1], _pt[2]});
                 }
-                // Use straight scaled points to find the index of the point closest to the landmarks?
+
                 for (auto fq : frameQuads_scaled) {
                     morph::Vector<float> pt = {fq[0],fq[1],fq[2]};
                     morph::Vector<float, 4> _pt = M * pt;
@@ -681,7 +681,8 @@ int addVisMod (SFVisual& v, const string& datafile, const CmdOptions& co, const 
 }
 
 //! Read 3 global landmark positions and place them in a 3x3 matrix.
-morph::Matrix33<float> readGlobalPositions (const std::string& datafile)
+morph::Matrix33<float> readGlobalPositions (const std::string& datafile,
+                                            std::array<unsigned int, 3>& frame_indices)
 {
     morph::Matrix33<float> P;
     morph::HdfData d(datafile, true); // true for read
@@ -699,8 +700,10 @@ morph::Matrix33<float> readGlobalPositions (const std::string& datafile)
     std::vector<std::pair<unsigned int, unsigned int>> glm_table;
     d.read_contained_vals ("/global_landmarks", glm_table);
     vector<array<float, 3>> allGLM;
+    size_t i = 0;
     for (auto glmt : glm_table) {
-        //std::cout << "Frame: " << glmt.first << ", index: " << glmt.second << std::endl;
+        std::cout << "Frame: " << glmt.first << ", index: " << glmt.second << std::endl;
+        frame_indices[i++] = glmt.first;
         stringstream ss;
         ss << "/Frame";
         ss.width(3);
@@ -712,17 +715,18 @@ morph::Matrix33<float> readGlobalPositions (const std::string& datafile)
         }
         frameName = ss.str();
         vector<array<float, 3>> GLM;
-        //std::cout << "Reading global landmark in " << frameName << std::endl;
+        std::cout << "Reading global landmark in " << frameName << std::endl;
         d.read_contained_vals(frameName.c_str(), GLM);
-
-        allGLM.push_back (GLM[glmt.second-1]);
+        std::cout << "GLM has size " << GLM.size() << std::endl;
+        std::cout << "Accessing GLM[" << glmt.second-1 << "]\n";
+        allGLM.push_back (GLM[glmt.second]);
     }
     if (allGLM.size() < 3) {
         std::cerr << "Need at least 3 global landmarks.\n";
         return P;
     }
 
-    // Can loop through first 4 entries in GLM
+    // Can loop through first 3 entries in GLM
     for (size_t i = 0; i < 3; ++i) {
         size_t start = i*3;
         for (size_t j = 0; j<3; ++j) {
@@ -736,10 +740,137 @@ morph::Matrix33<float> readGlobalPositions (const std::string& datafile)
 //! Take 3 coordinates in the 3x3 matrix P and convert these into 2D coordinates in the
 //! flattened brain plane. Return a 3x3 matrix containing these 2D coords in a form
 //! suitable for transformation by a 3x3 transform matrix.
-morph::Matrix33<float> convertTwoDims (const morph::Matrix33<float>& P)
+//! datafile: which h5 file are we working with?
+//! co: The command options.
+//! P: The global landmark Positions as a 3x3 matrix
+//! frame_indices: The indices into the frames at which the Global landmarks are to be
+//! found. Assumed to be only 1 per slice.
+morph::Matrix33<float> convertTwoDims (const string& datafile,
+                                       const CmdOptions& co,
+                                       const morph::Matrix33<float>& P,
+                                       const std::array<unsigned int, 3>& frame_indices)
 {
-    morph::Matrix33<float> A;
-    // writeme
+    morph::HdfData d(datafile, true); // true for read
+    d.read_error_action = morph::ReadErrorAction::Exception;
+
+    bool lmalignComputed = false;
+    d.read_val ("/Frame001/lmalign/computed", lmalignComputed);
+    bool autoalignComputed = false;
+    d.read_val ("/Frame001/autoalign/computed", autoalignComputed);
+    bool align_lm = co.use_autoalign > 0 ? false : true;
+
+    float xx = 0.0f;
+    string frameName("");
+    string str("");
+    morph::Matrix33<float> A; // for return
+    for (size_t fi = 0; fi < 3; ++fi) {
+
+        stringstream ss;
+        ss << "/Frame";
+        ss.width(3);
+        ss.fill('0');
+        ss << frame_indices[fi];
+        frameName = ss.str();
+
+        // x position comes from the frame
+        string str = frameName+"/class/layer_x";
+        d.read_val (str.c_str(), xx);
+
+        // y position comes from a look at which of framePoints is closest to P.col(i)
+        A[fi*3] = xx;
+
+        morph::Vector<float, 3> gl = P.col(fi);
+        float mindist = 1e9;
+
+        vector<array<float, 12>> frameQuads_scaled;
+        vector<array<float, 12>> frameQuads_lmaligned;
+        vector<array<float, 12>> frameQuads_autoaligned;
+
+        vector<morph::Vector<float>> framePoints_autoaligned;
+        vector<morph::Vector<float>> framePoints_lmaligned;
+        vector<morph::Vector<float>> framePoints_scaled;
+
+        // Read quads and data for each frame and add to an overall pair of vectors...
+        str = frameName+"/autoalign/sboxes";
+        d.read_contained_vals (str.c_str(), frameQuads_autoaligned);
+        str = frameName+"/lmalign/sboxes";
+        d.read_contained_vals (str.c_str(), frameQuads_lmaligned);
+        // Un-transformed:
+        str = frameName+"/scaled/sboxes";
+        d.read_contained_vals (str.c_str(), frameQuads_scaled);
+
+        morph::Vector<float, 3> pt;
+        size_t ii = 0;
+        size_t min_idx = 0;
+        if (co.flattened_type == 1) {
+            // linear distance boxes
+            ii = 0;
+            for (auto fq : frameQuads_scaled) {
+                pt = {fq[0],fq[1],fq[2]};
+                float dist = (pt-gl).length();
+                if (dist < mindist) {
+                    mindist = dist;
+                    min_idx = ii;
+                }
+                ++ii;
+            }
+        } else if (co.flattened_type == 2) {
+            // angle based boxes
+            throw std::runtime_error ("writeme");
+        } else {
+            // linear distance based on 0 angle starting point:
+            if (lmalignComputed == true && align_lm == true) {
+                // landmark aligned
+                for (auto fq : frameQuads_lmaligned) {
+                    morph::Vector<float, 3> pt = {fq[0],fq[1],fq[2]};
+                    float dist = (pt-gl).length();
+                    if (dist < mindist) {
+                        mindist = dist;
+                        min_idx = ii;
+                    }
+                    ++ii;
+
+                }
+            } else {
+                // auto-aligned
+                for (auto fq : frameQuads_autoaligned) {
+                    // FIXME: Use centre of box, or even each end of box, or something
+                    morph::Vector<float, 3> pt = {fq[0],fq[1],fq[2]};
+                    float dist = (pt-gl).length();
+                    if (dist < mindist) {
+                        mindist = dist;
+                        min_idx = ii;
+                    }
+                    ++ii;
+                }
+            }
+        }
+        std::cout << "Index of the quad that's closest to the global landmark: " << min_idx << std::endl;
+
+        // Can now use min_idx to access the 'y' that we'll return in the matrix.
+        vector<float> linbins;
+        if (co.flattened_type == 1) {
+            // linear distance boxes:
+            str = frameName+"/scaled/flattened/sbox_linear_distance";
+        } else if (co.flattened_type == 2) {
+            // angle based boxes:
+            str = frameName+"/lmalign/flattened/sbox_angles";
+        } else {
+            // linear distance based on 0 angle starting point:
+            if (lmalignComputed == true && align_lm == true) {
+                str = frameName+"/lmalign/flattened/sbox_linear_distance";
+            } else {
+                str = frameName+"/autoalign/flattened/sbox_linear_distance";
+            }
+        }
+        d.read_contained_vals (str.c_str(), linbins);
+        float y = linbins[min_idx];
+        A[3*fi+1] = y;
+        A[3*fi+2] = 1.0f;
+    }
+    ///////////////
+    std::cout << "The matrix A of 2D coords is\n" << A << std::endl;
+
     return A;
 }
 
@@ -760,13 +891,15 @@ void computeFlatTransforms (const CmdOptions& co,
     trans_mats[0].setToIdentity();
 
     // now the fun stuff. Get the relevant global landmark vectors
-    morph::Matrix33<float> P = readGlobalPositions (co.datafiles[0]);
-    morph::Matrix33<float> D = convertTwoDims (P);
+    std::array<unsigned int, 3> frame_indices;
+    morph::Matrix33<float> P = readGlobalPositions (co.datafiles[0], frame_indices);
+    // How to get frame_indices? With readGlobalPositions i guess.
+    morph::Matrix33<float> D = convertTwoDims (co.datafiles[0], co, P, frame_indices);
 
     // Now get 'A' matrices from datafiles[1] and up
     for (size_t di = 1; di < co.datafiles.size(); ++di) {
-        morph::Matrix33<float> P = readGlobalPositions (co.datafiles[di]);
-        morph::Matrix33<float> A = convertTwoDims (P);
+        morph::Matrix33<float> P = readGlobalPositions (co.datafiles[di], frame_indices);
+        morph::Matrix33<float> A = convertTwoDims (co.datafiles[di], co, P, frame_indices);
         morph::Matrix33<float> Ainv = A.invert();
         trans_mats[di] = D * Ainv;
     }
@@ -1118,8 +1251,9 @@ int main (int argc, char** argv)
     if (cmdOptions.show_flattened > 0) {
 
         // FIXME: Equivalent of computeTransforms() here? But need global landmarks in 3D first.
-        //std::vector<morph::Matrix33<float>> trans_mats2(cmdOptions.datafiles.size());
-        //computeFlatTransforms (cmdOptions, trans_mats2);
+        std::cout << "Compute flat transforms...\n";
+        std::vector<morph::Matrix33<float>> trans_mats2(cmdOptions.datafiles.size());
+        computeFlatTransforms (cmdOptions, trans_mats2);
 
         float xoffs = 0.0f;
         for (auto df : cmdOptions.datafiles) {

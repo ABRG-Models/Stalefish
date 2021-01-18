@@ -757,8 +757,8 @@ public:
 
     //! Global landmarks need to be identified in order, so that they can be matched
     //! with a corresponding set of global landmarks from another data set. The pair in
-    //! the vector holds as .first, the frame number of that global landmark and as
-    //! .second, the index within FrameData::GLM.
+    //! the vector holds as .first, the frame number of that global landmark (counting
+    //! from 1) and as .second, the index within FrameData::GLM (counting from 0).
     std::vector<std::pair<unsigned int, unsigned int>> globalLandmarks;
 
     //! Adapted from Seb's futil library. Create unique file name for temporary file
@@ -1312,7 +1312,7 @@ public:
                 cf->LM.push_back (pt);
             } else if (cf->ct == InputMode::GlobalLandmark) {
                 cf->addGlobalLandmark (pt);
-                _this->globalLandmarks.push_back (std::make_pair (_this->getFrameNum(), cf->GLM.size()));
+                _this->globalLandmarks.push_back (std::make_pair (_this->getFrameNum(), cf->GLM.size()-1));
             } else if (cf->ct == InputMode::Circlemark) {
                 cf->addCirclepoint (pt);
             } else if (cf->ct == InputMode::Axismark) {
