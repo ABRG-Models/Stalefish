@@ -7,11 +7,13 @@ D=[ 0,1.9,2.1;
     1,2.1,1.2;
     1 , 1, 1];
 
+# Let D = M*A
+
 clf;
-# Plot A red
+# Plot A red (the original data)
 plot (A(1,:),A(2,:), 'ro-');
 hold on;
-# Plot D blue
+# Plot D blue - the transformed data
 plot (D(1,:), D(2,:), 'bo-')
 
 # Now some example vectors
