@@ -548,6 +548,7 @@ int addVisMod (SFVisual& v, const string& datafile, const CmdOptions& co, const 
                     //std::cout << morph::Vector<float>({fq[0],fq[1],fq[2]}) << " transforms to " << _pt << std::endl;
                     framePoints_lmaligned.push_back ({_pt[0], _pt[1], _pt[2]});
                 }
+                // Use straight scaled points to find the index of the point closest to the landmarks?
                 for (auto fq : frameQuads_scaled) {
                     morph::Vector<float> pt = {fq[0],fq[1],fq[2]};
                     morph::Vector<float, 4> _pt = M * pt;
@@ -679,39 +680,6 @@ int addVisMod (SFVisual& v, const string& datafile, const CmdOptions& co, const 
     return rtn;
 }
 
-
-void computeFlatTransforms (const CmdOptions& co,
-                            vector<morph::Matrix33<float>>& trans_mats)
-{
-    if (datafiles.size() < 2) {
-        // nothing to do though ensure trans_mats[0] contains identity, if necessary
-        if (datafiles.size()==1 && trans_mats.size()==1) { trans_mats[0].setToIdentity(); }
-        return;
-    }
-
-    if (datafiles.size() != trans_mats.size()) {
-        std::cerr << "WARNING: datafiles and trans_mats have to have the same size. Returning.\n";
-        return;
-    }
-
-    trans_mats[0].setToIdentity();
-
-    // now the fun stuff. Get the relevant global landmark vectors
-    morph::Matrix33<float> D = readGlobalMatrix33 (datafiles[0]);
-    //std::cout << "D (destination simplex) matrix, determined from first set of global landmarks:\n" << D << std::endl;
-
-    // Now get 'A' matrices from datafiles[1] and up
-    for (size_t di = 1; di < datafiles.size(); ++di) {
-        morph::TransformMatrix<float> A = readGlobalMatrix (datafiles[di]);
-        //std::cout << "A" << di << " =\n" << A << std::endl;
-        morph::TransformMatrix<float> Ainv = A.invert();
-        //std::cout << "inv(A" << di << "):\n" << Ainv << std::endl;
-        // Can now compute trans_mats (named M in my octave code)
-        trans_mats[di] = D * Ainv;
-        //std::cout << "M["<<di<<"]:\n" << trans_mats[di] << std::endl;
-    }
-}
-
 //! Read 3 global landmark positions and place them in a 3x3 matrix.
 morph::Matrix33<float> readGlobalPositions (const std::string& datafile)
 {
@@ -763,6 +731,45 @@ morph::Matrix33<float> readGlobalPositions (const std::string& datafile)
     }
 
     return P;
+}
+
+//! Take 3 coordinates in the 3x3 matrix P and convert these into 2D coordinates in the
+//! flattened brain plane. Return a 3x3 matrix containing these 2D coords in a form
+//! suitable for transformation by a 3x3 transform matrix.
+morph::Matrix33<float> convertTwoDims (const morph::Matrix33<float>& P)
+{
+    morph::Matrix33<float> A;
+    // writeme
+    return A;
+}
+
+void computeFlatTransforms (const CmdOptions& co,
+                            vector<morph::Matrix33<float>>& trans_mats)
+{
+    if (co.datafiles.size() < 2) {
+        // nothing to do though ensure trans_mats[0] contains identity, if necessary
+        if (co.datafiles.size()==1 && trans_mats.size()==1) { trans_mats[0].setToIdentity(); }
+        return;
+    }
+
+    if (co.datafiles.size() != trans_mats.size()) {
+        std::cerr << "WARNING: datafiles and trans_mats have to have the same size. Returning.\n";
+        return;
+    }
+
+    trans_mats[0].setToIdentity();
+
+    // now the fun stuff. Get the relevant global landmark vectors
+    morph::Matrix33<float> P = readGlobalPositions (co.datafiles[0]);
+    morph::Matrix33<float> D = convertTwoDims (P);
+
+    // Now get 'A' matrices from datafiles[1] and up
+    for (size_t di = 1; di < co.datafiles.size(); ++di) {
+        morph::Matrix33<float> P = readGlobalPositions (co.datafiles[di]);
+        morph::Matrix33<float> A = convertTwoDims (P);
+        morph::Matrix33<float> Ainv = A.invert();
+        trans_mats[di] = D * Ainv;
+    }
 }
 
 //! Add flattened map
@@ -1111,8 +1118,8 @@ int main (int argc, char** argv)
     if (cmdOptions.show_flattened > 0) {
 
         // FIXME: Equivalent of computeTransforms() here? But need global landmarks in 3D first.
-        std::vector<morph::Matrix33<float>> trans_mats2(cmdOptions.datafiles.size());
-        computeFlatTransforms (cmdOptions, trans_mats2);
+        //std::vector<morph::Matrix33<float>> trans_mats2(cmdOptions.datafiles.size());
+        //computeFlatTransforms (cmdOptions, trans_mats2);
 
         float xoffs = 0.0f;
         for (auto df : cmdOptions.datafiles) {
