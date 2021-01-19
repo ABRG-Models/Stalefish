@@ -717,8 +717,6 @@ morph::Matrix33<float> readGlobalPositions (const std::string& datafile,
         vector<array<float, 3>> GLM;
         std::cout << "Reading global landmark in " << frameName << std::endl;
         d.read_contained_vals(frameName.c_str(), GLM);
-        std::cout << "GLM has size " << GLM.size() << std::endl;
-        std::cout << "Accessing GLM[" << glmt.second-1 << "]\n";
         allGLM.push_back (GLM[glmt.second]);
     }
     if (allGLM.size() < 3) {
@@ -868,13 +866,13 @@ morph::Matrix33<float> convertTwoDims (const string& datafile,
         A[3*fi+1] = y;
         A[3*fi+2] = 1.0f;
     }
-    ///////////////
-    std::cout << "The matrix A of 2D coords is\n" << A << std::endl;
 
+    std::cout << "The matrix A of 2D coords is\n" << A << std::endl;
     return A;
 }
 
 void computeFlatTransforms (const CmdOptions& co,
+                            vector<morph::Matrix33<float>>& A,
                             vector<morph::Matrix33<float>>& trans_mats)
 {
     if (co.datafiles.size() < 2) {
@@ -895,18 +893,22 @@ void computeFlatTransforms (const CmdOptions& co,
     morph::Matrix33<float> P = readGlobalPositions (co.datafiles[0], frame_indices);
     // How to get frame_indices? With readGlobalPositions i guess.
     morph::Matrix33<float> D = convertTwoDims (co.datafiles[0], co, P, frame_indices);
+    A[0] = D;
 
     // Now get 'A' matrices from datafiles[1] and up
     for (size_t di = 1; di < co.datafiles.size(); ++di) {
         morph::Matrix33<float> P = readGlobalPositions (co.datafiles[di], frame_indices);
-        morph::Matrix33<float> A = convertTwoDims (co.datafiles[di], co, P, frame_indices);
-        morph::Matrix33<float> Ainv = A.invert();
+        A[di] = convertTwoDims (co.datafiles[di], co, P, frame_indices);
+        morph::Matrix33<float> Ainv = A[di].invert();
         trans_mats[di] = D * Ainv;
     }
 }
 
-//! Add flattened map
+//! Add flattened map. 'A' contains the locations of the global landmarks, in 2D
+//! coords. trans_mats contains the transformation matrices, to apply.
 int addFlattened (SFVisual& v, const string& datafile, const CmdOptions& co,
+                  morph::Matrix33<float>& A,
+                  morph::Matrix33<float>& trans_mat,
                   morph::Vector<float> offset = { 0.0f, 0.0f, 0.0f })
 {
     int rtn = 0;
@@ -1085,6 +1087,18 @@ int addFlattened (SFVisual& v, const string& datafile, const CmdOptions& co,
                                                                        &centres_id, 0.03f, scale,
                                                                        morph::ColourMapType::Jet));
             v.angle_centres.push_back (visId);
+
+            // Plot A (the landmarks) if necessary.
+            std::vector<morph::Vector<float,3>> sc_coords(3);
+            std::vector<float> sc_data = { 0.2f, 0.4f, 0.6f };
+            sc_coords[0] = A.col(0); sc_coords[0][2] = 0.0f;
+            sc_coords[1] = A.col(1); sc_coords[1][2] = 0.0f;
+            sc_coords[2] = A.col(2); sc_coords[2][2] = 0.0f;
+            visId = v.addVisualModel (new morph::ScatterVisual<float> (v.shaderprog,
+                                                                       &sc_coords, offset,
+                                                                       &sc_data, scale,
+                                                                       morph::ColourMapType::Jet));
+            v.surfaces_2d.push_back (visId);
         }
     } catch (const exception& e) {
         cerr << "Caught exception: " << e.what() << endl;
@@ -1220,7 +1234,7 @@ int main (int argc, char** argv)
         } else {
             hue = 0.8f;
         }
-        // WRITEME NEXT: Pass trans_mats into addVisMod and apply to the coords therein.
+        // Pass trans_mats into addVisMod and apply to the coords therein.
         std::cout << "Calling addVisMod (...,trans_mats["<<ii<<"]\n";
         rtn += addVisMod (v, cmdOptions.datafiles[ii], cmdOptions, hue, trans_mats[ii]);
     }
@@ -1242,26 +1256,21 @@ int main (int argc, char** argv)
 
     // Add requested flattened map
     std::cout << "show_flattened: " << cmdOptions.show_flattened << "\n";
-#if 0
-    // Previously I selected a particular map from multiple datafiles to be displayed
-    if (cmdOptions.show_flattened > 0 && static_cast<int>(cmdOptions.datafiles.size()) >= cmdOptions.show_flattened) {
-        rtn += addFlattened (v, cmdOptions.datafiles[cmdOptions.show_flattened-1], cmdOptions);
-    }
-#else
+
     if (cmdOptions.show_flattened > 0) {
-
-        // FIXME: Equivalent of computeTransforms() here? But need global landmarks in 3D first.
-        std::cout << "Compute flat transforms...\n";
+        // Compute the transforms
         std::vector<morph::Matrix33<float>> trans_mats2(cmdOptions.datafiles.size());
-        computeFlatTransforms (cmdOptions, trans_mats2);
-
+        std::vector<morph::Matrix33<float>> A2(cmdOptions.datafiles.size());
+        computeFlatTransforms (cmdOptions, A2, trans_mats2);
+        // Display flattened (and transformed) maps
         float xoffs = 0.0f;
+        size_t dfi = 0;
         for (auto df : cmdOptions.datafiles) {
-            rtn += addFlattened (v, df, cmdOptions, {xoffs, 0, 0});
+            rtn += addFlattened (v, df, cmdOptions, A2[dfi], trans_mats2[dfi], {xoffs, 0, 0});
             xoffs += -6.0f;
+            dfi++;
         }
     }
-#endif
 
     try {
         v.render();
