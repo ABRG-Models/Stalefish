@@ -100,7 +100,7 @@ struct CmdOptions
     int show_flattened;
     //! flattened_type could be 0. aligned linear distance, starting from angle 0 1. linear distance, centered, 2. angle of thing about 0.
     int flattened_type;
-    //! Apply Linear Transforms based on global landmarks
+    //! Apply Linear Transforms based on global landmarks. 2: 2D 3: 3D.
     int linear_transforms;
     //! Temporary datafile, for adding to datafiles.
     char* datafile;
@@ -155,9 +155,18 @@ void popt_option_callback (poptContext con,
     }
 }
 
+unsigned int countGlobalLandmarks (const string& datafile)
+{
+    morph::HdfData d(datafile, true);
+    std::vector<std::pair<unsigned int, unsigned int>> glm_table;
+    d.read_contained_vals ("/global_landmarks", glm_table);
+    return glm_table.size();
+}
+
 morph::TransformMatrix<float> readGlobalMatrix (const std::string& datafile)
 {
     morph::TransformMatrix<float> A;
+    std::cout << "Opening " << datafile << std::endl;
     morph::HdfData d(datafile, true); // true for read
     int nf = 0;
     d.read_val ("/nframes", nf);
@@ -185,10 +194,13 @@ morph::TransformMatrix<float> readGlobalMatrix (const std::string& datafile)
             ss << glmt.first << "/autoalign/global_landmarks";
         }
         frameName = ss.str();
+        // FIXME: I suspect an issue with the order of the global landmarks.
         vector<array<float, 3>> GLM;
-        //std::cout << "Reading global landmark in " << frameName << std::endl;
+        std::cout << "Reading global landmark in " << frameName << std::endl;
         d.read_contained_vals(frameName.c_str(), GLM);
-
+        std::cout << "The GLM has size " << GLM.size() << std::endl;
+        array<float, 3> th = GLM[glmt.second];
+        std::cout << "About to push_back GLM[" << glmt.second << "] (" <<  th[0] << "," << th[1] << "," << th[2] << ")\n";
         allGLM.push_back (GLM[glmt.second]);
     }
     if (allGLM.size() < 4) {
@@ -228,12 +240,12 @@ void computeTransforms (const vector<string>& datafiles,
 
     // now the fun stuff. Get the relevant global landmark vectors
     morph::TransformMatrix<float> D = readGlobalMatrix (datafiles[0]);
-    //std::cout << "D (destination simplex) matrix, determined from first set of global landmarks:\n" << D << std::endl;
+    std::cout << "D (destination simplex) matrix, determined from first set of global landmarks:\n" << D << std::endl;
 
     // Now get 'A' matrices from datafiles[1] and up
     for (size_t di = 1; di < datafiles.size(); ++di) {
         morph::TransformMatrix<float> A = readGlobalMatrix (datafiles[di]);
-        //std::cout << "A" << di << " =\n" << A << std::endl;
+        std::cout << "A" << di << " =\n" << A << std::endl;
         morph::TransformMatrix<float> Ainv = A.invert();
         //std::cout << "inv(A" << di << "):\n" << Ainv << std::endl;
         // Can now compute trans_mats (named M in my octave code)
@@ -333,9 +345,9 @@ int addLandmarks (SFVisual& v, const string& datafile, const CmdOptions& co,
                 }
                 frameName = ss.str();
                 vector<array<float, 3>> GLM;
-                std::cout << "Reading global landmark in " << frameName << std::endl;
+                //std::cout << "Reading global landmark in " << frameName << std::endl;
                 d.read_contained_vals (frameName.c_str(), GLM);
-                std::cout << "GLM size: " << GLM.size() << std::endl;
+                //std::cout << "GLM size: " << GLM.size() << std::endl;
                 for (auto glm : GLM) {
                     morph::Vector<float, 4> _glm = M * morph::Vector<float, 3>({glm[0],glm[1],glm[2]});
                     if (lmalignComputed == true && align_lm == true) {
@@ -359,11 +371,12 @@ int addLandmarks (SFVisual& v, const string& datafile, const CmdOptions& co,
                                                                            &landmarks_id, 0.07f, scale,
                                                                            morph::ColourMapType::Plasma));
                 v.landmarks.push_back (visId);
-
+#ifdef __DEBUG
                 std::cout << "Showing LM aligned global landmarks...\n";
                 for (auto ii : globlm_lmaligned) { std::cout << ii << std::endl; }
                 std::cout << "glm_id:\n";
                 for (auto ii : glm_id) { std::cout << ii << std::endl; }
+#endif
                 visId = v.addVisualModel (new morph::ScatterVisual<float> (v.shaderprog,
                                                                            &globlm_lmaligned, offset,
                                                                            &glm_id, 0.1f, scale,
@@ -396,6 +409,7 @@ int addLandmarks (SFVisual& v, const string& datafile, const CmdOptions& co,
 int addVisMod (SFVisual& v, const string& datafile, const CmdOptions& co, const float hue,
                morph::TransformMatrix<float>& M)
 {
+    std::cout << __FUNCTION__ << " called with M=\n" << M << std::endl;
     int rtn = 0;
 
     bool autoscale_per_slice = co.scale_perslice > 0 ? true : false;
@@ -419,6 +433,7 @@ int addVisMod (SFVisual& v, const string& datafile, const CmdOptions& co, const 
 
         vector<array<float, 12>> quads_autoaligned; // Get from HDF5
         vector<array<float, 12>> quads_lmaligned;
+        std::cout << "quads_lmaligned.size() = " << quads_lmaligned.size() << std::endl;
         vector<array<float, 12>> quads_scaled;
         vector<morph::Vector<float>> points_autoaligned; // Centres of boxes; for smooth surface (points rows)
         vector<morph::Vector<float>> points_lmaligned; // Centres of boxes; for smooth surface (points rows)
@@ -497,7 +512,7 @@ int addVisMod (SFVisual& v, const string& datafile, const CmdOptions& co, const 
                     d.read_contained_vals (str.c_str(), AM_lmaligned);
                     cp[1] = AM_lmaligned[0].x;
                     cp[2] = AM_lmaligned[0].y;
-                     _cp = M * cp;
+                    _cp = M * cp;
                     AM_origins_lmaligned.push_back ({_cp[0], _cp[1], _cp[2]});
                 } catch (const exception& ee) {
                     // Ignore missing AM_origins
@@ -535,6 +550,51 @@ int addVisMod (SFVisual& v, const string& datafile, const CmdOptions& co, const 
                 str = frameName+"/scaled/sboxes";
                 d.read_contained_vals (str.c_str(), frameQuads_scaled);
 
+                // FIXME: Transform frameQuads here (then don't need to transform framePoints, below)
+                for (auto& fq : frameQuads_lmaligned) {
+                    morph::TransformMatrix<float> pt;
+                    pt[0] = fq[0];
+                    pt[1] = fq[1];
+                    pt[2] = fq[2];
+                    pt[3] = 1.0f;
+
+                    pt[4] = fq[3];
+                    pt[5] = fq[4];
+                    pt[6] = fq[5];
+                    pt[7] = 1.0f;
+
+                    pt[8] = fq[6];
+                    pt[9] = fq[7];
+                    pt[10] = fq[8];
+                    pt[11] = 1.0f;
+
+                    pt[12] = fq[9];
+                    pt[13] = fq[10];
+                    pt[14] = fq[11];
+                    pt[15] = 1.0f;
+
+                    //std::cout << M << "\n*\n" << pt << "\n=\n";
+                    morph::TransformMatrix<float> pt_trans = M * pt;
+                    //std::cout << pt_trans << "\n--------------\n";
+                    fq[0] = pt_trans[0];
+                    fq[1] = pt_trans[1];
+                    fq[2] = pt_trans[2];
+
+                    fq[3] = pt_trans[4];
+                    fq[4] = pt_trans[5];
+                    fq[5] = pt_trans[6];
+
+                    fq[6] = pt_trans[8];
+                    fq[7] = pt_trans[9];
+                    fq[8] = pt_trans[10];
+
+                    fq[9] = pt_trans[12];
+                    fq[10] = pt_trans[13];
+                    fq[11] = pt_trans[14];
+
+                    //std::cout << "fq[0] = " << fq[0] << ", and pt[0] = " << pt[0] << " (same?)\n";
+                }
+
                 for (auto fq : frameQuads_autoaligned) {
                     // FIXME: Use centre of box, or even each end of box, or something
                     morph::Vector<float> pt = {fq[0],fq[1],fq[2]};
@@ -543,10 +603,7 @@ int addVisMod (SFVisual& v, const string& datafile, const CmdOptions& co, const 
                 }
 
                 for (auto fq : frameQuads_lmaligned) {
-                    morph::Vector<float, 4> pt = {fq[0], fq[1], fq[2], 1};
-                    morph::Vector<float, 4> _pt = M * pt;
-                    //std::cout << morph::Vector<float>({fq[0],fq[1],fq[2]}) << " transforms to " << _pt << std::endl;
-                    framePoints_lmaligned.push_back ({_pt[0], _pt[1], _pt[2]});
+                    framePoints_lmaligned.push_back ({fq[0], fq[1], fq[2]});
                 }
 
                 for (auto fq : frameQuads_scaled) {
@@ -595,8 +652,7 @@ int addVisMod (SFVisual& v, const string& datafile, const CmdOptions& co, const 
                         visId = v.addVisualModel (new morph::QuadsMeshVisual<float> (v.shaderprog,
                                                                                      &quads_lmaligned, offset,
                                                                                      &means, scale,
-                                                                                     cmt, hue, colour_sat, 0.005f
-                                                      ));
+                                                                                     cmt, hue, colour_sat, 0.005f));
                     } else {
                         std::cout << "Adding QuadsVisual with hue=" << hue << std::endl;
                         visId = v.addVisualModel (new morph::QuadsVisual<float> (v.shaderprog,
@@ -1011,21 +1067,30 @@ int addFlattened (SFVisual& v, const string& datafile, const CmdOptions& co,
                 vector<array<float,12>> flatsurf_boxes;
                 array<float, 12> sbox;
                 for (unsigned int j = 1; j < linbins.size(); ++j) {
+
                     // c1 x,y,z
-                    sbox[0] = xx-thickness; // x
-                    sbox[1] = linbins[j-1]; // y
-                    sbox[2] = 0.0;          // z
+                    morph::Vector<float> c1 = { xx-thickness, linbins[j-1], 1.0f };
+                    morph::Vector<float> c1p = trans_mat * c1;
+                    sbox[0] = c1p[0]; // x
+                    sbox[1] = c1p[1]; // y
+                    sbox[2] = 0.0;    // z
                     // c2 x,y,z
-                    sbox[3] = xx-thickness;
-                    sbox[4] = linbins[j];
+                    c1[1] = linbins[j];
+                    c1p = trans_mat * c1;
+                    sbox[3] = c1p[0];
+                    sbox[4] = c1p[1];
                     sbox[5] = 0.0;
                     // c3 x,y,z
-                    sbox[6] = xx;
-                    sbox[7] = linbins[j];
+                    c1[0] = xx;
+                    c1p = trans_mat * c1;
+                    sbox[6] = c1p[0];
+                    sbox[7] = c1p[1];
                     sbox[8] = 0.0;
                     // c4 x,y,z
-                    sbox[9] = xx;
-                    sbox[10] = linbins[j-1];
+                    c1[1] = linbins[j-1];
+                    c1p = trans_mat * c1;
+                    sbox[9] = c1p[0];
+                    sbox[10] = c1p[1];
                     sbox[11] = 0.0;
 
                     // For angle based view, have to tweak the box angles by +-2pi to avoid boxes that span the whole ribbon.
@@ -1091,9 +1156,14 @@ int addFlattened (SFVisual& v, const string& datafile, const CmdOptions& co,
             // Plot A (the landmarks) if necessary.
             std::vector<morph::Vector<float,3>> sc_coords(3);
             std::vector<float> sc_data = { 0.2f, 0.4f, 0.6f };
-            sc_coords[0] = A.col(0); sc_coords[0][2] = 0.0f;
-            sc_coords[1] = A.col(1); sc_coords[1][2] = 0.0f;
-            sc_coords[2] = A.col(2); sc_coords[2][2] = 0.0f;
+            sc_coords[0] = A.col(0); sc_coords[0][2] = 1.0f;
+            sc_coords[1] = A.col(1); sc_coords[1][2] = 1.0f;
+            sc_coords[2] = A.col(2); sc_coords[2][2] = 1.0f;
+            // Apply transform
+            for (unsigned int j = 0; j < 3; ++j) {
+                sc_coords[j] = trans_mat * sc_coords[j];
+                sc_coords[j][2] = 0.0f;
+            }
             visId = v.addVisualModel (new morph::ScatterVisual<float> (v.shaderprog,
                                                                        &sc_coords, offset,
                                                                        &sc_data, scale,
@@ -1162,8 +1232,8 @@ int main (int argc, char** argv)
 
         {"linear_transforms", 'T',
          POPT_ARG_NONE, &(cmdOptions.linear_transforms), 0,
-         "If >1 model, then transform each model index > 0 to match model index 0, using global "
-         "landmarks of which there should be 4 in each model."},
+         "If there is more than one model, then transform each model index > 0 to match model index 0, using global "
+         "landmarks of which there should be 4 in each model (for 3D transforms) or 3 in each (for 2D transforms)."},
 
         // options following this will cause the popt_option_callback to be executed.
         { "callback", '\0',
@@ -1209,18 +1279,26 @@ int main (int argc, char** argv)
     v.zFar = 40.0;
     v.showTitle = false;
     v.showCoordArrows = true;
+    v.coordArrowsInScene = false;
     // Enable lighting if asked for, or automatically for mesh views
     if (cmdOptions.lighting > 0 || cmdOptions.show_mesh > 0) {
         v.lightingEffects (true);
     }
     v.diffuse_position = {-1, 2, -3};
 
+    unsigned int n_global_landmarks = 0;
+    if (cmdOptions.datafiles.size() > 1) {
+        // Count how many landmarks in the first datafile:
+        n_global_landmarks = countGlobalLandmarks (cmdOptions.datafiles[0]);
+        std::cout << "First data file contains " << n_global_landmarks << " global landmarks.\n";
+    }
+
     // Before addVisMod(), addLandmarks(), etc, and if there is more than 1 model and if
     // the "compute linear transformations" option is true, then compute linear
     // transformations that should be applied to each model index > 0.
     vector<morph::TransformMatrix<float>> trans_mats(cmdOptions.datafiles.size());
-    if (cmdOptions.linear_transforms > 0 && cmdOptions.datafiles.size() > 1) {
-        std::cout << "Applying linear transforms...\n";
+    if (cmdOptions.linear_transforms > 0 && cmdOptions.datafiles.size() > 1 && n_global_landmarks == 4) {
+        std::cout << "Applying 3D linear transforms...\n";
         computeTransforms (cmdOptions.datafiles, trans_mats, cmdOptions);
     }
 
@@ -1254,14 +1332,22 @@ int main (int argc, char** argv)
         }
     }
 
-    // Add requested flattened map
-    std::cout << "show_flattened: " << cmdOptions.show_flattened << "\n";
-
+    // Add requested flattened, 2D map
     if (cmdOptions.show_flattened > 0) {
-        // Compute the transforms
-        std::vector<morph::Matrix33<float>> trans_mats2(cmdOptions.datafiles.size());
+        // Compute the 2D transforms
+        std::vector<morph::Matrix33<float>> trans_mats2(cmdOptions.datafiles.size()); // Will be constructed with identity matrices
         std::vector<morph::Matrix33<float>> A2(cmdOptions.datafiles.size());
-        computeFlatTransforms (cmdOptions, A2, trans_mats2);
+        if (cmdOptions.linear_transforms > 0 && cmdOptions.datafiles.size() > 1 && n_global_landmarks == 3) {
+            std::cout << "Applying 2D linear transforms...\n";
+            computeFlatTransforms (cmdOptions, A2, trans_mats2);
+        } else {
+            // Would like to get A2 populated with untransformed coords here.
+            std::array<unsigned int, 3> frame_indices;
+            for (size_t di = 0; di < cmdOptions.datafiles.size(); ++di) {
+                morph::Matrix33<float> P = readGlobalPositions (cmdOptions.datafiles[di], frame_indices);
+                A2[di] = convertTwoDims (cmdOptions.datafiles[di], cmdOptions, P, frame_indices);
+            }
+        }
         // Display flattened (and transformed) maps
         float xoffs = 0.0f;
         size_t dfi = 0;
