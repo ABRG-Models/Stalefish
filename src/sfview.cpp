@@ -157,7 +157,7 @@ void popt_option_callback (poptContext con,
 
 unsigned int countGlobalLandmarks (const string& datafile)
 {
-    morph::HdfData d(datafile, true);
+    morph::HdfData d(datafile, morph::FileAccess::ReadOnly);
     std::vector<std::pair<unsigned int, unsigned int>> glm_table;
     d.read_contained_vals ("/global_landmarks", glm_table);
     return glm_table.size();
@@ -167,7 +167,7 @@ morph::TransformMatrix<float> readGlobalMatrix (const std::string& datafile)
 {
     morph::TransformMatrix<float> A;
     std::cout << "Opening " << datafile << std::endl;
-    morph::HdfData d(datafile, true); // true for read
+    morph::HdfData d(datafile, morph::FileAccess::ReadOnly);
     int nf = 0;
     d.read_val ("/nframes", nf);
 
@@ -281,7 +281,7 @@ int addLandmarks (SFVisual& v, const string& datafile, const CmdOptions& co,
         vector<float> landmarks_id;
 
         {
-            morph::HdfData d(datafile, true); // true for read
+            morph::HdfData d(datafile, morph::FileAccess::ReadOnly);
             int nf = 0;
             d.read_val ("/nframes", nf);
 
@@ -395,7 +395,7 @@ int addLandmarks (SFVisual& v, const string& datafile, const CmdOptions& co,
                                                                            &glm_id, 0.1f*number, scale,
                                                                            morph::ColourMapType::Plasma));
                 v.landmarks.push_back (visId);
-           }
+            }
         }
     } catch (const exception& e) {
         cerr << "Caught exception: " << e.what() << endl;
@@ -448,7 +448,7 @@ int addVisMod (SFVisual& v, const string& datafile, const CmdOptions& co, const 
 
         {
             cout << "addVisMod: Opening H5 file " << datafile << endl;
-            morph::HdfData d(datafile, true); // true for read
+            morph::HdfData d(datafile, morph::FileAccess::ReadOnly);
             d.read_error_action = morph::ReadErrorAction::Exception;
             int nf = 0;
             d.read_val ("/nframes", nf);
@@ -741,7 +741,7 @@ morph::Matrix33<float> readGlobalPositions (const std::string& datafile,
                                             std::array<unsigned int, 3>& frame_indices)
 {
     morph::Matrix33<float> P;
-    morph::HdfData d(datafile, true); // true for read
+    morph::HdfData d(datafile, morph::FileAccess::ReadOnly);
     int nf = 0;
     d.read_val ("/nframes", nf);
 
@@ -804,7 +804,7 @@ morph::Matrix33<float> convertTwoDims (const string& datafile,
                                        const morph::Matrix33<float>& P,
                                        const std::array<unsigned int, 3>& frame_indices)
 {
-    morph::HdfData d(datafile, true); // true for read
+    morph::HdfData d(datafile, morph::FileAccess::ReadOnly);
     d.read_error_action = morph::ReadErrorAction::Exception;
 
     bool lmalignComputed = false;
@@ -960,6 +960,25 @@ void computeFlatTransforms (const CmdOptions& co,
     }
 }
 
+// To go in MathAlgo
+void resample_twod (const vector<morph::Vector<float, 2>>& fmids,
+                    const vector<float>& fmeans,
+                    vector<morph::Vector<float, 2>>& fmids_resampled,
+                    vector<float>& fmeans_resampled)
+{
+    // Find extents
+    float minx = 1e9, miny = 1e9, maxx = -1e9, maxy = -1e9;
+    for (auto c : fmids) {
+        minx = c[0] < minx ? c[0] : minx;
+        miny = c[1] < miny ? c[1] : miny;
+        maxx = c[0] > maxx ? c[0] : maxx;
+        maxy = c[1] > maxy ? c[1] : maxy;
+    }
+
+    // Create
+    throw std::runtime_error ("Finish me");
+}
+
 //! Add flattened map. 'A' contains the locations of the global landmarks, in 2D
 //! coords. trans_mats contains the transformation matrices, to apply.
 int addFlattened (SFVisual& v, const string& datafile, const CmdOptions& co,
@@ -980,12 +999,13 @@ int addFlattened (SFVisual& v, const string& datafile, const CmdOptions& co,
         float thickness = 0.0f;
         float xx = 0.0f;
         vector<array<float, 12>> fquads; // Flat quads, for the flat visualization
+        vector<morph::Vector<float, 2>> fmids; // Mid points of the quads
         vector<float> means;
         vector<float> fmeans;
 
         {
             cout << "Opening H5 file " << datafile << endl;
-            morph::HdfData d(datafile, true); // true for read
+            morph::HdfData d(datafile, morph::FileAccess::ReadWrite);
             int nf = 0;
             d.read_val ("/nframes", nf);
 
@@ -1025,24 +1045,19 @@ int addFlattened (SFVisual& v, const string& datafile, const CmdOptions& co,
                 d.read_val (str.c_str(), xx);
                 str = frameName+"/class/thickness";
                 d.read_val (str.c_str(), thickness);
-                vector<double> frameMeans;
+                vector<float> frameMeansF;
                 if (autoscale_per_slice) {
                     // Use the auto-scaled version of the means, with each slice autoscaled to [0,1]
                     str = frameName+"/signal/postproc/boxes/means_autoscaled";
-                    d.read_contained_vals (str.c_str(), frameMeans);
+                    d.read_contained_vals (str.c_str(), frameMeansF);
                 } else {
                     // Use the raw means and autoscale them as an entire group
                     str = frameName+"/signal/postproc/boxes/means";
-                    d.read_contained_vals (str.c_str(), frameMeans);
+                    d.read_contained_vals (str.c_str(), frameMeansF);
                     // The morph::Scale object scale with autoscale the who thing.
                     scale.do_autoscale = true;
                 }
 
-                // Gah, convert frameMeans to float (there's a better way to do this)
-                vector<float> frameMeansF;
-                for (unsigned int j = 0; j < frameMeans.size(); ++j) {
-                    frameMeansF.push_back (static_cast<float>(frameMeans[j]));
-                }
                 // Load in linear stuff as well, to make up flat boxes? Or easier to do at source?
                 vector<float> linbins;
                 if (co.flattened_type == 1) {
@@ -1064,7 +1079,10 @@ int addFlattened (SFVisual& v, const string& datafile, const CmdOptions& co,
                 // now - if the linbins we loaded were the sbox_angles, then we need to
                 // sort linbins, while sorting, at the same time, the signals.
 
+                // The corners of the boxes to be drawn, in 3D (though z will be 0)
                 vector<array<float,12>> flatsurf_boxes;
+                // The centroids of the boxes, in the 2D plane.
+                vector<morph::Vector<float, 2>> flat_mids;
                 array<float, 12> sbox;
                 for (unsigned int j = 1; j < linbins.size(); ++j) {
 
@@ -1113,8 +1131,12 @@ int addFlattened (SFVisual& v, const string& datafile, const CmdOptions& co,
                     std::cout << "   c4: " << sbox[9] << "," << sbox[10] << "," << sbox[11] << std::endl;
 #endif
                     flatsurf_boxes.push_back (sbox);
+                    morph::Vector<float, 2> midpoint = { (sbox[0] + sbox[3] + sbox[6] + sbox[9]) * 0.25f,
+                                                  (sbox[1] + sbox[4] + sbox[7] + sbox[10]) * 0.25f };
+                    flat_mids.push_back (midpoint);
                 }
                 fquads.insert (fquads.end(), flatsurf_boxes.begin(), flatsurf_boxes.end());
+                fmids.insert (fmids.end(), flat_mids.begin(), flat_mids.end());
                 fmeans.insert (fmeans.end(), frameMeansF.begin(), --frameMeansF.end());
             }
             unsigned int visId = 0;
@@ -1126,6 +1148,20 @@ int addFlattened (SFVisual& v, const string& datafile, const CmdOptions& co,
                                                                      &fmeans, scale,
                                                                      morph::ColourMapType::Greyscale));
             v.surfaces_2d.push_back (visId);
+
+            // Add the newly-generate expression and coordinates to the data file.
+            d.add_contained_vals ("/output_map/twod/expression", fmeans);
+            d.add_contained_vals ("/output_map/twod/coordinates", fmids);
+
+            // Resample onto a rectangular grid
+#ifdef WHEN_DONE
+            vector<morph::Vector<float, 2>> fmids_resampled;
+            vector<float> fmeans_resampled;
+            resample_twod (fmids, fmeans, fmids_resampled, fmeans_resampled);
+            d.add_contained_vals ("/output_map/twod/expression_resampled", fmeans_resampled);
+            d.add_contained_vals ("/output_map/twod/coordinates_resampled", fmids_resampled);
+#endif
+            d.add_contained_vals ("/output_map/twod/M", trans_mat.mat);
 
             // Add a row of points for the centre marker, for debugging
             vector<morph::Vector<float>> centres_;
@@ -1143,7 +1179,7 @@ int addFlattened (SFVisual& v, const string& datafile, const CmdOptions& co,
                 cp[0] = xx;
                 cp[1] = 0;
                 cp[2] = 0;
-                centres_.push_back (cp);
+                centres_.push_back (trans_mat*cp);
                 centres_id.push_back (0.1f*(float)i);
             }
 
@@ -1169,6 +1205,11 @@ int addFlattened (SFVisual& v, const string& datafile, const CmdOptions& co,
                                                                        &sc_data, scale,
                                                                        morph::ColourMapType::Jet));
             v.surfaces_2d.push_back (visId);
+
+            // FIXME: Convert to 2D then save. Here are landmarks in 3D:
+            d.add_contained_vals ("/output_map/twod/global_landmarks", sc_coords);
+            // Finally, add the datafile used to determine M.
+            d.add_string ("/output_map/twod/M_comes_from", co.datafiles[0]);
         }
     } catch (const exception& e) {
         cerr << "Caught exception: " << e.what() << endl;
