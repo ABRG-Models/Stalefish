@@ -16,6 +16,7 @@
 #include <morph/RodVisual.h>
 #include <morph/TransformMatrix.h>
 #include <morph/Matrix33.h>
+#include <morph/MathConst.h>
 #include <popt.h>
 
 using namespace std;
@@ -960,23 +961,71 @@ void computeFlatTransforms (const CmdOptions& co,
     }
 }
 
-// To go in MathAlgo
-void resample_twod (const vector<morph::Vector<float, 2>>& fmids,
-                    const vector<float>& fmeans,
-                    vector<morph::Vector<float, 2>>& fmids_resampled,
-                    vector<float>& fmeans_resampled)
+std::pair<unsigned int, unsigned int>
+resample_twod (const vector<morph::Vector<float, 2>>& coords,
+               const vector<float>& expression,
+               vector<morph::Vector<float, 2>>& cartgrid,
+               vector<float>& expr_resampled,
+               const float sigma)
 {
+    if (coords.size() != expression.size()) {
+        throw std::runtime_error ("Expect coords and expression vectors to be same size");
+    }
+    if (coords.size() < 2) {
+        throw std::runtime_error ("Expect more than 1 coordinate!");
+    }
+
     // Find extents
     float minx = 1e9, miny = 1e9, maxx = -1e9, maxy = -1e9;
-    for (auto c : fmids) {
+    for (auto c : coords) {
         minx = c[0] < minx ? c[0] : minx;
         miny = c[1] < miny ? c[1] : miny;
         maxx = c[0] > maxx ? c[0] : maxx;
         maxy = c[1] > maxy ? c[1] : maxy;
     }
 
-    // Create
-    throw std::runtime_error ("Finish me");
+    // Grid spacing taken from the distance from one sample box to another around a slice
+    float l = std::abs(coords[1][1] - coords[0][1]);
+    std::cout << "Image grid length, l is "<< l << std::endl;
+    float threel = l * 3.0f;
+
+    // Count width and height
+    unsigned int width_px = 0;
+    for (float _x = minx; _x < maxx; _x += l) { ++width_px; }
+    unsigned int height_px = 0;
+    for (float _y = miny; _y < maxy; _y += l) { ++height_px; }
+
+    std::cout << "Image size " << width_px << "x" << height_px << std::endl;
+    cartgrid.resize (width_px * height_px);
+    expr_resampled.resize (width_px * height_px);
+
+    // Compute contributions to each pixel
+    unsigned int yi = 0;
+    float oneOverSigmaR2Pi = 1.0f / (sigma * std::sqrt (morph::TWO_PI_F));
+    float minusOneOver2SigmaSq = -1.0f / (2.0f * sigma * sigma);
+    for (float _y = miny; _y < maxy; _y += l, ++yi) {
+        unsigned int xi = 0;
+        for (float _x = minx; _x < maxx; _x += l, ++xi) {
+            unsigned int idx = yi * width_px + xi;
+            morph::Vector<float, 2> cartpos = {_x,_y};
+            float expr = 0.0f;
+            for (unsigned int i = 0; i < coords.size(); ++i) {
+                // add up expr
+                float d = (cartpos - coords[i]).length();
+                if (d < threel) {
+                    float g = oneOverSigmaR2Pi * std::exp (minusOneOver2SigmaSq * d * d);
+                    std::cout << "samle " << d << " away contributes gauss(" << g << ") * expr(" << expression[i] << ")\n";
+                    expr += g * expression[i];
+                }
+            }
+            //std::cout << "idx: " << idx << " cartpos: " << cartpos << " expr: " << expr << std::endl;
+            cartgrid[idx] = cartpos;
+            expr_resampled[idx] = expr;
+        }
+    }
+
+    std::cout << "Computed resample for image of " << width_px << "x" << height_px << std::endl;
+    return std::make_pair (width_px, height_px);
 }
 
 //! Add flattened map. 'A' contains the locations of the global landmarks, in 2D
@@ -1154,13 +1203,14 @@ int addFlattened (SFVisual& v, const string& datafile, const CmdOptions& co,
             d.add_contained_vals ("/output_map/twod/coordinates", fmids);
 
             // Resample onto a rectangular grid
-#ifdef WHEN_DONE
             vector<morph::Vector<float, 2>> fmids_resampled;
             vector<float> fmeans_resampled;
-            resample_twod (fmids, fmeans, fmids_resampled, fmeans_resampled);
+            float sigma = 0.01f;
+            std::pair<unsigned int, unsigned int> wh = resample_twod (fmids, fmeans, fmids_resampled, fmeans_resampled, sigma);
+            d.add_contained_vals ("/output_map/twod/widthheight_resampled", wh);
             d.add_contained_vals ("/output_map/twod/expression_resampled", fmeans_resampled);
             d.add_contained_vals ("/output_map/twod/coordinates_resampled", fmids_resampled);
-#endif
+
             d.add_contained_vals ("/output_map/twod/M", trans_mat.mat);
 
             // Add a row of points for the centre marker, for debugging
