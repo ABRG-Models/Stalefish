@@ -1024,8 +1024,10 @@ resample_twod (const vector<morph::Vector<float, 2>>& coords,
                 if (std::abs(d[1]) < dist_thresh[1]) {
                     expr_y = oneOverSigmaR2Pi_y * std::exp (minusOneOver2SigmaSq_y * d[1] * d[1]);
                 }
-                if (expr_x > 0.0f && expr_y > 0.0f) {
-                    expr += (expr_x * expr_y) * expression[i];
+                // Use expr_x to multiply into
+                expr_x *= expr_y;
+                if (expr_x > 0.0f) {
+                    expr += expr_x * expression[i];
                     pixcount++; // if expr is added to
                 }
             }
@@ -1221,9 +1223,13 @@ int addFlattened (SFVisual& v, const string& datafile, const CmdOptions& co,
             float x1, x2;
             d.read_val ("/Frame001/class/layer_x", x1);
             d.read_val ("/Frame002/class/layer_x", x2);
-            morph::Vector<float, 2> l = {std::abs (x2-x1)/2.0f, std::abs (fmids[1][1]-fmids[0][1])/2.0f};
+            // The base_grid is the size of the origin grid elements
+            morph::Vector<float, 2> base_grid = {std::abs (x2-x1), std::abs (fmids[1][1]-fmids[0][1])};
+            // l gives the length scales for the rectangular, resampled grid
+            morph::Vector<float, 2> l = base_grid / 2.0f;
             std::cout << "l = " << l << std::endl;
-            morph::Vector<float, 2> sigma = l*4.0f; // l*0.5 gives Gaussian of order same scale as origin cell
+            // Set sigma based on the base grid - multiples thereof
+            morph::Vector<float, 2> sigma = base_grid * 2.0f;
             std::pair<unsigned int, unsigned int> wh = resample_twod (fmids, fmeans, fmids_resampled, fmeans_resampled, sigma, l);
 
             // Convert fmids_resampled into quads
