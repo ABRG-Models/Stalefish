@@ -985,6 +985,7 @@ std::pair<unsigned int, unsigned int>
 resample_twod (const vector<morph::Vector<float, 2>>& coords,
                const vector<float>& expression,
                const vector<float>& areas,
+               const morph::Vector<float, 4>& extents,
                vector<morph::Vector<float, 2>>& cartgrid,
                vector<float>& expr_resampled,
                const vector<morph::Vector<float, 3>> sigma, const morph::Vector<float, 2> l)
@@ -1000,13 +1001,20 @@ resample_twod (const vector<morph::Vector<float, 2>>& coords,
     std::cout << "Image grid length, l is "<< l << std::endl;
     if (l.length() == 0.0f) { throw std::runtime_error ("l must be non-zero"); }
 
-    // Find the extents of the output grid
     float minx = 1e9, miny = 1e9, maxx = -1e9, maxy = -1e9;
-    for (auto c : coords) {
-        minx = c[0] < minx ? c[0] : minx;
-        miny = c[1] < miny ? c[1] : miny;
-        maxx = c[0] > maxx ? c[0] : maxx;
-        maxy = c[1] > maxy ? c[1] : maxy;
+    if (extents.length() > 0.0f) {
+        minx = extents[0];
+        maxx = extents[1];
+        miny = extents[2];
+        maxy = extents[3];
+    } else {
+    // Find the extents of the output grid
+        for (auto c : coords) {
+            minx = c[0] < minx ? c[0] : minx;
+            miny = c[1] < miny ? c[1] : miny;
+            maxx = c[0] > maxx ? c[0] : maxx;
+            maxy = c[1] > maxy ? c[1] : maxy;
+        }
     }
 
     // Count width and height to determine size of output
@@ -1241,12 +1249,8 @@ int addFlattened (SFVisual& v, const string& datafile, const CmdOptions& co,
             // The base_grid is the size of the origin grid elements
             morph::Vector<float, 2> base_grid = {std::abs (x2-x1), std::abs (fmids[1][1]-fmids[0][1])};
             // l gives the length scales for the rectangular, resampled grid
-            morph::Vector<float, 2> l = base_grid / 2.0f;
-            // I'd like to be able to choose a square grid:
-            l = {0.03f,0.03f};
+            morph::Vector<float, 2> l = { 0.025f, 0.025f };
             std::cout << "l = " << l << std::endl;
-            // Set sigma based on the base grid - multiples thereof
-            //morph::Vector<float, 2> sigma = base_grid * 0.5f;
 
             // Compute area of origin 'pixels'.
             size_t fqs = fquads.size();
@@ -1261,12 +1265,15 @@ int addFlattened (SFVisual& v, const string& datafile, const CmdOptions& co,
                 // from which get two vector lengths for the sigma
                 morph::Vector<float, 2> xprime = (c3 - c2);
                 morph::Vector<float, 2> yprime = (c1 - c2);
-                sigma[i][0] = xprime.length() * 0.5f; // 'x length'
+                sigma[i][0] = xprime.length() * 0.5f; // 'x length'. length * 0.5 gives minimum smoothing. Increase to blur.
                 sigma[i][1] = yprime.length() * 0.5f; // 'y length'
                 sigma[i][2] = std::atan2 (xprime[1], xprime[0]);
             }
 
-            std::pair<unsigned int, unsigned int> wh = resample_twod (fmids, fmeans, pix_areas, fmids_resampled, fmeans_resampled, sigma, l);
+            // extents is: { minx, maxx, miny, maxy, }. Set all 0 to auto-determine
+            //morph::Vector<float, 4> extents = {0,0,0,0};
+            morph::Vector<float, 4> extents = {-0.22f, 4.65f, -3.03f, 3.85f};
+            std::pair<unsigned int, unsigned int> wh = resample_twod (fmids, fmeans, pix_areas, extents, fmids_resampled, fmeans_resampled, sigma, l);
 
             // Convert fmids_resampled into quads
             size_t n_re = fmids_resampled.size();
@@ -1300,7 +1307,7 @@ int addFlattened (SFVisual& v, const string& datafile, const CmdOptions& co,
             visId = v.addVisualModel (new morph::QuadsVisual<float> (v.shaderprog,
                                                                      &fquads_re, offset,
                                                                      &fmeans_resampled, scale,
-                                                                     morph::ColourMapType::Plasma));
+                                                                     morph::ColourMapType::Viridis));
             v.surfaces_2d.push_back (visId);
             offset[1]-=7.5f;
 
