@@ -964,19 +964,22 @@ void computeFlatTransforms (const CmdOptions& co,
 /*!
  * Resampling function.
  *
- * \param coords The x,y coordinates of the (centres of) input data pixels
+ * \param coords (input) The x,y coordinates of the (centres of) input data pixels
  *
- * \param expression The data for the pixels - in this program its a gene expression
- * signal
+ * \param expression (input) The data for the pixels - in this program its a gene
+ * expression signal
  *
- * \param areas The area of each input data pixel - they're not all the same!
+ * \param areas (input) The area of each input data pixel - they're not all the same!
  *
- * \param cartgrid The output cartesian grid. This will be resized by this function
+ * \param cartgrid (output) The output cartesian grid. This will be resized by this
+ * function
  *
- * \param expr_resampled The output expression data on the cartesian grid. This will be
- * resized by this function
+ * \param expr_resampled (output) The output expression data on the cartesian grid. This
+ * will be resized by this function
  *
- * \param sigma The width of the Gaussians centred on the input data pixels
+ * \param sigma (input) The width of the Gaussians centred on the input data pixels
+ *
+ * \param l (input) The output pixel dimensions
  */
 std::pair<unsigned int, unsigned int>
 resample_twod (const vector<morph::Vector<float, 2>>& coords,
@@ -997,7 +1000,7 @@ resample_twod (const vector<morph::Vector<float, 2>>& coords,
     std::cout << "Image grid length, l is "<< l << std::endl;
     if (l.length() == 0.0f) { throw std::runtime_error ("l must be non-zero"); }
 
-    // Find extents
+    // Find the extents of the output grid
     float minx = 1e9, miny = 1e9, maxx = -1e9, maxy = -1e9;
     for (auto c : coords) {
         minx = c[0] < minx ? c[0] : minx;
