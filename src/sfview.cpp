@@ -966,7 +966,7 @@ resample_twod (const vector<morph::Vector<float, 2>>& coords,
                const vector<float>& expression,
                vector<morph::Vector<float, 2>>& cartgrid,
                vector<float>& expr_resampled,
-               const float sigma)
+               const morph::Vector<float, 2> sigma, const morph::Vector<float, 2> l)
 {
     if (coords.size() != expression.size()) {
         throw std::runtime_error ("Expect coords and expression vectors to be same size");
@@ -984,43 +984,54 @@ resample_twod (const vector<morph::Vector<float, 2>>& coords,
         maxy = c[1] > maxy ? c[1] : maxy;
     }
 
-    // Grid spacing taken from the distance from one sample box to another around a slice
-    float l = std::abs(coords[1][1] - coords[0][1]);
+    // Grid spacing is l (passed in)
     std::cout << "Image grid length, l is "<< l << std::endl;
-    float threel = l * 3.0f;
+    if (l.length() == 0.0f) { throw std::runtime_error ("l must be non-zero"); }
+    morph::Vector<float, 2> dist_thresh = l * 2.0f;
 
     // Count width and height
     unsigned int width_px = 0;
-    for (float _x = minx; _x < maxx; _x += l) { ++width_px; }
+    for (float _x = minx; _x < maxx; _x += l[0]) { ++width_px; }
     unsigned int height_px = 0;
-    for (float _y = miny; _y < maxy; _y += l) { ++height_px; }
+    for (float _y = miny; _y < maxy; _y += l[1]) { ++height_px; }
 
     std::cout << "Image size " << width_px << "x" << height_px << std::endl;
     cartgrid.resize (width_px * height_px);
     expr_resampled.resize (width_px * height_px);
 
     // Compute contributions to each pixel
+    float oneOverSigmaR2Pi_x = 1.0f / (sigma[0] * std::sqrt (morph::TWO_PI_F));
+    float oneOverSigmaR2Pi_y = 1.0f / (sigma[1] * std::sqrt (morph::TWO_PI_F));
+    float minusOneOver2SigmaSq_x = -1.0f / (2.0f * sigma[0] * sigma[0]);
+    float minusOneOver2SigmaSq_y = -1.0f / (2.0f * sigma[1] * sigma[1]);
+
+    size_t csz = coords.size();
     unsigned int yi = 0;
-    float oneOverSigmaR2Pi = 1.0f / (sigma * std::sqrt (morph::TWO_PI_F));
-    float minusOneOver2SigmaSq = -1.0f / (2.0f * sigma * sigma);
-    for (float _y = miny; _y < maxy; _y += l, ++yi) {
+    for (float _y = miny; _y < maxy; _y += l[1], ++yi) {
         unsigned int xi = 0;
-        for (float _x = minx; _x < maxx; _x += l, ++xi) {
+        for (float _x = minx; _x < maxx; _x += l[0], ++xi) {
             unsigned int idx = yi * width_px + xi;
             morph::Vector<float, 2> cartpos = {_x,_y};
             float expr = 0.0f;
-            for (unsigned int i = 0; i < coords.size(); ++i) {
-                // add up expr
-                float d = (cartpos - coords[i]).length();
-                if (d < threel) {
-                    float g = oneOverSigmaR2Pi * std::exp (minusOneOver2SigmaSq * d * d);
-                    std::cout << "samle " << d << " away contributes gauss(" << g << ") * expr(" << expression[i] << ")\n";
-                    expr += g * expression[i];
+            size_t pixcount = 0;
+#pragma omp parallel for reduction(+:expr) reduction(+:pixcount)
+            for (unsigned int i = 0; i < csz; ++i) {
+                morph::Vector<float, 2> d = cartpos - coords[i];
+                float expr_x = 0.0f, expr_y = 0.0f;
+                if (std::abs(d[0]) < dist_thresh[0]) {
+                    expr_x = oneOverSigmaR2Pi_x * std::exp (minusOneOver2SigmaSq_x * d[0] * d[0]);
+                }
+                if (std::abs(d[1]) < dist_thresh[1]) {
+                    expr_y = oneOverSigmaR2Pi_y * std::exp (minusOneOver2SigmaSq_y * d[1] * d[1]);
+                }
+                if (expr_x > 0.0f && expr_y > 0.0f) {
+                    expr += (expr_x * expr_y) * expression[i];
+                    pixcount++; // if expr is added to
                 }
             }
             //std::cout << "idx: " << idx << " cartpos: " << cartpos << " expr: " << expr << std::endl;
             cartgrid[idx] = cartpos;
-            expr_resampled[idx] = expr;
+            expr_resampled[idx] = (pixcount ? (expr/(float)pixcount) : 0.0f); // hmm. Don't like.
         }
     }
 
@@ -1174,10 +1185,12 @@ int addFlattened (SFVisual& v, const string& datafile, const CmdOptions& co,
                         }
                     }
 #if 0 // DEBUG
-                    std::cout << "c1: " << sbox[0] << "," << sbox[1] << "," << sbox[2];
-                    std::cout << "   c2: " << sbox[3] << "," << sbox[4] << "," << sbox[5];
-                    std::cout << "   c3: " << sbox[6] << "," << sbox[7] << "," << sbox[8];
-                    std::cout << "   c4: " << sbox[9] << "," << sbox[10] << "," << sbox[11] << std::endl;
+                    if (j==1) {
+                        std::cout << "Original:\nc1: (" << sbox[0]  << "," << sbox[1] << ")\n"
+                                  << "c2: (" << sbox[3]  << "," << sbox[4] << ")\n"
+                                  << "c3: (" << sbox[6]  << "," << sbox[7] << ")\n"
+                                  << "c4: (" << sbox[9]  << "," << sbox[10] << ")\n";
+                    }
 #endif
                     flatsurf_boxes.push_back (sbox);
                     morph::Vector<float, 2> midpoint = { (sbox[0] + sbox[3] + sbox[6] + sbox[9]) * 0.25f,
@@ -1205,11 +1218,49 @@ int addFlattened (SFVisual& v, const string& datafile, const CmdOptions& co,
             // Resample onto a rectangular grid
             vector<morph::Vector<float, 2>> fmids_resampled;
             vector<float> fmeans_resampled;
-            float sigma = 0.01f;
-            std::pair<unsigned int, unsigned int> wh = resample_twod (fmids, fmeans, fmids_resampled, fmeans_resampled, sigma);
-            d.add_contained_vals ("/output_map/twod/widthheight_resampled", wh);
-            d.add_contained_vals ("/output_map/twod/expression_resampled", fmeans_resampled);
-            d.add_contained_vals ("/output_map/twod/coordinates_resampled", fmids_resampled);
+            float x1, x2;
+            d.read_val ("/Frame001/class/layer_x", x1);
+            d.read_val ("/Frame002/class/layer_x", x2);
+            morph::Vector<float, 2> l = {std::abs (x2-x1)/2.0f, std::abs (fmids[1][1]-fmids[0][1])/2.0f};
+            std::cout << "l = " << l << std::endl;
+            morph::Vector<float, 2> sigma = l*4.0f; // l*0.5 gives Gaussian of order same scale as origin cell
+            std::pair<unsigned int, unsigned int> wh = resample_twod (fmids, fmeans, fmids_resampled, fmeans_resampled, sigma, l);
+
+            // Convert fmids_resampled into quads
+            size_t n_re = fmids_resampled.size();
+            std::cout << "There are " << n_re << " resampled coordinates\n";
+            float halflx = l[0]*0.5f;
+            float halfly = l[1]*0.5f;
+            vector<array<float, 12>> fquads_re (n_re); // Flat quads, for the flat visualization
+            for (unsigned int i = 0; i < n_re; ++i) {
+                float _x = fmids_resampled[i][0];
+                float _y = fmids_resampled[i][1];
+                fquads_re[i][0] = _x-halflx;
+                fquads_re[i][1] = _y+halfly;
+                fquads_re[i][2] = 0.0f;
+
+                fquads_re[i][3] = _x-halflx;
+                fquads_re[i][4] = _y-halfly;
+                fquads_re[i][5] = 0.0f;
+
+                fquads_re[i][6] = _x+halflx;
+                fquads_re[i][7] = _y-halfly;
+                fquads_re[i][8] = 0.0f;
+
+                fquads_re[i][9] = _x+halflx;
+                fquads_re[i][10] = _y+halfly;
+                fquads_re[i][11] = 0.0f;
+            }
+            // And turn them into a graph
+            offset[1]+=7.5f;
+            //scale.setAutoscale (fmeans_resampled); or something
+            std::cout << "Adding resampled graph at offset " << offset << std::endl;
+            visId = v.addVisualModel (new morph::QuadsVisual<float> (v.shaderprog,
+                                                                     &fquads_re, offset,
+                                                                     &fmeans_resampled, scale,
+                                                                     morph::ColourMapType::Greyscale));
+            v.surfaces_2d.push_back (visId);
+            offset[1]-=7.5f;
 
             d.add_contained_vals ("/output_map/twod/M", trans_mat.mat);
 
@@ -1256,6 +1307,11 @@ int addFlattened (SFVisual& v, const string& datafile, const CmdOptions& co,
                                                                        morph::ColourMapType::Jet));
             v.surfaces_2d.push_back (visId);
 
+            // Save the resampled stuff to file
+            std::cout << "saving resampled...\n" << std::endl;
+            d.add_contained_vals ("/output_map/twod/widthheight_resampled", wh);
+            //d.add_contained_vals ("/output_map/twod/expression_resampled", fmeans_resampled);
+            //d.add_contained_vals ("/output_map/twod/coordinates_resampled", fmids_resampled);
             // FIXME: Convert to 2D then save. Here are landmarks in 3D:
             d.add_contained_vals ("/output_map/twod/global_landmarks", sc_coords);
             // Finally, add the datafile used to determine M.
