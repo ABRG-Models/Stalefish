@@ -961,19 +961,41 @@ void computeFlatTransforms (const CmdOptions& co,
     }
 }
 
+/*!
+ * Resampling function.
+ *
+ * \param coords The x,y coordinates of the (centres of) input data pixels
+ *
+ * \param expression The data for the pixels - in this program its a gene expression
+ * signal
+ *
+ * \param areas The area of each input data pixel - they're not all the same!
+ *
+ * \param cartgrid The output cartesian grid. This will be resized by this function
+ *
+ * \param expr_resampled The output expression data on the cartesian grid. This will be
+ * resized by this function
+ *
+ * \param sigma The width of the Gaussians centred on the input data pixels
+ */
 std::pair<unsigned int, unsigned int>
 resample_twod (const vector<morph::Vector<float, 2>>& coords,
                const vector<float>& expression,
+               const vector<float>& areas,
                vector<morph::Vector<float, 2>>& cartgrid,
                vector<float>& expr_resampled,
                const morph::Vector<float, 2> sigma, const morph::Vector<float, 2> l)
 {
+    // Check input
     if (coords.size() != expression.size()) {
         throw std::runtime_error ("Expect coords and expression vectors to be same size");
     }
     if (coords.size() < 2) {
         throw std::runtime_error ("Expect more than 1 coordinate!");
     }
+    // Grid spacing is l (passed in)
+    std::cout << "Image grid length, l is "<< l << std::endl;
+    if (l.length() == 0.0f) { throw std::runtime_error ("l must be non-zero"); }
 
     // Find extents
     float minx = 1e9, miny = 1e9, maxx = -1e9, maxy = -1e9;
@@ -984,20 +1006,17 @@ resample_twod (const vector<morph::Vector<float, 2>>& coords,
         maxy = c[1] > maxy ? c[1] : maxy;
     }
 
-    // Grid spacing is l (passed in)
-    std::cout << "Image grid length, l is "<< l << std::endl;
-    if (l.length() == 0.0f) { throw std::runtime_error ("l must be non-zero"); }
-    morph::Vector<float, 2> dist_thresh = l * 2.0f;
-
-    // Count width and height
+    // Count width and height to determine size of output
     unsigned int width_px = 0;
     for (float _x = minx; _x < maxx; _x += l[0]) { ++width_px; }
     unsigned int height_px = 0;
     for (float _y = miny; _y < maxy; _y += l[1]) { ++height_px; }
-
-    std::cout << "Image size " << width_px << "x" << height_px << std::endl;
     cartgrid.resize (width_px * height_px);
     expr_resampled.resize (width_px * height_px);
+
+    std::cout << "Image size " << width_px << "x" << height_px << std::endl
+              << "(thats x in range " << minx << " to " << maxx
+              << ", and y in range " << miny << " to " << maxy << std::endl;
 
     // Compute contributions to each pixel
     float oneOverSigmaR2Pi_x = 1.0f / (sigma[0] * std::sqrt (morph::TWO_PI_F));
@@ -1013,27 +1032,18 @@ resample_twod (const vector<morph::Vector<float, 2>>& coords,
             unsigned int idx = yi * width_px + xi;
             morph::Vector<float, 2> cartpos = {_x,_y};
             float expr = 0.0f;
-            size_t pixcount = 0;
-#pragma omp parallel for reduction(+:expr) reduction(+:pixcount)
+#pragma omp parallel for reduction(+:expr)
             for (unsigned int i = 0; i < csz; ++i) {
                 morph::Vector<float, 2> d = cartpos - coords[i];
                 float expr_x = 0.0f, expr_y = 0.0f;
-                if (std::abs(d[0]) < dist_thresh[0]) {
-                    expr_x = oneOverSigmaR2Pi_x * std::exp (minusOneOver2SigmaSq_x * d[0] * d[0]);
-                }
-                if (std::abs(d[1]) < dist_thresh[1]) {
-                    expr_y = oneOverSigmaR2Pi_y * std::exp (minusOneOver2SigmaSq_y * d[1] * d[1]);
-                }
-                // Use expr_x to multiply into
+                expr_x = oneOverSigmaR2Pi_x * std::exp (minusOneOver2SigmaSq_x * d[0] * d[0]);
+                expr_y = oneOverSigmaR2Pi_y * std::exp (minusOneOver2SigmaSq_y * d[1] * d[1]);
                 expr_x *= expr_y;
-                if (expr_x > 0.0f) {
-                    expr += expr_x * expression[i];
-                    pixcount++; // if expr is added to
-                }
+                expr += expr_x * expression[i] * areas[i];
             }
             //std::cout << "idx: " << idx << " cartpos: " << cartpos << " expr: " << expr << std::endl;
             cartgrid[idx] = cartpos;
-            expr_resampled[idx] = (pixcount ? (expr/(float)pixcount) : 0.0f); // hmm. Don't like.
+            expr_resampled[idx] = expr;
         }
     }
 
@@ -1227,10 +1237,19 @@ int addFlattened (SFVisual& v, const string& datafile, const CmdOptions& co,
             morph::Vector<float, 2> base_grid = {std::abs (x2-x1), std::abs (fmids[1][1]-fmids[0][1])};
             // l gives the length scales for the rectangular, resampled grid
             morph::Vector<float, 2> l = base_grid / 2.0f;
+            // I'd like to be able to choose a square grid:
+            l = {0.02f,0.02f};
             std::cout << "l = " << l << std::endl;
             // Set sigma based on the base grid - multiples thereof
-            morph::Vector<float, 2> sigma = base_grid * 2.0f;
-            std::pair<unsigned int, unsigned int> wh = resample_twod (fmids, fmeans, fmids_resampled, fmeans_resampled, sigma, l);
+            morph::Vector<float, 2> sigma = base_grid * 0.5f;
+
+            // Compute area of origin 'pixels'.
+            vector<float> pix_areas (fquads.size());
+            for (unsigned int i = 0; i < fquads.size(); ++i) {
+                pix_areas[i] = std::abs(fquads[i][9]-fquads[i][0]) * std::abs(fquads[i][4]-fquads[i][1]);
+            }
+
+            std::pair<unsigned int, unsigned int> wh = resample_twod (fmids, fmeans, pix_areas, fmids_resampled, fmeans_resampled, sigma, l);
 
             // Convert fmids_resampled into quads
             size_t n_re = fmids_resampled.size();
