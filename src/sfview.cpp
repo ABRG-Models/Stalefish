@@ -977,7 +977,7 @@ void computeFlatTransforms (const CmdOptions& co,
  * \param expr_resampled (output) The output expression data on the cartesian grid. This
  * will be resized by this function
  *
- * \param sigma (input) The width of the Gaussians centred on the input data pixels
+ * \param sigma (input) vector of sigmas as (x, y, theta)
  *
  * \param l (input) The output pixel dimensions
  */
@@ -987,7 +987,7 @@ resample_twod (const vector<morph::Vector<float, 2>>& coords,
                const vector<float>& areas,
                vector<morph::Vector<float, 2>>& cartgrid,
                vector<float>& expr_resampled,
-               const morph::Vector<float, 2> sigma, const morph::Vector<float, 2> l)
+               const vector<morph::Vector<float, 3>> sigma, const morph::Vector<float, 2> l)
 {
     // Check input
     if (coords.size() != expression.size()) {
@@ -1021,12 +1021,6 @@ resample_twod (const vector<morph::Vector<float, 2>>& coords,
               << "(thats x in range " << minx << " to " << maxx
               << ", and y in range " << miny << " to " << maxy << std::endl;
 
-    // Compute contributions to each pixel
-    float oneOverSigmaR2Pi_x = 1.0f / (sigma[0] * std::sqrt (morph::TWO_PI_F));
-    float oneOverSigmaR2Pi_y = 1.0f / (sigma[1] * std::sqrt (morph::TWO_PI_F));
-    float minusOneOver2SigmaSq_x = -1.0f / (2.0f * sigma[0] * sigma[0]);
-    float minusOneOver2SigmaSq_y = -1.0f / (2.0f * sigma[1] * sigma[1]);
-
     size_t csz = coords.size();
     unsigned int yi = 0;
     for (float _y = miny; _y < maxy; _y += l[1], ++yi) {
@@ -1037,12 +1031,20 @@ resample_twod (const vector<morph::Vector<float, 2>>& coords,
             float expr = 0.0f;
 #pragma omp parallel for reduction(+:expr)
             for (unsigned int i = 0; i < csz; ++i) {
+                // Compute contributions to each pixel, using a rotated elliptical Gaussian
+                float theta = sigma[i][2];
+                float costheta = std::cos(theta);
+                float sintheta = std::sin(theta);
+                float sin2theta = std::sin(2.0f * theta);
+                float a = costheta * costheta / (2.0f * sigma[i][0] * sigma[i][0])
+                + sintheta * sintheta / (2.0f *  sigma[i][1] * sigma[i][1]);
+                float b = (sin2theta/(4.0f * sigma[i][1] * sigma[i][1]))
+                - (sin2theta/(4.0f * sigma[i][0] * sigma[i][0]));
+                float c = sintheta * sintheta/(2.0f * sigma[i][0] * sigma[i][0])
+                + costheta * costheta / (2.0f *  sigma[i][1] * sigma[i][1]);
                 morph::Vector<float, 2> d = cartpos - coords[i];
-                float expr_x = 0.0f, expr_y = 0.0f;
-                expr_x = oneOverSigmaR2Pi_x * std::exp (minusOneOver2SigmaSq_x * d[0] * d[0]);
-                expr_y = oneOverSigmaR2Pi_y * std::exp (minusOneOver2SigmaSq_y * d[1] * d[1]);
-                expr_x *= expr_y;
-                expr += expr_x * expression[i] * areas[i];
+                float w = std::exp ( -(a * d[0] * d[0]  +  2.0f * b * d[0] * d[1]  +  c * d[1] * d[1]));
+                expr += w * expression[i] * areas[i];
             }
             //std::cout << "idx: " << idx << " cartpos: " << cartpos << " expr: " << expr << std::endl;
             cartgrid[idx] = cartpos;
@@ -1241,15 +1243,27 @@ int addFlattened (SFVisual& v, const string& datafile, const CmdOptions& co,
             // l gives the length scales for the rectangular, resampled grid
             morph::Vector<float, 2> l = base_grid / 2.0f;
             // I'd like to be able to choose a square grid:
-            l = {0.02f,0.02f};
+            l = {0.03f,0.03f};
             std::cout << "l = " << l << std::endl;
             // Set sigma based on the base grid - multiples thereof
-            morph::Vector<float, 2> sigma = base_grid * 0.5f;
+            //morph::Vector<float, 2> sigma = base_grid * 0.5f;
 
             // Compute area of origin 'pixels'.
-            vector<float> pix_areas (fquads.size());
+            size_t fqs = fquads.size();
+            vector<float> pix_areas(fqs);
+            vector<morph::Vector<float, 3>> sigma(fqs);
             for (unsigned int i = 0; i < fquads.size(); ++i) {
                 pix_areas[i] = std::abs(fquads[i][9]-fquads[i][0]) * std::abs(fquads[i][4]-fquads[i][1]);
+                // c1, c2 and c3 are corners on the origin pixel
+                morph::Vector<float, 2> c1 = {fquads[i][0], fquads[i][1]};
+                morph::Vector<float, 2> c2 = {fquads[i][3], fquads[i][4]};
+                morph::Vector<float, 2> c3 = {fquads[i][6], fquads[i][7]};
+                // from which get two vector lengths for the sigma
+                morph::Vector<float, 2> xprime = (c3 - c2);
+                morph::Vector<float, 2> yprime = (c1 - c2);
+                sigma[i][0] = xprime.length() * 0.5f; // 'x length'
+                sigma[i][1] = yprime.length() * 0.5f; // 'y length'
+                sigma[i][2] = std::atan2 (xprime[1], xprime[0]);
             }
 
             std::pair<unsigned int, unsigned int> wh = resample_twod (fmids, fmeans, pix_areas, fmids_resampled, fmeans_resampled, sigma, l);
@@ -1286,7 +1300,7 @@ int addFlattened (SFVisual& v, const string& datafile, const CmdOptions& co,
             visId = v.addVisualModel (new morph::QuadsVisual<float> (v.shaderprog,
                                                                      &fquads_re, offset,
                                                                      &fmeans_resampled, scale,
-                                                                     morph::ColourMapType::Greyscale));
+                                                                     morph::ColourMapType::Plasma));
             v.surfaces_2d.push_back (visId);
             offset[1]-=7.5f;
 
