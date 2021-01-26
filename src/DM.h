@@ -492,11 +492,18 @@ public:
         this->writePrep();
 
         morph::HdfData d(this->datafile);
-        // Pass in mapAlignAngle for generating the angle maps
+
+        // Pass in mapAlignAngle for generating the angle maps and rebuild
+        // globalLandmarks afresh from the frames.
+        this->globalLandmarks.clear();
         for (auto f : this->vFrameData) {
             f.write (d, this->mapAlignAngle);
+            for (unsigned int glmi = 0; glmi < f.GLM.size(); ++glmi) {
+                this->globalLandmarks.push_back (std::make_pair ((unsigned int)(f.idx+1), glmi));
+            }
         }
-        std::cout << "Exporting globallandmarks... which has size " << this->globalLandmarks.size() << std::endl;
+
+        std::cout << "Exporting globallandmarks which has size " << this->globalLandmarks.size() << std::endl;
         // /globallandmarks is an index. See this->globalLandmarks. This gives the index
         // of the frame and within that frame the element of FrameData::GLM for each
         // global landmark.
@@ -688,7 +695,7 @@ public:
     void setShowCtrls (bool t) { this->flags[AppShowCtrls] = t; }
 
     //! The application window name
-    const std::string winName = "StaleFish";
+    std::string winName = "StaleFish";
     //! The Gaussian blur window
     std::string blurWin = "";
     //! If true, display the window with the Gaussian blur
@@ -750,8 +757,8 @@ public:
 
     //! Global landmarks need to be identified in order, so that they can be matched
     //! with a corresponding set of global landmarks from another data set. The pair in
-    //! the vector holds as .first, the frame number of that global landmark and as
-    //! .second, the index within FrameData::GLM.
+    //! the vector holds as .first, the frame number of that global landmark (counting
+    //! from 1) and as .second, the index within FrameData::GLM (counting from 0).
     std::vector<std::pair<unsigned int, unsigned int>> globalLandmarks;
 
     //! Adapted from Seb's futil library. Create unique file name for temporary file
@@ -822,6 +829,9 @@ public:
         } else {
             this->datafile = paramsfile.substr (0,jsonpos) + ".h5";
         }
+
+        // Put the data file in the title bar, as that's useful to see with multiple Stalefishies
+        this->winName += " " + this->datafile;
 
         this->conf.init (jsonfile);
         if (!this->conf.ready) {
@@ -1245,6 +1255,28 @@ public:
         }
     }
 
+    void removeLastThing()
+    {
+        // If we're removing a global landmark, have to delete from globalLandmarks,
+        // first.
+        FrameData* cf = this->gcf();
+        if (cf->ct == InputMode::GlobalLandmark) {
+            if (!cf->GLM.empty()) {
+                std::pair<unsigned int, unsigned int> cmp = std::make_pair (this->getFrameNum(), cf->GLM.size()-1);
+                std::vector<std::pair<unsigned int, unsigned int>>::iterator gli = this->globalLandmarks.begin();
+                while (gli != this->globalLandmarks.end()) {
+                    if (*gli == cmp) {
+                        std::cout << "Erasing global landmark " << cmp.first << "," << cmp.second << std::endl;
+                        gli = this->globalLandmarks.erase (gli);
+                    } else {
+                        gli++;
+                    }
+                }
+            }
+        }
+        cf->removeLastThing();
+    }
+
     //! Actions to take on a mouse user-interface event
     static void onmouse (int event, int x, int y, int flags, void* param)
     {
@@ -1280,7 +1312,7 @@ public:
                 cf->LM.push_back (pt);
             } else if (cf->ct == InputMode::GlobalLandmark) {
                 cf->addGlobalLandmark (pt);
-                _this->globalLandmarks.push_back (std::make_pair (_this->getFrameNum(), cf->GLM.size()));
+                _this->globalLandmarks.push_back (std::make_pair (_this->getFrameNum(), cf->GLM.size()-1));
             } else if (cf->ct == InputMode::Circlemark) {
                 cf->addCirclepoint (pt);
             } else if (cf->ct == InputMode::Axismark) {
