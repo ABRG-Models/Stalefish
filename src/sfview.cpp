@@ -1243,11 +1243,11 @@ int addFlattened (SFVisual& v, const string& datafile, const CmdOptions& co,
             // Resample onto a rectangular grid
             vector<morph::Vector<float, 2>> fmids_resampled;
             vector<float> fmeans_resampled;
-            float x1, x2;
-            d.read_val ("/Frame001/class/layer_x", x1);
-            d.read_val ("/Frame002/class/layer_x", x2);
+            //float x1, x2;
+            //d.read_val ("/Frame001/class/layer_x", x1);
+            //d.read_val ("/Frame002/class/layer_x", x2);
             // The base_grid is the size of the origin grid elements
-            morph::Vector<float, 2> base_grid = {std::abs (x2-x1), std::abs (fmids[1][1]-fmids[0][1])};
+            // morph::Vector<float, 2> base_grid = {std::abs (x2-x1), std::abs (fmids[1][1]-fmids[0][1])};
             // l gives the length scales for the rectangular, resampled grid
             morph::Vector<float, 2> l = { 0.025f, 0.025f };
             std::cout << "l = " << l << std::endl;
@@ -1359,8 +1359,8 @@ int addFlattened (SFVisual& v, const string& datafile, const CmdOptions& co,
             // Save the resampled stuff to file
             std::cout << "saving resampled...\n" << std::endl;
             d.add_contained_vals ("/output_map/twod/widthheight_resampled", wh);
-            //d.add_contained_vals ("/output_map/twod/expression_resampled", fmeans_resampled);
-            //d.add_contained_vals ("/output_map/twod/coordinates_resampled", fmids_resampled);
+            d.add_contained_vals ("/output_map/twod/expression_resampled", fmeans_resampled);
+            d.add_contained_vals ("/output_map/twod/coordinates_resampled", fmids_resampled);
             // FIXME: Convert to 2D then save. Here are landmarks in 3D:
             d.add_contained_vals ("/output_map/twod/global_landmarks", sc_coords);
             // Finally, add the datafile used to determine M.
