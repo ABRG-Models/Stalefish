@@ -238,9 +238,9 @@ Linearly transformed maps, including resampled maps.
 
 * **/output_map/twod/M** The 3x3 transformation matrix used to transform map coordinates.
 * **/output_map/twod/M_comes_from** A string containing the path to the file which was used to generate **/output_map/twod/M**.
-* **/output_map/twod/coordinates** Two dimensional coordinates of sample boxes, pre-transform.
+* **/output_map/twod/coordinates** Two dimensional coordinates of sample boxes, post-transform, pre-resample.
 * **/output_map/twod/expression** Expression signal value for each coordinate in **/output_map/twod/coordinates**.
-* **/output_map/twod/coordinates_resampled** Two dimensional coordinates of pixels, post-transform.
+* **/output_map/twod/coordinates_resampled** Two dimensional coordinates of pixels, after resampling onto a rectangular grid.
 * **/output_map/twod/expression_resampled** Expression signal value for each pixel in **/output_map/twod/coordinates_resampled**.
 * **/output_map/twod/global_landmarks** Matrix containing the locations of the 3 global landmarks, post-transform, allowing them to be plotted on the transformed image, if necessary.
-* **/output_map/twod/widthheight_resampled** The width (first element) and height (second element) of the resampled image. Width times height should give the length of teh arrays coordinates_resampled and expression_resampled.
+* **/output_map/twod/widthheight_resampled** The width (first element) and height (second element) of the resampled image. Width times height should give the length of the arrays **coordinates_resampled** and **expression_resampled**.
