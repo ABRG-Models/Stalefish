@@ -40,7 +40,7 @@ endif()
 
 # Add OpenMP flags here, if necessary
 find_package(OpenMP)
-if(OpenMP_FOUND)
+if(OpenMP_CXX_FOUND)
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
 endif()
 

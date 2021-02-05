@@ -12,6 +12,10 @@ target_link_libraries(stalefish ${MORPH_LIBS_CORE} ${OpenCV_LIBS})
 
 add_executable(sfview sfview.cpp)
 # Assume popt is in /usr/local/lib. Can't use target_link_directories without specifying minimum cmake version 3.13
-target_link_libraries(sfview ${MORPH_LIBS_CORE} ${MORPH_LIBS_GL} -L/usr/local/lib popt)
+if(APPLE AND OpenMP_CXX_FOUND)
+  target_link_libraries(sfview OpenMP::OpenMP_CXX ${MORPH_LIBS_CORE} ${MORPH_LIBS_GL} -L/usr/local/lib popt)
+else()
+  target_link_libraries(sfview ${MORPH_LIBS_CORE} ${MORPH_LIBS_GL} -L/usr/local/lib popt)
+endif()
 
 install(TARGETS stalefish sfview DESTINATION ${CMAKE_INSTALL_PREFIX}/bin)
