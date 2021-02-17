@@ -1089,8 +1089,14 @@ int addFlattened (SFVisual& v, const string& datafile, const CmdOptions& co,
         vector<float> fmeans;
 
         {
-            cout << "Opening H5 file " << datafile << endl;
-            morph::HdfData d(datafile, morph::FileAccess::ReadWrite);
+            string datafile2(datafile);
+            morph::Tools::stripFileSuffix (datafile2);
+            datafile2 += ".TF.";
+            datafile2 += co.datafiles[0]; // already has .h5 suffix
+            cout << "Opening H5 file " << datafile << " and associated file " << datafile2 << endl;
+
+            morph::HdfData d(datafile, morph::FileAccess::ReadOnly);
+            morph::HdfData d2(datafile2, morph::FileAccess::TruncateWrite);
             int nf = 0;
             d.read_val ("/nframes", nf);
 
@@ -1237,8 +1243,8 @@ int addFlattened (SFVisual& v, const string& datafile, const CmdOptions& co,
             v.surfaces_2d.push_back (visId);
 
             // Add the newly-generate expression and coordinates to the data file.
-            d.add_contained_vals ("/output_map/twod/expression", fmeans);
-            d.add_contained_vals ("/output_map/twod/coordinates", fmids);
+            d2.add_contained_vals ("/output_map/twod/expression", fmeans);
+            d2.add_contained_vals ("/output_map/twod/coordinates", fmids);
 
             // Resample onto a rectangular grid
             vector<morph::Vector<float, 2>> fmids_resampled;
@@ -1311,7 +1317,7 @@ int addFlattened (SFVisual& v, const string& datafile, const CmdOptions& co,
             v.surfaces_2d.push_back (visId);
             offset[1]-=7.5f;
 
-            d.add_contained_vals ("/output_map/twod/M", trans_mat.mat);
+            d2.add_contained_vals ("/output_map/twod/M", trans_mat.mat);
 
             // Add a row of points for the centre marker, for debugging
             vector<morph::Vector<float>> centres_;
@@ -1358,13 +1364,13 @@ int addFlattened (SFVisual& v, const string& datafile, const CmdOptions& co,
 
             // Save the resampled stuff to file
             std::cout << "saving resampled...\n" << std::endl;
-            d.add_contained_vals ("/output_map/twod/widthheight_resampled", wh);
-            d.add_contained_vals ("/output_map/twod/expression_resampled", fmeans_resampled);
-            d.add_contained_vals ("/output_map/twod/coordinates_resampled", fmids_resampled);
+            d2.add_contained_vals ("/output_map/twod/widthheight_resampled", wh);
+            d2.add_contained_vals ("/output_map/twod/expression_resampled", fmeans_resampled);
+            d2.add_contained_vals ("/output_map/twod/coordinates_resampled", fmids_resampled);
             // FIXME: Convert to 2D then save. Here are landmarks in 3D:
-            d.add_contained_vals ("/output_map/twod/global_landmarks", sc_coords);
+            d2.add_contained_vals ("/output_map/twod/global_landmarks", sc_coords);
             // Finally, add the datafile used to determine M.
-            d.add_string ("/output_map/twod/M_comes_from", co.datafiles[0]);
+            d2.add_string ("/output_map/twod/M_comes_from", co.datafiles[0]);
         }
     } catch (const exception& e) {
         cerr << "Caught exception: " << e.what() << endl;
@@ -1471,8 +1477,8 @@ int main (int argc, char** argv)
     morph::Vector<float, 2> coordArrowLocn = {-0.75,-0.7};
     morph::Vector<float> coordArrowLengths = {0.14f, 0.07f, 0.07f};
     SFVisual v(2000, 1400, cmdOptions.datafiles[0], coordArrowLocn, coordArrowLengths, 1.0f, 0.01f);
-    v.zNear = 0.001;
-    v.zFar = 40.0;
+    v.zNear = 0.0001;
+    v.zFar = 1000.0;
     v.showTitle = false;
     v.showCoordArrows = true;
     v.coordArrowsInScene = false;
