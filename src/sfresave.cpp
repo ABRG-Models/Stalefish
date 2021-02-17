@@ -1,13 +1,12 @@
-// The Data Manager/drawing class
+/*
+ * This is a utility to do the equivalent of opening an existing stalefish project and
+ * writing it out to h5.
+ */
+
 #include "DM.h"
-// The image-and-associated-fit-parameters class
 #include "FrameData.h"
-#include <opencv2/opencv.hpp>
-#include <opencv2/imgproc.hpp>
 #include <iostream>
-#include <sstream>
 #include <string>
-#include <unistd.h>
 
 //! Main entry point
 int main (int argc, char** argv)
