@@ -1092,7 +1092,8 @@ int addFlattened (SFVisual& v, const string& datafile, const CmdOptions& co,
             string datafile2(datafile);
             morph::Tools::stripFileSuffix (datafile2);
             datafile2 += ".TF.";
-            datafile2 += co.datafiles[0]; // already has .h5 suffix
+            pair<string, string> dfpaf = morph::Tools::getUnixPathAndFile (co.datafiles[0]);
+            datafile2 += dfpaf.second; // already has .h5 suffix
             cout << "Opening H5 file " << datafile << " and associated file " << datafile2 << endl;
 
             morph::HdfData d(datafile, morph::FileAccess::ReadOnly);
