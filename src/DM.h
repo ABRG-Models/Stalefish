@@ -371,12 +371,14 @@ public:
         for (auto& f : this->vFrameData) {
             // Work just with one axis mark for now
             if (!f.AM_lmaligned.empty() && got_start && !got_end) {
+                std::cout << "Got END axismark on slice " << (f.idx+1) << std::endl;
                 am_end_lm = f.AM_lmaligned[0];
                 am_end_aa = f.AM_autoaligned[0];
                 x_end = f.layer_x;
                 got_end = true;
             }
             if (!f.AM_scaled.empty() && !got_start) {
+                std::cout << "Got START axismark on slice " << (f.idx+1) << std::endl;
                 am_start_lm = f.AM_lmaligned[0];
                 am_start_aa = f.AM_autoaligned[0];
                 x_start = f.layer_x;
