@@ -105,6 +105,10 @@ struct CmdOptions
     int linear_transforms;
     //! Temporary datafile, for adding to datafiles.
     char* datafile;
+    //! extents string
+    char* extents_str;
+    //! The extents extracted from extents_str
+    morph::Vector<float, 4> extents;
     //! The h5 files to visualize
     std::vector<string> datafiles;
 };
@@ -124,6 +128,8 @@ void zeroCmdOptions (CmdOptions* copts)
     copts->flattened_type = 0;
     copts->linear_transforms = 0;
     copts->datafile = (char*)0;
+    copts->extents_str = (char*)0;
+    copts->extents = {0.0f, 0.0f, 0.0f, 0.0f};
     copts->datafiles.clear();
 }
 
@@ -150,10 +156,64 @@ void popt_option_callback (poptContext con,
         // Test shortName. This means we could respond to other "multiple options"
         if (opt->shortName == 'f') {
             cmdOptions.datafiles.push_back (cmdOptions.datafile);
+        } else if (opt->shortName == 'x') {
+            // Process cmdOptions.extents_str
+            std::string ex(cmdOptions.extents_str);
+            std::vector<std::string> exn = morph::Tools::stringToVector (ex, ",");
+            if (exn.size() == 4) {
+                for (size_t i = 0; i < 4; ++i) {
+                    std::stringstream ss;
+                    float f = 0.0f;
+                    ss << exn[i];
+                    ss >> f;
+                    cmdOptions.extents[i] = f;
+                }
+            } else {
+                throw std::runtime_error ("extents string is not well formed (give 4 comma-separated numbers)");
+            }
         }
         break;
     }
     }
+}
+
+bool check_lmalignment (morph::HdfData& d)
+{
+    int nf = 0;
+    d.read_val ("/nframes", nf);
+    bool lmalignComputed = false;
+    // If ANY frame has lmalign computed we mark lmalignComputed. Similar for autoalignComputed
+    for (int i = 1; i <= nf; ++i) {
+        stringstream ss;
+        ss << "/Frame";
+        ss.width(3);
+        ss.fill('0');
+        ss << i;
+        bool lac = false;
+        string str = ss.str()+"/lmalign/computed";
+        d.read_val (str.c_str(), lac);
+        if (lac == true) { lmalignComputed = true; }
+    }
+    return lmalignComputed;
+}
+
+bool check_autoalignment (morph::HdfData& d)
+{
+    int nf = 0;
+    d.read_val ("/nframes", nf);
+    bool autoalignComputed = false;
+    for (int i = 1; i <= nf; ++i) {
+        stringstream ss;
+        ss << "/Frame";
+        ss.width(3);
+        ss.fill('0');
+        ss << i;
+        bool lac = false;
+        string str = ss.str()+"/autoalign/computed";
+        d.read_val (str.c_str(), lac);
+        if (lac == true) { autoalignComputed = true; }
+    }
+    return autoalignComputed;
 }
 
 unsigned int countGlobalLandmarks (const string& datafile)
@@ -286,11 +346,8 @@ int addLandmarks (SFVisual& v, const string& datafile, const CmdOptions& co,
             int nf = 0;
             d.read_val ("/nframes", nf);
 
-            // Check first frame for alignments
-            bool lmalignComputed = false;
-            d.read_val ("/Frame001/lmalign/computed", lmalignComputed);
-            bool autoalignComputed = false;
-            d.read_val ("/Frame001/autoalign/computed", autoalignComputed);
+            bool lmalignComputed = check_lmalignment(d);
+            //bool autoalignComputed = check_autoalignment(d);
 
             string frameName("");
             for (int i = 1; i<=nf; ++i) {
@@ -454,13 +511,12 @@ int addVisMod (SFVisual& v, const string& datafile, const CmdOptions& co, const 
             int nf = 0;
             d.read_val ("/nframes", nf);
 
-            // Check first frame for alignments
-            bool lmalignComputed = false;
-            d.read_val ("/Frame001/lmalign/computed", lmalignComputed);
-            bool autoalignComputed = false;
-            d.read_val ("/Frame001/autoalign/computed", autoalignComputed);
-
             string frameName("");
+
+            // Check first frame for alignments
+            bool lmalignComputed = check_lmalignment(d);
+            //bool autoalignComputed = check_autoalignment(d);
+
             for (int i = 1; i<=nf; ++i) {
 
                 stringstream ss;
@@ -653,6 +709,7 @@ int addVisMod (SFVisual& v, const string& datafile, const CmdOptions& co, const 
 
             // Show landmark aligned for preference:
             if (lmalignComputed == true && align_lm == true) {
+                std::cout << "Landmark aligned.\n";
                 if (showribbons) {
                     if (showmesh) {
                         std::cout << "Adding QuadsMeshVisual with hue=" << hue << std::endl;
@@ -706,11 +763,13 @@ int addVisMod (SFVisual& v, const string& datafile, const CmdOptions& co, const 
             } else {
 
                 if (showribbons) {
+                    std::cout << "Showing a QuadsMeshVisual (a ribbon mesh?)\n";
                     visId = v.addVisualModel (new morph::QuadsMeshVisual<float> (v.shaderprog,
                                                                                  &quads_autoaligned, offset,
                                                                                  &means, scale,
                                                                                  cmt, hue, 0.005f));
                 } else {
+                    std::cout << "Showing a PointRowsVisual (normal surface?)\n";
                     visId = v.addVisualModel (new morph::PointRowsVisual<float> (v.shaderprog,
                                                                                  &points_autoaligned, offset,
                                                                                  &means, scale,
@@ -718,7 +777,7 @@ int addVisMod (SFVisual& v, const string& datafile, const CmdOptions& co, const 
                 }
                 v.surfaces_3d.push_back (visId);
 
-                std::cout << "SV6\n";
+                std::cout << "ScatterVisual of centres_autoaligned\n";
                 visId = v.addVisualModel (new morph::ScatterVisual<float> (v.shaderprog,
                                                                            &centres_autoaligned, offset,
                                                                            &centres_id, 0.03f, scale,
@@ -749,14 +808,9 @@ morph::Matrix33<float> readGlobalPositions (const std::string& datafile,
 {
     morph::Matrix33<float> P;
     morph::HdfData d(datafile, morph::FileAccess::ReadOnly);
-    int nf = 0;
-    d.read_val ("/nframes", nf);
 
-    // Check first frame for alignments
-    bool lmalignComputed = false;
-    d.read_val ("/Frame001/lmalign/computed", lmalignComputed);
-    bool autoalignComputed = false;
-    d.read_val ("/Frame001/autoalign/computed", autoalignComputed);
+    bool lmalignComputed = check_lmalignment(d);
+    //bool autoalignComputed = check_autoalignment(d);
     string frameName("");
 
     // Get global landmarks
@@ -814,10 +868,8 @@ morph::Matrix33<float> convertTwoDims (const string& datafile,
     morph::HdfData d(datafile, morph::FileAccess::ReadOnly);
     d.read_error_action = morph::ReadErrorAction::Exception;
 
-    bool lmalignComputed = false;
-    d.read_val ("/Frame001/lmalign/computed", lmalignComputed);
-    bool autoalignComputed = false;
-    d.read_val ("/Frame001/autoalign/computed", autoalignComputed);
+    bool lmalignComputed = check_lmalignment(d);
+    //bool autoalignComputed = check_autoalignment(d);
     bool align_lm = co.use_autoalign > 0 ? false : true;
 
     float xx = 0.0f;
@@ -979,6 +1031,10 @@ void computeFlatTransforms (const CmdOptions& co,
  *
  * \param areas (input) The area of each input data pixel - they're not all the same!
  *
+ * \param extents (input) The spatial extents for the resampled data grid - can set to 0
+ * to auto compute, but this wants to be the same for all images, so setting manually is
+ * easiest. Should be configurable via the cmd line.
+ *
  * \param cartgrid (output) The output cartesian grid. This will be resized by this
  * function
  *
@@ -1000,7 +1056,10 @@ resample_twod (const vector<morph::Vector<float, 2>>& coords,
 {
     // Check input
     if (coords.size() != expression.size()) {
-        throw std::runtime_error ("Expect coords and expression vectors to be same size");
+        std::stringstream ee;
+        ee << "Expect coords (length " << coords.size()
+           << ") and expression vectors (length " << expression.size() << ") to be same size";
+        throw std::runtime_error (ee.str());
     }
     if (coords.size() < 2) {
         throw std::runtime_error ("Expect more than 1 coordinate!");
@@ -1034,8 +1093,7 @@ resample_twod (const vector<morph::Vector<float, 2>>& coords,
     expr_resampled.resize (width_px * height_px);
 
     std::cout << "Image size " << width_px << "x" << height_px << std::endl
-              << "(thats x in range " << minx << " to " << maxx
-              << ", and y in range " << miny << " to " << maxy << std::endl;
+              << "EXTENTS: [" << minx << "," << maxx << "," << miny << "," << maxy << "]" << std::endl;
 
     size_t csz = coords.size();
     unsigned int yi = 0;
@@ -1111,10 +1169,8 @@ int addFlattened (SFVisual& v, const string& datafile, const CmdOptions& co,
             d.read_val ("/nframes", nf);
 
             // Check first frame for alignments
-            bool lmalignComputed = false;
-            d.read_val ("/Frame001/lmalign/computed", lmalignComputed);
-            bool autoalignComputed = false;
-            d.read_val ("/Frame001/autoalign/computed", autoalignComputed);
+            bool lmalignComputed = check_lmalignment(d);
+            //bool autoalignComputed = check_autoalignment(d);
 
             if (co.flattened_type == 1) {
                 // linear distance boxes:
@@ -1253,9 +1309,10 @@ int addFlattened (SFVisual& v, const string& datafile, const CmdOptions& co,
                 }
                 std::cout << "Adding ribbon for slice " << i << std::endl;
                 try {
+                    // Try inserting frameMeansF first, as this may throw an error, in which case, move on
+                    fmeans.insert (fmeans.end(), frameMeansF.begin(), --frameMeansF.end());
                     fquads.insert (fquads.end(), flatsurf_boxes.begin(), flatsurf_boxes.end());
                     fmids.insert (fmids.end(), flat_mids.begin(), flat_mids.end());
-                    fmeans.insert (fmeans.end(), frameMeansF.begin(), --frameMeansF.end());
                 } catch (...) {
                     std::cout << "Failed; there was no ribbon for slice " << i << std::endl;
                 }
@@ -1305,9 +1362,7 @@ int addFlattened (SFVisual& v, const string& datafile, const CmdOptions& co,
             }
 
             // extents is: { minx, maxx, miny, maxy, }. Set all 0 to auto-determine
-            //morph::Vector<float, 4> extents = {0,0,0,0};
-            morph::Vector<float, 4> extents = {-0.22f, 4.65f, -3.03f, 3.85f};
-            std::pair<unsigned int, unsigned int> wh = resample_twod (fmids, fmeans, pix_areas, extents, fmids_resampled, fmeans_resampled, sigma, l);
+            std::pair<unsigned int, unsigned int> wh = resample_twod (fmids, fmeans, pix_areas, cmdOptions.extents, fmids_resampled, fmeans_resampled, sigma, l);
 
             // Convert fmids_resampled into quads
             size_t n_re = fmids_resampled.size();
@@ -1475,6 +1530,12 @@ int main (int argc, char** argv)
          "Add a data file to visualise in 3D. Provide an argument like /path/to/file.h5. "
          "This option can be used multiple times, and you can even leave the -f out; any "
          "'non-option' strings on your command line will be interpreted as data files."},
+
+        {"extents", 'x',
+         POPT_ARG_STRING, &(cmdOptions.extents_str), 0,
+         "Provide a string for the extents of the resampled map (when you produce 2D maps)"
+         ". Allows all resampled maps to be same size. Format: xmin,xmax,ymin,ymax so "
+         "e.g.: -0.22,4.65,-3.03,3.85"},
 
         POPT_AUTOALIAS
         POPT_TABLEEND
