@@ -514,7 +514,7 @@ int addVisMod (SFVisual& v, const string& datafile, const CmdOptions& co, const 
                     cp[1] = AM_lmaligned[0].x;
                     cp[2] = AM_lmaligned[0].y;
                     _cp = M * cp;
-                    std::cout << "Got LM alignmark at " << _cp[0] << "," << _cp[1] << "," << _cp[2] << ".\n";
+                    //std::cout << "Got LM alignmark at " << _cp[0] << "," << _cp[1] << "," << _cp[2] << ".\n";
                     AM_origins_lmaligned.push_back ({_cp[0], _cp[1], _cp[2]});
                 } catch (const exception& ee) {
                     // Ignore missing AM_origins
@@ -529,7 +529,7 @@ int addVisMod (SFVisual& v, const string& datafile, const CmdOptions& co, const 
                     cp[1] = AM_autoaligned[0].x;
                     cp[2] = AM_autoaligned[0].y;
                     _cp = M * cp;
-                    std::cout << "Got Auto alignmark at " << _cp[0] << "," << _cp[1] << "," << _cp[2] << ".\n";
+                    //std::cout << "Got Auto alignmark at " << _cp[0] << "," << _cp[1] << "," << _cp[2] << ".\n";
                     AM_origins_autoaligned.push_back ({_cp[0], _cp[1], _cp[2]});
                 } catch (const exception& ee) {
                     // Ignore missing AM_origins
@@ -835,7 +835,9 @@ morph::Matrix33<float> convertTwoDims (const string& datafile,
 
         // x position comes from the frame
         string str = frameName+"/class/layer_x";
-        d.read_val (str.c_str(), xx);
+        try {
+            d.read_val (str.c_str(), xx);
+        } catch (...) { return A; }
 
         // y position comes from a look at which of framePoints is closest to P.col(i)
         A[fi*3] = xx;
@@ -1082,6 +1084,7 @@ int addFlattened (SFVisual& v, const string& datafile, const CmdOptions& co,
     bool autoscale_per_slice = co.scale_perslice > 0 ? true : false;
     bool align_lm = co.use_autoalign > 0 ? false : true;
 
+    // THIS needs to handle missing data in some slices
     try {
 
         morph::Scale<float> scale;
@@ -1128,6 +1131,7 @@ int addFlattened (SFVisual& v, const string& datafile, const CmdOptions& co,
                 }
             }
 
+            // Need this loop to graciously handle missing slice data
             string frameName("");
             for (int i = 1; i<=nf; ++i) {
 
@@ -1138,22 +1142,34 @@ int addFlattened (SFVisual& v, const string& datafile, const CmdOptions& co,
                 ss << i;
                 frameName = ss.str();
 
+                std::cout << "Flattened map for frame" << frameName << std::endl;
+
                 // x position comes from FrameNNN/class/layer_x
                 string str = frameName+"/class/layer_x";
                 d.read_val (str.c_str(), xx);
                 str = frameName+"/class/thickness";
                 d.read_val (str.c_str(), thickness);
                 vector<float> frameMeansF;
-                if (autoscale_per_slice) {
-                    // Use the auto-scaled version of the means, with each slice autoscaled to [0,1]
-                    str = frameName+"/signal/postproc/boxes/means_autoscaled";
-                    d.read_contained_vals (str.c_str(), frameMeansF);
-                } else {
-                    // Use the raw means and autoscale them as an entire group
-                    str = frameName+"/signal/postproc/boxes/means";
-                    d.read_contained_vals (str.c_str(), frameMeansF);
-                    // The morph::Scale object scale with autoscale the who thing.
-                    scale.do_autoscale = true;
+                try {
+                    std::cout << "...\n";
+                    if (autoscale_per_slice) {
+                        std::cout << "1\n";
+                        // Use the auto-scaled version of the means, with each slice autoscaled to [0,1]
+                        str = frameName+"/signal/postproc/boxes/means_autoscaled";
+                        d.read_contained_vals (str.c_str(), frameMeansF);
+                    } else {
+                        std::cout << "2\n";
+                        // Use the raw means and autoscale them as an entire group
+                        str = frameName+"/signal/postproc/boxes/means";
+                        d.read_contained_vals (str.c_str(), frameMeansF);
+                        // The morph::Scale object scale with autoscale the who thing.
+                        std::cout << "set do_autoscale...\n";
+                        scale.do_autoscale = true;
+                    }
+                } catch (const exception& ee) {
+                    // Perhaps this slice has not curve on it. Handle this by leaving frameMeans empty and continuing
+                    std::cout << "no boxes/means for slice " << i << std::endl;
+                    continue;
                 }
 
                 // Load in linear stuff as well, to make up flat boxes? Or easier to do at source?
@@ -1235,9 +1251,14 @@ int addFlattened (SFVisual& v, const string& datafile, const CmdOptions& co,
                                                   (sbox[1] + sbox[4] + sbox[7] + sbox[10]) * 0.25f };
                     flat_mids.push_back (midpoint);
                 }
-                fquads.insert (fquads.end(), flatsurf_boxes.begin(), flatsurf_boxes.end());
-                fmids.insert (fmids.end(), flat_mids.begin(), flat_mids.end());
-                fmeans.insert (fmeans.end(), frameMeansF.begin(), --frameMeansF.end());
+                std::cout << "Adding ribbon for slice " << i << std::endl;
+                try {
+                    fquads.insert (fquads.end(), flatsurf_boxes.begin(), flatsurf_boxes.end());
+                    fmids.insert (fmids.end(), flat_mids.begin(), flat_mids.end());
+                    fmeans.insert (fmeans.end(), frameMeansF.begin(), --frameMeansF.end());
+                } catch (...) {
+                    std::cout << "Failed; there was no ribbon for slice " << i << std::endl;
+                }
             }
             unsigned int visId = 0;
 
