@@ -94,8 +94,7 @@ def retrieve (exptstr, downsample=3, do_download_expr=0):
     # The json file lives in edir
     ejson = edir + '/' + exptstr + '.json'
 
-    # We need a dictionary structure to collect together information about each
-    # slice.
+    # We need a dictionary structure to collect together information about each slice.
     sliceinfo = {}
 
     # Query SectionDataSet to obtain the section_thickness and plane information
@@ -108,7 +107,7 @@ def retrieve (exptstr, downsample=3, do_download_expr=0):
         for m in rjson['msg'][0]:
             print ('{0} = {1}'.format(m, rjson['msg'][0][m]))
             section_thickness = float(rjson['msg'][0]['section_thickness'])/1000.0 # in um in the data, we want it in mm
-            # 2 is saggital (I think).
+            # plane_of_section_id=2 is saggital.
             plane = rjson['msg'][0]['plane_of_section_id']
             expression = rjson['msg'][0]['expression']
             if not expression:
@@ -143,7 +142,7 @@ def retrieve (exptstr, downsample=3, do_download_expr=0):
     if (success):
         num_rows = rjson['num_rows']
         for i in range(0,num_rows):
-            print (rjson['msg'][i])
+            print ("rjson['msg'][{0}]: {1}".format(i, rjson['msg'][i]))
             image_id = rjson['msg'][i]['id']
             section_num = rjson['msg'][i]['section_number']
             print ('Image {0} is section {2} and its id is {1}'.format(i, image_id, section_num))
