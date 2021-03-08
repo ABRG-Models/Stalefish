@@ -54,6 +54,15 @@ enum FrameFlag
     Flipped    // Is the image flipped U-D?
 };
 
+struct AllenColourParams
+{
+    std::array<float, 9> colour_rot; // Colour space rotation
+    std::array<float, 3> colour_trans; // Colour space pre-translation
+    std::array<float, 2> ellip_axes; // red-green ellipse for "elliptical tube of expressing colours
+    float luminosity_factor; // The slope of the linear luminosity vs signal fit.
+    float luminosity_cutoff; // at what luminosity does the signal cut off to zero?
+};
+
 /*!
  * A class to hold a cortical section image, user-supplied cortex edge points and the
  * resulting fit (either polynomial or Bezier curved). Also stores information about
@@ -278,8 +287,6 @@ public:
     std::pair<int, int> frame_maxmin;
     //! A blurred copy of the image data. CV_32FC3.
     cv::Mat blurred;
-    float blurmean  = 0.0f;
-    unsigned int blurmeanU  = 0;
     //! Sets the width of the blurring Gaussian's sigma
     double bgBlurScreenProportion = 0.1667;
     //! An offset used when subtracting blurred BG from image.
@@ -330,10 +337,19 @@ public:
 
     //! Constructor for creating a FrameData with NO image data. The image data is to be
     //! read from the .h5 file.
-    FrameData (const double _bgBlurScreenProportion, const float _bgBlurSubtractionOffset)
+    FrameData (const double _bgBlurScreenProportion,
+               const float _bgBlurSubtractionOffset,
+               const ColourModel _cmodel,
+               const AllenColourParams& acparams)
     {
         this->previous = -1;
         this->parentStack = (std::vector<FrameData>*)0;
+        this->cmodel = _cmodel;
+        this->colour_rot = acparams.colour_rot;
+        this->colour_trans = acparams.colour_trans;
+        this->ellip_axes = acparams.ellip_axes;
+        this->luminosity_factor = acparams.luminosity_factor;
+        this->luminosity_cutoff = acparams.luminosity_cutoff;
         // An offset so that we don't lose very small amounts of signal above the
         // background when we subtract the blurred version of the image. To become a
         // parameter for the user to modify at application level. Really? Want this here?
@@ -349,11 +365,20 @@ public:
     //! Constructor initializes default values and calls setupFrames()
     FrameData (const cv::Mat& fr,
                const double _bgBlurScreenProportion,
-               const float _bgBlurSubtractionOffset)
+               const float _bgBlurSubtractionOffset,
+               const ColourModel _cmodel,
+               const AllenColourParams& acparams)
     {
+        std::cout << __FUNCTION__ << " called\n";
         // init previous to null.
         this->previous = -1;
         this->parentStack = (std::vector<FrameData>*)0;
+        this->cmodel = _cmodel;
+        this->colour_rot = acparams.colour_rot;
+        this->colour_trans = acparams.colour_trans;
+        this->ellip_axes = acparams.ellip_axes;
+        this->luminosity_factor = acparams.luminosity_factor;
+        this->luminosity_cutoff = acparams.luminosity_cutoff;
         this->frame = fr.clone();
         this->bgBlurScreenProportion = _bgBlurScreenProportion;
         if (_bgBlurSubtractionOffset < 0.0f || _bgBlurSubtractionOffset > 255.0f) {
@@ -367,6 +392,11 @@ public:
     //! .h5 file, generate the signal frame
     void setupFrames()
     {
+        // FIXME FIXME I think this is the location where I need to start thinking about
+        // the Allen data, which is coloured. I think *this* code is all very much based
+        // on there being a monochrome input.
+
+        std::cout << __FUNCTION__ << " called\n";
         this->frame_maxmin = this->showMaxMinU (this->frame, "frame (original)");
         // Scale and convert frame to float format. frameF is a copy of the image data
         // in float format (in range 0 to 1, rather than 0 to 255). CV_32FC3
@@ -390,8 +420,6 @@ public:
         double sigma = (double)frameF.cols * this->bgBlurScreenProportion;
         cv::GaussianBlur (frameF, this->blurred, ksz, sigma);
         std::cout << "Blur mean = " << cv::mean (this->blurred) << std::endl;
-        this->blurmean = cv::mean(this->blurred)[0];
-        this->blurmeanU = static_cast<unsigned int>(this->blurmean * 255.0f);
 
         // Now subtract the blur from the original
         cv::Mat suboffset_minus_blurred;
@@ -404,11 +432,86 @@ public:
         cv::Mat frame_bgoff;
         cv::add (frameF, suboffset_minus_blurred, frame_bgoff, cv::noArray(), CV_32FC3);
         this->showMaxMin (frame_bgoff, "frame_bgoff");
-        // Invert frame_bgoff to create the signal frame
-        cv::subtract (1.0f, frame_bgoff, this->frame_signal, cv::noArray(), CV_32FC3);
+        // Invert frame_bgoff to create the signal frame. OR FIXME: Apply the Allen transform!
+        if (this->cmodel == ColourModel::AllenDevMouse) {
+            // Pass in this->frame, which is CV_8UC3 format; the Allen colour conversion
+            // depends on RBG values being in range 0-255. Using this->frame, means that
+            // we don't subtract an overall background offset, as we do with our own
+            // data, but we assume that the Allen process did not have any significant
+            // spatial heterogeneity in the illumination.
+            this->allenColourConversion (this->frame, this->frame_signal);
+        } else { // Treat as greyscale
+            std::cout << "Treating image as greyscale\n";
+            cv::subtract (1.0f, frame_bgoff, this->frame_signal, cv::noArray(), CV_32FC3);
+        }
         this->frame_signal_maxmin = this->showMaxMin (this->frame_signal, "frame_signal");
         // frame_bgoff is for number crunching. For viewing, it's better to use a CV_8UC3 version.
         frame_bgoff.convertTo (this->frame_bgoffU, CV_8UC3, 255.0);
+    }
+
+    //! Apply the Allen colour conversion to the frame data to obtain the signal. We
+    //! bring in parameters from JSON for transforming the colours and determining if
+    //! they're on the "expressing" axis. This will include a translate matrix, a
+    //! rotation matrix and ellipse parameters, obtained from the octave script
+    //! plotcolour.m. See DM.h for the settings of colour_trans and colour_rot.
+    void allenColourConversion (const cv::Mat& inframe, cv::Mat& outframe)
+    {
+        // inframe should be:
+        //          this->frame, CV_8UC3 format
+        // outframe is going to be:
+        //          this->frame_signal, CV_32FC3 format
+
+        if (inframe.rows != outframe.rows || inframe.cols != outframe.cols) {
+            // Make outframe same size as inframe
+            cv::Mat z(cv::Size(inframe.cols, inframe.rows), CV_32FC3);
+            cv::resize (z, outframe, cv::Size(inframe.cols, inframe.rows));
+        }
+
+        float ellip_maj_sq = ellip_axes[0] * ellip_axes[0];
+        float ellip_min_sq = ellip_axes[1] * ellip_axes[1];
+
+        // This is "for each pixel in inframe"
+        for (int rw = 0; rw < inframe.rows; ++rw) {
+            for (int cl = 0; cl < inframe.cols; ++cl) {
+                // Perform colour transform here, so that we get a transformed blue value
+                cv::Vec3b bgr = inframe.at<cv::Vec3b>(rw,cl);
+                //std::cout << "bgr: " << bgr << std::endl;
+                // 1. Translate rgb colour. NB: It's this->colour_trans
+                float b_t = (float)bgr(0) - colour_trans[0];
+                float g_t = (float)bgr(1) - colour_trans[1];
+                float r_t = (float)bgr(2) - colour_trans[2];
+                //std::cout << "bgr_translated: " << b_t << "," << g_t << "," << r_t << std::endl;
+
+                // 2. Rotate colour. NB: It's this->colour_rot
+                float b_r = colour_rot[0]*b_t + colour_rot[1]*g_t + colour_rot[2]*r_t;
+                float g_r = colour_rot[3]*b_t + colour_rot[4]*g_t + colour_rot[5]*r_t;
+                float r_r = colour_rot[6]*b_t + colour_rot[7]*g_t + colour_rot[8]*r_t;
+                //std::cout << "bgr transformed: " << b_r << "," << g_r << "," << r_r << std::endl;
+
+                // if (r_r,g_r) lies inside ellipse (given by ellip_axes) then blue_transf equals b_r
+                float blue_transf = this->luminosity_cutoff;
+                float erad = ((g_r*g_r)/ellip_maj_sq) + ((r_r*r_r)/ellip_min_sq);
+                // If erad <= 1, then we're inside ellipse:
+                if (erad <= 1.0f) { blue_transf = b_r; }
+
+                // Now apply signal conversion
+                float signal = blue_transf - this->luminosity_cutoff;
+                // m * (x - x_0):
+                signal *= this->luminosity_factor;
+                // Any signal <0 is 0.
+                if (signal > 0.0f) {
+#ifdef __DEBUG
+                    std::cout << "blue_transf = " << blue_transf << std::endl;
+                    std::cout << "Set outframe[" << rw << "][" << cl << "] to signal  "
+                              << (signal > 0.0f ? signal : 0.0f) << std::endl;
+                    std::cout << "cf: bgr: " << bgr << std::endl;
+#endif
+                    outframe.at<cv::Vec<float, 3> >(rw, cl) = {(signal), (signal), (signal)};
+                }
+                //outframe.at<float>(rw, cl, 1) = signal > 0.0f ? signal : 0.0f;
+                //outframe.at<float>(rw, cl, 2) = signal > 0.0f ? signal : 0.0f;
+            }
+        }
     }
 
     //! Show the max and the min of a
@@ -454,6 +557,7 @@ public:
     //! Set the number of bins and update the size of the various containers
     void setBins (int num)
     {
+        std::cout << __FUNCTION__ << " called\n";
         if (num > 5000) { throw std::runtime_error ("Too many bins..."); }
         this->nBins = num;
         this->nFit = num + 1;
@@ -1077,6 +1181,7 @@ public:
     //! as the sample box info (size and number)
     void importCurves (morph::HdfData& df)
     {
+        std::cout << __FUNCTION__ << " called\n";
         std::string frameName = this->getFrameName();
         std::string dname = frameName + "/class/P";
         this->P.clear();
@@ -1104,7 +1209,7 @@ public:
         df.read_val (dname.c_str(), this->pp_idx);
 
         dname = frameName + "/class/nBins";
-        int _nBins;
+        int _nBins = 0;
         try {
             df.read_val (dname.c_str(), _nBins);
         } catch (...) {
@@ -1985,6 +2090,7 @@ public:
 private:
     void updateAutoAlignments()
     {
+        std::cout << __FUNCTION__ << " called\n";
         if (this->previous < 0) {
             // get centroid of this->fitted_scaled (the 0th slice
             cv::Point2d slice0centroid = morph::MathAlgo::centroid (this->fitted_scaled);
@@ -2101,15 +2207,17 @@ private:
 private:
     void updateLandmarkAlignments()
     {
+        std::cout << __FUNCTION__ << " called\n";
         // Landmark scheme, if we have >=2 landmarks on each slice and same number of
         // landmarks on each slice the we can compute alignment with the landmarks.
 
-        // FIXME: If 1 landmark, then do an
+        // If 1 landmark, then do an
         // "align-on-the-landmark-and-rotate-optimally-thereafter" process. This could
-        // either rotate to align landmarks 2 and above, or rotate to align the curves.
+        // either rotate to align landmarks 2 and above, but what it does at the moment
+        // is rotate to align the curves.
 
         if (this->landmarkCheck() == 1) {
-            // FIXME: Implement align-by-single-landmark and rotate to fit
+            // align-by-single-landmark and rotate to fit
             std::cout << "align by rotation...\n";
             this->landmarkAlignByRotation();
             return;
@@ -2328,7 +2436,7 @@ private:
         m = flipped;
     }
 
-    //! Get the signal values from the region from the mRNA signal window (frame_signal).
+    //! Get the signal values from the region from the mRNA signal window (frame_signal, red channel).
     std::vector<float> getRegionSignalVals (const std::vector<cv::Point>& region)
     {
         std::vector<float> regionSignalVals (region.size(), 0.0f);
@@ -2340,7 +2448,7 @@ private:
         return regionSignalVals;
     }
 
-    //! Get the pixel values from the region from the original image window (frame).
+    //! Get the pixel values from the region from the original image window (frame, red channel).
     std::vector<unsigned int> getRegionPixelVals (const std::vector<cv::Point>& region)
     {
         std::vector<unsigned int> regionPixelVals (region.size(), 0);

@@ -15,8 +15,7 @@ rndIDX = randperm(leno);
 % ne is non-expressing
 ne = o(rndIDX(1:len2), :);
 
-% Note: marker face colour is the colour the pixel has on the ISH
-% image.
+% Note: marker face colour is the colour the pixel has on the ISH image.
 figure (1)
 clf
 hold on
@@ -76,7 +75,7 @@ t = [0:0.01:1];
 rt = 0.21 .* t .*255;
 gt = 0.72 .* t .*255;
 bt = 0.07 .* t .*255;
-ng_col = [ 0.21, 0.72, 0.07 ];
+ng_col = [ 0.21, 0.72, 0.07 ]; % greenish line
 plot3(bt, gt, rt, '.-', 'markerfacecolor', ng_col, 'color', ng_col);
 
 % Add the fit line to fig 1 too
@@ -96,7 +95,7 @@ hold on;
 % Blue input, evenly spaced
 b_in = [0:1:255]';
 
-% Save the translation offset from the fit
+% Save the translation offset from the fit (see Linear regression, earlier)
 trans_offset = thefit(2,:);
 trans_offset3d = [0.0, thefit(2,:)];
 
@@ -212,7 +211,8 @@ hold on;
 % equation to categorize a color as expressing or not expressing.
 A = Ax * Ay * Az;
 fully_transformed = (A*translated_points')';
-plot3 (fully_transformed(:,1), fully_transformed(:,2), fully_transformed(:,3), '.k');
+% fully transformed & expressing? in black. Line 1.
+plot3 (fully_transformed(:,1), fully_transformed(:,2), fully_transformed(:,3), 'ok');
 
 % Let's make a one-shot transformation matrix
 oneshot_figured = 0
@@ -245,7 +245,7 @@ end
 % For comparison:
 %plot3 (trans_rot_points(:,1),trans_rot_points(:,2),trans_rot_points(:,3),'.m');
 
-% Let's plot the transformed non-expressing group in red:
+% Let's plot the transformed non-expressing group in red. Line 2.
 n_expr = (A * (ne-trans_offset3d)')';
 plot3 (n_expr(:,1),n_expr(:,2),n_expr(:,3),'*r');
 
@@ -259,24 +259,27 @@ ellip_y_plus = + ellip_minor .* sqrt (1 - ellip_x.*ellip_x/(ellip_major*ellip_ma
 ellip_y_minus = - ellip_minor .* sqrt (1 - ellip_x.*ellip_x/(ellip_major*ellip_major));
 ellip_plus = [300.*ones(size(ellip_x),1), ellip_x, ellip_y_plus];
 ellip_minus = [300.*ones(size(ellip_x),1), ellip_x, ellip_y_minus];
+% Line 3
 plot3(ellip_plus(:,1), ellip_plus(:,2), ellip_plus(:,3), 'ob-')
+% Line 4
 plot3(ellip_minus(:,1), ellip_minus(:,2), ellip_minus(:,3), 'ob-')
 %% Done drawing ellipse
 
 %% Axes
+% Line 5
 plot3([0 255], [0 0], [0 0], 'b-');
+% Line 6
 plot3([0 0], [0 255], [0 0], 'g-');
+% Line 7
 plot3([0 0], [0 0], [0 255], 'r-');
 xlabel ('Blue channel')
 ylabel ('Green channel')
 zlabel ('Red channel')
 title ('Final transformed points')
 
-% Last question. Is a point inside the ellipse? Plot, and colour
-% accordingly
+% Last question. Is a point inside the ellipse? Plot, and colour accordingly
 %
-% For a given x,y(red,green) in transformed colour space, do the
-% sum:
+% For a given x,y(red,green) in transformed colour space, do the sum:
 inout = []
 values = []
 for f = fully_transformed'
@@ -298,11 +301,12 @@ luminosity_cutoff = 250;
 luminosity_factor = -1;
 tvalues = luminosity_cutoff + (values(inout==1) .* luminosity_factor);
 tvalues(tvalues<0) = 0;
+% Line 8
 plot3(fully_transformed(inout==1,1), zeros(length(values(inout==1)),1), tvalues, 'go');
 
-% Process each number through the eqn of the ellipse to get a vlaue
-% < or > 1.
+legend('expressing', 'non-expressing', 'e+', 'e-', 'bl\_axis', 'gr\_axis', 'rd\_axis', 'fully-transformed darker=more signal')
 
+% Process each number through the eqn of the ellipse to get a value < or > 1.
 printf ('================ RESULTS ==================\n')
 printf ('3D translation:\n')
 trans_offset3d

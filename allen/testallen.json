@@ -1,26 +1,26 @@
 {
-    // The thickness of a brain slice, assuming they'll all be the same.
     "thickness" : 0.025,
 
-    // How many pixels in the image corresponds to 1 mm? True in horz(y) and vert(z) directions equally?
     "pixels_per_mm" : 100,
 
     "colourmodel" : "allen",
 
-    // Colour translation (prior to rotation)
+    "section_allen_colour_parameters" : "START",
+    "desc_colour_trans" : "Colour translation (prior to colour rotation)",
     "colour_trans" : [0.0, 13.70966, 39.20662],
 
-    // Colour rotation (so that the blue axis is the axis of
-    // luminance). This is a 3x3 array, but stored as a 1x9 linear array
+    "dest_colour_rot" : "Colour rotation (so that the blue axis is the axis of luminance). This is a 3x3 array, but stored as a 1x9 linear array",
     "colour_rot" : [ 0.59660, 0.58610,   0.54823,
                      0.78482,  -0.28337,  -0.55114,
                      -0.16767,   0.75907,  -0.62904 ],
 
     "ellip_axes" : [28.970, 6.5591 ],
+    "luminosity_factor" : -0.00392,
+    "luminosity_cutoff" : 255.0,
+    "section_allen_colour_parameters" : "END",
 
-    // The brain slices in the y-z plane, where y points to the
-    // anterior, z points dorsally (and so x is the lateral dimension).
-    "slices": [ // Probably need to get x from slice number (e.g. 111 or 119) * 0.025um (or whatever the thickness is)
+    "note_on_slices" :  "Probably need to get x from slice number (e.g. 111 or 119) * 0.025um (or whatever the thickness is)",
+    "slices": [
         { "filename" : "allen/images/e100081391_15_101383027.jpg", "x" : 0.4  },
         { "filename" : "allen/images/e100081391_23_101383028.jpg", "x" : 0.7  },
         { "filename" : "allen/images/e100081391_31_101383029.jpg", "x" : 0.8  },
@@ -37,5 +37,5 @@
         { "filename" : "allen/images/e100081391_143_101383043.jpg", "x" : 0.3  },
         { "filename" : "allen/images/e100081391_151_101383044.jpg", "x" : 0.5  },
         { "filename" : "allen/images/e100081391_159_101383045.jpg", "x" : 0.6  }
-   ] // end
+   ]
 }

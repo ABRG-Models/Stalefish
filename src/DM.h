@@ -69,12 +69,15 @@ private:
 
     //! Colour space parameters
     std::string colourmodel = "monochrome";
+
+    AllenColourParams acparams;
+#if 0
     std::array<float, 9> colour_rot; // Colour space rotation
     std::array<float, 3> colour_trans; // Colour space pre-translation
     std::array<float, 2> ellip_axes; // red-green ellipse for "elliptical tube of expressing colours
     float luminosity_factor; // The slope of the linear luminosity vs signal fit.
     float luminosity_cutoff; // at what luminosity does the signal cut off to zero?
-
+#endif
     // Called by next/previousFrame. Take binA, binB from the frame and change the
     // sliders. Update the fit and refresh boxes. Update the view of boxes/fit line/control points
     void refreshFrame()
@@ -136,16 +139,6 @@ public:
         fd.layer_x = slice_x;
         fd.pixels_per_mm = (double)this->pixels_per_mm * this->scaleFactor;
         fd.thickness = this->thickness;
-        if (this->colourmodel == "allen") {
-            fd.cmodel = ColourModel::AllenDevMouse;
-        } else {
-            fd.cmodel = ColourModel::Greyscale;
-        }
-        fd.colour_rot = this->colour_rot;
-        fd.colour_trans = this->colour_trans;
-        fd.ellip_axes = this->ellip_axes;
-        fd.luminosity_factor = this->luminosity_factor;
-        fd.luminosity_cutoff = this->luminosity_cutoff;
         fd.savePerPixelData = this->savePerPixel;
         fd.saveAutoAlignData = this->saveAutoAlign;
         fd.saveLMAlignData = this->saveLMAlign;
@@ -182,8 +175,11 @@ public:
      */
     void addFrame (const std::string& frameImgFilename, const float& slice_x)
     {
+        std::cout << __FUNCTION__ << "(1) called\n";
         // Create an empty FrameData, with no image data as yet.
-        FrameData fd(this->bgBlurScreenProportion, this->bgBlurSubtractionOffset);
+        FrameData fd(this->bgBlurScreenProportion, this->bgBlurSubtractionOffset,
+                     (this->colourmodel == "allen" ? ColourModel::AllenDevMouse : ColourModel::Greyscale),
+                     this->acparams);
         this->addFrame (fd, frameImgFilename, slice_x);
     }
 
@@ -194,7 +190,10 @@ public:
      */
     void addFrame (cv::Mat& frameImg, const std::string& frameImgFilename, const float& slice_x)
     {
-        FrameData fd(frameImg, this->bgBlurScreenProportion, this->bgBlurSubtractionOffset);
+        std::cout << __FUNCTION__ << "(2) called\n";
+        FrameData fd(frameImg, this->bgBlurScreenProportion, this->bgBlurSubtractionOffset,
+                     (this->colourmodel == "allen" ? ColourModel::AllenDevMouse : ColourModel::Greyscale),
+                     this->acparams);
         this->addFrame (fd, frameImgFilename, slice_x);
     }
 
@@ -860,20 +859,20 @@ public:
         // colour_rot - array<float, 9>
         const Json::Value cr = conf.getArray ("colour_rot");
         for (unsigned int ii = 0; ii < cr.size(); ++ii) {
-            this->colour_rot[ii] = cr[ii].asFloat();
+            this->acparams.colour_rot[ii] = cr[ii].asFloat();
         }
         // colour_trans - array<float, 3>
         const Json::Value ct = conf.getArray ("colour_trans");
         for (unsigned int ii = 0; ii < ct.size(); ++ii) {
-            this->colour_trans[ii] = ct[ii].asFloat();
+            this->acparams.colour_trans[ii] = ct[ii].asFloat();
         }
         // ellip_axes array<float, 2>
         const Json::Value ea = conf.getArray ("ellip_axes");
-        this->ellip_axes[0] = ea[0].asFloat();
-        this->ellip_axes[1] = ea[1].asFloat();
+        this->acparams.ellip_axes[0] = ea[0].asFloat();
+        this->acparams.ellip_axes[1] = ea[1].asFloat();
         // luminosity linear fit parameters
-        this->luminosity_cutoff = conf.getFloat ("luminosity_cutoff", 255.0f);
-        this->luminosity_factor = conf.getFloat ("luminosity_factor", -0.00392f); // -1/255
+        this->acparams.luminosity_cutoff = conf.getFloat ("luminosity_cutoff", 255.0f);
+        this->acparams.luminosity_factor = conf.getFloat ("luminosity_factor", -0.00392f); // -1/255
         // Data-saving parameters - what to save to the HDF5 file
         this->savePerPixel = conf.getBool ("save_per_pixel_data", false);
         this->saveAutoAlign = conf.getBool ("save_auto_align_data", true);
@@ -1349,7 +1348,6 @@ public:
            << " " << cf->getFitInfo() << ".";
         ss << " Range: " << cf->frame_maxmin.second << "," << cf->frame_maxmin.first;
         ss.precision(3);
-        ss << " (bm:"<< cf->blurmeanU << ")";
         // Float font size based on image size (frame width)?
         float fwidth = (float)cf->frame.cols;
         float fontsz = fwidth / 1727.0f;
@@ -1515,6 +1513,7 @@ public:
     //! On trackbar change, refresh the size of the boxes
     static void ontrackbar_nbins (int val, void*)
     {
+        std::cout << __FUNCTION__ << " called\n";
         FrameData* cf = DM::i()->gcf();
         unsigned int nbt = DM::i()->nBinsTarg;
         if (nbt < 2) { nbt = 2; }
