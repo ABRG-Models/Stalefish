@@ -332,7 +332,7 @@ public:
         this->img = this->vFrameData[this->I].frame.clone();
         FrameData* cf = this->gcf();
         if (cf) {
-            this->sImg = cf->frame_signal.clone(); // Don't get an alpha channel with frame_signal, unlike frame_bgoffU
+            this->sImg = cf->frame_signal.clone(); // Don't get an alpha channel with frame_signal
         }
     }
 

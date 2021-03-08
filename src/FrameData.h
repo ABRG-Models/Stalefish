@@ -297,12 +297,6 @@ public:
     cv::Mat frame_signal;
     //! Holds the max and min of the signal in frame_signal.
     std::pair<float, float> frame_signal_maxmin;
-    //! The frame, with the blurred background offset, including the user-supplied
-    //! bgBlurSubtractionOffset to give values between approx 0 and 1 and in CV_32FC3
-    //! format. From a temporary (CV_32FC3) frame_bgoff we calculate the signal,
-    //! frame_signal. We keep a CV_8UC3 version of frame_bgoff, possibly truncated at
-    //! the ends of the ranges, but useful for display.
-    cv::Mat frame_bgoffU;
 
     //! The frame image filename from which frame was loaded. Stored so it can be
     //! recorded when writing out.
@@ -432,7 +426,10 @@ public:
         cv::Mat frame_bgoff;
         cv::add (frameF, suboffset_minus_blurred, frame_bgoff, cv::noArray(), CV_32FC3);
         this->showMaxMin (frame_bgoff, "frame_bgoff");
-        // Invert frame_bgoff to create the signal frame. OR FIXME: Apply the Allen transform!
+
+        // This is where we distinguish between possible different ColourModels. Apply
+        // some conversion to go from the input (frame/frame_bgoff) to the signal:
+        // frame_signal
         if (this->cmodel == ColourModel::AllenDevMouse) {
             // Pass in this->frame, which is CV_8UC3 format; the Allen colour conversion
             // depends on RBG values being in range 0-255. Using this->frame, means that
@@ -440,13 +437,13 @@ public:
             // data, but we assume that the Allen process did not have any significant
             // spatial heterogeneity in the illumination.
             this->allenColourConversion (this->frame, this->frame_signal);
-        } else { // Treat as greyscale
+        } else {
+            // Assume it's grayscale: Invert frame_bgoff to create the signal frame.
             std::cout << "Treating image as greyscale\n";
             cv::subtract (1.0f, frame_bgoff, this->frame_signal, cv::noArray(), CV_32FC3);
         }
+
         this->frame_signal_maxmin = this->showMaxMin (this->frame_signal, "frame_signal");
-        // frame_bgoff is for number crunching. For viewing, it's better to use a CV_8UC3 version.
-        frame_bgoff.convertTo (this->frame_bgoffU, CV_8UC3, 255.0);
     }
 
     //! Apply the Allen colour conversion to the frame data to obtain the signal. We
@@ -2054,7 +2051,6 @@ public:
     {
         this->compute_mirror (this->frame);
         this->compute_mirror (this->frame_signal);
-        this->compute_mirror (this->frame_bgoffU);
     }
 
     //! Flip the image & mark as such in flags
@@ -2068,7 +2064,6 @@ public:
     {
         this->compute_flip (this->frame);
         this->compute_flip (this->frame_signal);
-        this->compute_flip (this->frame_bgoffU);
     }
 
     //! Check landmarks on each slice. If there are at least n landmarks on every slice,
@@ -2388,15 +2383,10 @@ public:
             this->FL_signal_means[i] = 0.0;
             this->FL_pixel_means[i] = 0;
 
-            if (this->cmodel == ColourModel::AllenDevMouse) {
-                throw std::runtime_error ("AllenDevMouse ColourModel is not implemented for freehand regions");
-
-            } else { // Default is ColourModel::Greyscale
-                this->FL_pixels[i] = this->getRegionPixelVals (this->FLE[i]);
-                this->FL_signal[i] = this->getRegionSignalVals (this->FLE[i]);
-                morph::MathAlgo::compute_mean_sd<unsigned int> (this->FL_pixels[i], FL_pixel_means[i]);
-                morph::MathAlgo::compute_mean_sd<float> (this->FL_signal[i], FL_signal_means[i]);
-            }
+            this->FL_pixels[i] = this->getRegionPixelVals (this->FLE[i]);
+            this->FL_signal[i] = this->getRegionSignalVals (this->FLE[i]);
+            morph::MathAlgo::compute_mean_sd<unsigned int> (this->FL_pixels[i], FL_pixel_means[i]);
+            morph::MathAlgo::compute_mean_sd<float> (this->FL_signal[i], FL_signal_means[i]);
         }
     }
 
@@ -2498,37 +2488,6 @@ private:
         return this->getRegionSignalVals (maskpositives);
     }
 
-    //! In a box, obtain colour values as BGR float triplets
-    std::vector<std::array<float, 3>> getBoxedPixelColour (const std::vector<cv::Point> boxVtxs)
-    {
-        cv::Point pts[4] = {boxVtxs[0],boxVtxs[1],boxVtxs[2],boxVtxs[3]};
-        cv::Mat mask = cv::Mat::zeros(frame.rows, frame.cols, CV_8UC3);
-        cv::fillConvexPoly (mask, pts, 4, cv::Scalar(255,255,255));
-        //
-        cv::Mat maskGray;
-        cv::cvtColor (mask, maskGray, cv::COLOR_BGR2GRAY);
-        std::vector<cv::Point2i> maskpositives;
-        cv::findNonZero (maskGray, maskpositives);
-
-        cv::Mat result, resultFloat, resultGray;
-        // Fixme: Can probably copy frameF to result, which is already in floating point format.
-        frame.copyTo (result, mask); // Note: 'result' will be in BGR format
-        cv::cvtColor (result, resultGray, cv::COLOR_BGR2GRAY);
-        result.convertTo (resultFloat, CV_32FC3);
-        std::vector<cv::Point2i> positives;
-        cv::findNonZero (resultGray/*Float*/, positives); // only for CV_8UC1 :( I want 'findNonBlack' on result
-        std::vector<std::array<float, 3>> boxedPixelVals (maskpositives.size());
-        for (size_t j=0; j<maskpositives.size(); j++) {
-            cv::Vec3f pixel = resultFloat.at<cv::Vec3f>(maskpositives[j]);
-            // NB: This assumes image is in BGR format and we return in BGR format.
-            boxedPixelVals[j][0] = pixel.val[0];
-            boxedPixelVals[j][1] = pixel.val[1];
-            boxedPixelVals[j][2] = pixel.val[2];
-        }
-
-        return boxedPixelVals;
-    }
-
     //! Compute the mean values for the bins. Not const. But means don't need to be a
     //! member as they're only computed to be written out to file.
     void computeBoxMeans()
@@ -2552,69 +2511,16 @@ private:
             this->box_pixel_sds[i] = 0;
             this->box_signal_sds[i] = 0.0;
 
-            // if luminance value only/greyscale:
-            if (this->cmodel == ColourModel::AllenDevMouse) {
-
-                throw std::runtime_error ("FIXME: computeBoxMeans()Review this code before using it.");
-
-                // But we'll have to pass parameters for transforming the colours and
-                // determining if they're on the "expressing" axis. This will include
-                // a translate matrix, a rotation matrix and ellipse parameters,
-                // obtained from the octave script plotcolour.m
-                this->boxes_pixels_bgr[i] = this->getBoxedPixelColour (this->boxes[i]);
-
-                float ellip_maj_sq = ellip_axes[0] * ellip_axes[0];
-                float ellip_min_sq = ellip_axes[1] * ellip_axes[1];
-                // std::cout << "box " << i << " has " << this->boxes_pixels_bgr[i].size() << " pixels" << std::endl;
-                for (size_t j=0; j<this->boxes_pixels_bgr[i].size(); j++) {
-                    // Perform colour transform here, so that we get a transformed blue value
-                    float b = boxes_pixels_bgr[i][j][0];
-                    float g = boxes_pixels_bgr[i][j][1];
-                    float r = boxes_pixels_bgr[i][j][2];
-                    //std::cout << "bgr: " << b << "," << g << "," << r << std::endl;
-
-                    // 1. Translate rgb colour. NB: It's this->colour_trans
-                    float b_t = b - colour_trans[0];
-                    float g_t = g - colour_trans[1];
-                    float r_t = r - colour_trans[2];
-
-                    // 2. Rotate colour. NB: It's this->colour_rot
-                    float b_r = colour_rot[0]*b_t + colour_rot[1]*g_t + colour_rot[2]*r_t;
-                    float g_r = colour_rot[3]*b_t + colour_rot[4]*g_t + colour_rot[5]*r_t;
-                    float r_r = colour_rot[6]*b_t + colour_rot[7]*g_t + colour_rot[8]*r_t;
-                    //std::cout << "bgr transformed: " << b_r << "," << g_r << "," << r_r << std::endl;
-
-                    // if (r_r,g_r) lies inside ellipse (given by ellip_axes) then blue_transf equals b_r
-                    float blue_transf = 0.0f;
-                    float erad = ((g_r*g_r)/ellip_maj_sq) + ((r_r*r_r)/ellip_min_sq);
-                    if (erad <= 1.0f) {
-                        // Inside ellipse:
-                        blue_transf = b_r;
-                    }
-
-                    // Now apply signal conversion
-                    float signal = blue_transf - this->luminosity_cutoff;
-                    // m * (x - x_0):
-                    signal *= this->luminosity_factor;
-                    // Any signal <0 is 0.
-                    // std::cout << "signal value is " << signal << std::endl;
-                    this->box_signal_means[i] += (double)(signal > 0.0f ? signal : 0.0f);
-                }
-                // Divide the signal by the number of pixels in the box
-                this->box_signal_means[i] /= (double)this->boxes_pixels_bgr[i].size();
-
-            } else { // Default is ColourModel::Greyscale
-                // We get the box pixel VALUES in the return value and the COORDS in the output argument
-                this->boxes_pixels[i] = this->getBoxedPixelVals (this->boxes[i], this->box_coords_pixels[i]);
-                this->boxes_signal[i] = this->getBoxedSignalVals (this->boxes[i]);
-                this->box_pixel_sds[i] = morph::MathAlgo::compute_mean_sd<unsigned int> (this->boxes_pixels[i], this->box_pixel_means[i]);
-                this->box_signal_sds[i] = morph::MathAlgo::compute_mean_sd<float> (this->boxes_signal[i], this->box_signal_means[i]);
-                // transform box_coords_pixels into box_coords_autoalign and box_coords_lmalign
-                std::vector<cv::Point2d> bcpix(this->box_coords_pixels[i].size());
-                this->scalePoints (this->box_coords_pixels[i], bcpix);
-                this->transform (bcpix, this->box_coords_autoalign[i], this->autoalign_translation, this->autoalign_theta);
-                this->transform (bcpix, this->box_coords_lmalign[i], this->lm_translation, this->lm_theta);
-            }
+            // We get the box pixel VALUES in the return value and the COORDS in the output argument
+            this->boxes_pixels[i] = this->getBoxedPixelVals (this->boxes[i], this->box_coords_pixels[i]);
+            this->boxes_signal[i] = this->getBoxedSignalVals (this->boxes[i]);
+            this->box_pixel_sds[i] = morph::MathAlgo::compute_mean_sd<unsigned int> (this->boxes_pixels[i], this->box_pixel_means[i]);
+            this->box_signal_sds[i] = morph::MathAlgo::compute_mean_sd<float> (this->boxes_signal[i], this->box_signal_means[i]);
+            // transform box_coords_pixels into box_coords_autoalign and box_coords_lmalign
+            std::vector<cv::Point2d> bcpix(this->box_coords_pixels[i].size());
+            this->scalePoints (this->box_coords_pixels[i], bcpix);
+            this->transform (bcpix, this->box_coords_autoalign[i], this->autoalign_translation, this->autoalign_theta);
+            this->transform (bcpix, this->box_coords_lmalign[i], this->lm_translation, this->lm_theta);
         }
     }
 
