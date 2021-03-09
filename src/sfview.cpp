@@ -779,7 +779,7 @@ int addVisMod (SFVisual& v, const string& datafile, const CmdOptions& co, const 
                         visId = v.addVisualModel (new morph::QuadsMeshVisual<float> (v.shaderprog,
                                                                                      &quads_autoaligned, offset,
                                                                                      &means, scale,
-                                                                                     cmt, hue, 0.005f));
+                                                                                     cmt, hue, colour_sat, 0.005f));
                     } else {
                         std::cout << "NO mesh. Adding QuadsVisual with hue=" << hue << std::endl;
                         visId = v.addVisualModel (new morph::QuadsVisual<float> (v.shaderprog,
