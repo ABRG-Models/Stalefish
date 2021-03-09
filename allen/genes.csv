@@ -1,0 +1,2108 @@
+id,gene_symbol,gene_name,entrez_gene_id,homologene_group_id
+158383,1700010L04Rik,RIKEN cDNA 1700010L04 gene,619808,
+46574,6330411E07Rik,RIKEN cDNA 6330411E07 gene,70733,
+106388,6330581N18Rik,RIKEN cDNA 6330581N18 gene,319453,
+106517,6430573F11Rik,RIKEN cDNA 6430573F11 gene,319582,35306
+87409,A2m,alpha-2-macroglobulin,232345,37248
+106850,A830049F12Rik,RIKEN cDNA A830049F12 gene,319915,
+11134,Aanat,arylalkylamine N-acetyltransferase,11298,31013
+35601,Aatf,apoptosis antagonizing transcription factor,56321,40811
+11138,Aatk,apoptosis-associated tyrosine kinase,11302,74861
+92603,Abat,4-aminobutyrate aminotransferase,268860,542
+11141,Abca2,"ATP-binding cassette, sub-family A (ABC1), member 2",11305,55590
+17019,Abcc1,"ATP-binding cassette, sub-family C (CFTR/MRP), member 1",17250,55459
+69666,Abhd4,abhydrolase domain containing 4,105501,56937
+11183,Abl1,"c-abl oncogene 1, non-receptor tyrosine kinase",11350,3783
+85918,Abra,actin-binding Rho activating protein,223513,34713
+29936,Abt1,activator of basal transcription 1,30946,6859
+56084,Abtb1,ankyrin repeat and BTB (POZ) domain containing 1,80283,32731
+11210,Ace,angiotensin I converting enzyme (peptidyl-dipeptidase A) 1,11421,37351
+11212,Ache,acetylcholinesterase,11423,543
+11250,Actb,"actin, beta",11461,110648
+11265,Acvr1,"activin A receptor, type 1",11477,7
+11267,Acvr1b,"activin A receptor, type 1B",11479,20906
+92713,Acvr1c,"activin A receptor, type IC",269275,26724
+11268,Acvr2a,activin receptor IIA,11480,20391
+11269,Acvr2b,activin receptor IIB,11481,863
+11270,Acvrl1,"activin A receptor, type II-like 1",11482,20058
+11275,Adam10,a disintegrin and metallopeptidase domain 10,11487,865
+11279,Adam17,a disintegrin and metallopeptidase domain 17,11491,2395
+11280,Adam19,a disintegrin and metallopeptidase domain 19 (meltrin beta),11492,74925
+129123,Adcy1,adenylate cyclase 1,432530,41419
+84170,Adcy2,adenylate cyclase 2,210044,75133
+11302,Adcy9,adenylate cyclase 9,11515,868
+11303,Adcyap1,adenylate cyclase activating polypeptide 1,11516,869
+11304,Adcyap1r1,adenylate cyclase activating polypeptide 1 receptor 1,11517,870
+11325,Adnp,activity-dependent neuroprotective protein,11538,7617
+88720,Adnp2,ADNP homeobox 2,240442,8945
+11327,Adora2a,adenosine A2a receptor,11540,20166
+11338,Adra2a,"adrenergic receptor, alpha 2a",11551,47944
+11339,Adra2b,"adrenergic receptor, alpha 2b",11552,553
+11340,Adra2c,"adrenergic receptor, alpha 2c",11553,20170
+11341,Adrb1,"adrenergic receptor, beta 1",11554,20171
+11356,Aebp2,AE binding protein 2,11569,40690
+14573,Aes,amino-terminal enhancer of split,14797,879
+16536,Aff3,"AF4/FMR2 family, member 3",16764,1718
+11391,Agrp,agouti related protein,11604,7184
+11393,Agt,"angiotensinogen (serpin peptidase inhibitor, clade A, member 8)",11606,14
+11394,Agtr1a,"angiotensin II receptor, type 1a",11607,3556
+86466,Ahctf1,AT hook containing transcription factor 1,226747,9142
+32386,Ahi1,Abelson helper integration site 1,52906,9762
+11409,Ahr,aryl-hydrocarbon receptor,11622,1224
+64352,Akna,AT-hook transcription factor,100182,49947
+69514,Akr1c18,"aldo-keto reductase family 1, member C18",105349,128661
+11438,Akt1,thymoma viral proto-oncogene 1,11651,3785
+43448,Akt1s1,AKT1 substrate 1 (proline-rich),67605,12162
+11445,Alcam,activated leukocyte cell adhesion molecule,11658,1229
+11455,Aldh1a1,"aldehyde dehydrogenase family 1, subfamily A1",11668,110441
+19141,Aldh1a2,"aldehyde dehydrogenase family 1, subfamily A2",19378,68368
+36126,Aldh1a3,"aldehyde dehydrogenase family 1, subfamily A3",56847,68080
+11456,Aldh2,"aldehyde dehydrogenase 2, mitochondrial",11669,55480
+84449,Aldh4a1,"aldehyde dehydrogenase 4 family, member A1",212647,6081
+11469,Alk,anaplastic lymphoma kinase,11682,68387
+84945,Alx1,ALX homeobox 1,216285,5075
+11481,Alx3,aristaless-like homeobox 3,11694,4737
+11482,Alx4,aristaless-like homeobox 4,11695,7229
+11492,Amh,anti-Mullerian hormone,11705,68060
+74698,Amhr2,anti-Mullerian hormone type 2 receptor,110542,10746
+86931,Amigo1,adhesion molecule with Ig like domain 1,229715,46421
+51564,Amotl1,angiomotin-like 1,75723,43977
+11387,Angpt1,angiopoietin 1,11600,37447
+11388,Angpt2,angiopoietin 2,11601,22401
+11389,Angpt4,angiopoietin 4,11602,36302
+48554,Angptl1,angiopoietin-like 1,72713,128467
+26108,Angptl2,angiopoietin-like 2,26360,22695
+29914,Angptl3,angiopoietin-like 3,30924,8499
+37146,Angptl4,angiopoietin-like 4,57875,10755
+46567,Angptl6,angiopoietin-like 6,70726,88931
+161133,Angptl7,angiopoietin-like 7,654812,50022
+11522,Ank3,"ankyrin 3, epithelial",11735,56908
+11531,Anxa11,annexin A11,11744,22759
+12091,Anxa2,annexin A2,12306,20857
+11533,Anxa4,annexin A4,11746,68164
+106859,Apba1,"amyloid beta (A4) precursor protein binding, family A, member 1",319924,897
+11571,Apba2,"amyloid beta (A4) precursor protein-binding, family A, member 2",11784,4021
+11576,Apc,adenomatosis polyposis coli,11789,30950
+23558,Apc2,adenomatosis polyposis coli 2,23805,4299
+86431,Aph1a,anterior pharynx defective 1a homolog (C. elegans),226548,9345
+83933,Aph1b,anterior pharynx defective 1b homolog (C. elegans),208117,12844
+44160,Aph1c,anterior pharynx defective 1c homolog (C. elegans),68318,
+11590,Aplp1,amyloid beta (A4) precursor-like protein 1,11803,68447
+11602,Apod,apolipoprotein D,11815,1246
+11603,Apoe,apolipoprotein E,11816,30951
+11607,App,amyloid beta (A4) precursor protein,11820,56379
+11616,Aqp4,aquaporin 4,11829,37507
+11622,Ar,androgen receptor,11835,28
+11625,Arc,activity regulated cytoskeletal-associated protein,11838,9056
+11626,Areg,amphiregulin,11839,1252
+11632,Arf6,ADP-ribosylation factor 6,11845,1256
+87385,Arhgap25,Rho GTPase activating protein 25,232201,45507
+32146,Arhgef25,Rho guanine nucleotide exchange factor (GEF) 25,52666,32691
+47212,Arid5b,AT rich interactive domain 5B (MRF1-like),71371,45872
+36074,Arl10,ADP-ribosylation factor-like 10,56795,10550
+11650,Arnt,aryl hydrocarbon receptor nuclear translocator,11863,1261
+11651,Arnt2,aryl hydrocarbon receptor nuclear translocator 2,11864,7230
+11652,Arntl,aryl hydrocarbon receptor nuclear translocator-like,11865,910
+93055,Arntl2,aryl hydrocarbon receptor nuclear translocator-like 2,272322,10609
+11663,Artn,artemin,11876,7631
+11664,Arvcf,armadillo repeat gene deleted in velo-cardio-facial syndrome,11877,31046
+11665,Arx,aristaless related homeobox,11878,68998
+16941,Ascl1,achaete-scute complex homolog 1 (Drosophila),17172,31234
+16942,Ascl2,achaete-scute complex homolog 2 (Drosophila),17173,3789
+36066,Ascl3,achaete-scute complex homolog 3 (Drosophila),56787,10571
+183550,Ascl4,achaete-scute complex homolog 4 (Drosophila),67341,19806
+86417,Ascl5,achaete-scute complex homolog 5 (Drosophila),226439,132678
+11208,Asic1,acid-sensing (proton-gated) ion channel 1,11419,121755
+11207,Asic2,acid-sensing (proton-gated) ion channel 2,11418,
+11686,Astn1,astrotactin 1,11899,7233
+35364,Astn2,astrotactin 2,56079,77850
+11695,Atf1,activating transcription factor 1,11908,3790
+11696,Atf2,activating transcription factor 2,11909,31061
+11697,Atf3,activating transcription factor 3,11910,1265
+11698,Atf4,activating transcription factor 4,11911,1266
+71668,Atf5,activating transcription factor 5,107503,32142
+86447,Atf6,activating transcription factor 6,226641,32015
+12698,Atf6b,activating transcription factor 6 beta,12915,31238
+11707,Atoh1,atonal homolog 1 (Drosophila),11921,31297
+32884,Atoh7,atonal homolog 7 (Drosophila),53404,32338
+46934,Atoh8,atonal homolog 8 (Drosophila),71093,41893
+11768,Atp10a,"ATPase, class V, type 10A",11982,56461
+11714,Atp1a1,"ATPase, Na+/K+ transporting, alpha 1 polypeptide",11928,564
+62830,Atp1a2,"ATPase, Na+/K+ transporting, alpha 2 polypeptide",98660,47947
+11718,Atp1b2,"ATPase, Na+/K+ transporting, beta 2 polypeptide",11932,36075
+11766,Atp8a1,"ATPase, aminophospholipid transporter (APLT), class I, type 8A, member 1",11980,48402
+20001,Atxn1,ataxin 1,20238,281
+11784,Avp,arginine vasopressin,11998,417
+33433,Avpr1a,arginine vasopressin receptor 1A,54140,568
+26109,Avpr1b,arginine vasopressin receptor 1B,26361,22678
+11786,Avpr2,arginine vasopressin receptor 2,12000,20064
+11791,Axin1,axin 1,12005,2614
+11792,Axin2,axin2,12006,3420
+26110,Axl,AXL receptor tyrosine kinase,26362,7583
+26624,B3galt2,"UDP-Gal:betaGlcNAc beta 1,3-galactosyltransferase, polypeptide 2",26878,74512
+93607,B3gat2,"beta-1,3-glucuronyltransferase 2 (glucuronosyltransferase S)",280645,50574
+32943,B3gnt2,"UDP-GlcNAc:betaGal beta-1,3-N-acetylglucosaminyltransferase 2",53625,4797
+11799,Bach1,BTB and CNC homology 1,12013,916
+11800,Bach2,BTB and CNC homology 2,12014,7240
+144469,Baiap3,BAI1-associated protein 3,545192,20844
+43853,Bambi,BMP and activin membrane-bound inhibitor,68010,8215
+33713,Barhl1,BarH-like 1 (Drosophila),54422,81871
+68547,Barhl2,BarH-like 2 (Drosophila),104382,10572
+11808,Barx1,BarH-like homeobox 1,12022,7241
+11809,Barx2,BarH-like homeobox 2,12023,2715
+50322,Batf2,"basic leucine zipper transcription factor, ATF-like 2",74481,12569
+46349,Bbx,bobby sox homolog (Drosophila),70508,10634
+11818,Bcan,brevican,12032,7244
+12710,Bcar1,breast cancer anti-estrogen resistance 1,12927,7674
+11821,Bcat1,"branched chain aminotransferase 1, cytosolic",12035,20320
+11824,Bche,butyrylcholinesterase,12038,20065
+13802,Bcl11a,B cell CLL/lymphoma 11A (zinc finger protein),14025,11284
+37240,Bcl11b,B cell leukemia/lymphoma 11B,58208,10974
+11829,Bcl2,B cell leukemia/lymphoma 2,12043,527
+11911,Bcl2l11,BCL2-like 11 (apoptosis facilitator),12125,7643
+11839,Bcl6,B cell leukemia/lymphoma 6,12053,7640
+53418,Bcl9,B cell CLL/lymphoma 9,77578,3191
+47299,Bcor,BCL6 interacting corepressor,71458,9809
+107311,Bcorl1,BCL6 co-repressor-like 1,320376,41458
+11850,Bdnf,brain derived neurotrophic factor,12064,7245
+17110,Bhlha15,"basic helix-loop-helix family, member a15",17341,7838
+107457,Bhlha9,"basic helix-loop-helix family, member a9",320522,82363
+37621,Bhlhe22,"basic helix-loop-helix family, member e22",59058,10994
+79902,Bhlhe23,"basic helix-loop-helix family, member e23",140489,50956
+20655,Bhlhe40,"basic helix-loop-helix family, member e40",20893,2722
+55198,Bhlhe41,"basic helix-loop-helix family, member e41",79362,11549
+11907,Bicd1,bicaudal D homolog 1 (Drosophila),12121,37518
+18223,Bloc1s6,"biogenesis of lysosomal organelles complex-1, subunit 6, pallidin",18457,40841
+11939,Bmp1,bone morphogenetic protein 1,12153,55955
+11940,Bmp10,bone morphogenetic protein 10,12154,7644
+11941,Bmp15,bone morphogenetic protein 15,12155,3977
+11942,Bmp2,bone morphogenetic protein 2,12156,926
+74232,Bmp3,bone morphogenetic protein 3,110075,927
+11945,Bmp4,bone morphogenetic protein 4,12159,7247
+11946,Bmp5,bone morphogenetic protein 5,12160,22412
+11947,Bmp6,bone morphogenetic protein 6,12161,1300
+11948,Bmp7,bone morphogenetic protein 7,12162,20410
+11949,Bmp8a,bone morphogenetic protein 8a,12163,74865
+11952,Bmpr1a,"bone morphogenetic protein receptor, type 1A",12166,20911
+11953,Bmpr1b,"bone morphogenetic protein receptor, type 1B",12167,20322
+11954,Bmpr2,"bone morphogenetic protein receptor, type II (serine/threonine kinase)",12168,929
+71933,Bmyc,brain expressed myelocytomatosis oncogene,107771,11343
+78669,Boc,biregional cell adhesion molecule-related/down-regulated by oncogenes (Cdon) binding protein,117606,32819
+83840,Bptf,bromodomain PHD finger transcription factor,207165,114397
+11975,Brca1,breast cancer 1,12189,5276
+92623,Brpf3,"bromodomain and PHD finger containing, 3",268936,16092
+89289,Bsx,brain specific homeobox,244813,65347
+49848,Btbd11,BTB (POZ) domain containing 11,74007,72536
+12008,Btc,"betacellulin, epidermal growth factor family member",12223,1309
+85373,Btf3,basic transcription factor 3,218490,37453
+12019,Btrc,beta-transducin repeat containing protein,12234,39330
+12044,C1qa,"complement component 1, q subcomponent, alpha polypeptide",12259,7249
+12045,C1qb,"complement component 1, q subcomponent, beta polypeptide",12260,418
+86401,C1ql2,"complement component 1, q subcomponent-like 2",226359,18792
+107334,C230009H10Rik,RIKEN cDNA C230009H10 gene,320399,
+12053,C4b,complement component 4B (Chido blood group),12268,36030
+12071,Cacna1a,"calcium channel, voltage-dependent, P/Q type, alpha 1A subunit",12286,56383
+12072,Cacna1b,"calcium channel, voltage-dependent, N type, alpha 1B subunit",12287,20184
+12076,Cacna1g,"calcium channel, voltage-dependent, T type, alpha 1G subunit",12291,22544
+37256,Cacna1h,"calcium channel, voltage-dependent, T type, alpha 1H subunit",58226,56913
+12078,Cacna2d1,"calcium channel, voltage-dependent, alpha2/delta subunit 1",12293,579
+12079,Cacna2d3,"calcium channel, voltage-dependent, alpha2/delta subunit 3",12294,74929
+80075,Cacng5,"calcium channel, voltage-dependent, gamma subunit 5",140723,15424
+57576,Cacng7,"calcium channel, voltage-dependent, gamma subunit 7",81904,12895
+34014,Cadm1,cell adhesion molecule 1,54725,8641
+60961,Cadm3,cell adhesion molecule 3,94332,10919
+107340,Cadps2,Ca2+-dependent activator protein for secretion 2,320405,23060
+12092,Calb1,calbindin 1,12307,21026
+12093,Calb2,calbindin 2,12308,1318
+12095,Calca,"calcitonin/calcitonin-related polypeptide, alpha",12310,105263
+78211,Calcb,"calcitonin-related polypeptide, beta",116903,88401
+12096,Calcr,calcitonin receptor,12311,1320
+12107,Camk2a,calcium/calmodulin-dependent protein kinase II alpha,12322,56577
+12111,Camk4,calcium/calmodulin-dependent protein kinase IV,12326,100780
+64242,Camta1,calmodulin binding transcription activator 1,100072,18942
+85081,Camta2,calmodulin binding transcription activator 2,216874,9021
+48446,Car10,carbonic anhydrase 10,72605,23201
+12134,Car2,carbonic anhydrase 2,12349,37256
+12135,Car3,carbonic anhydrase 3,12350,31298
+26965,Cartpt,CART prepropeptide,27220,3169
+12152,Casp3,caspase 3,12367,37912
+12181,Cbfa2t2,"core-binding factor, runt domain, alpha subunit 2, translocated to, 2 (human)",12396,3733
+12190,Cbln2,cerebellin 2 precursor protein,12405,18203
+35690,Cbln3,cerebellin 3 precursor protein,56410,56861
+86816,Cbln4,cerebellin 4 precursor protein,228942,15419
+12209,Cck,cholecystokinin,12424,583
+12210,Cckar,cholecystokinin A receptor,12425,37337
+12211,Cckbr,cholecystokinin B receptor,12426,7258
+12235,Ccng1,cyclin G1,12450,2995
+88069,Cd109,CD109 antigen,235505,25183
+32917,Cd164,CD164 antigen,53599,38129
+12269,Cd24a,CD24a antigen,12484,7662
+12290,Cd44,CD44 antigen,12505,508
+16196,Cd47,"CD47 antigen (Rh-related antigen, integrin-associated signal transducer)",16423,1346
+12294,Cd59a,CD59a antigen,12509,
+12312,Cd9,CD9 antigen,12527,20420
+12325,Cdc42,cell division cycle 42,12540,123986
+85297,Cdca7l,cell division cycle associated 7 like,217946,10285
+12335,Cdh1,cadherin 1,12550,20917
+107808,Cdh10,cadherin 10,320873,68530
+12337,Cdh11,cadherin 11,12552,1361
+84832,Cdh12,cadherin 12,215654,37873
+12339,Cdh13,cadherin 13,12554,20335
+12342,Cdh17,cadherin 17,12557,56859
+107800,Cdh18,cadherin 18,320865,55858
+12343,Cdh2,cadherin 2,12558,20424
+23589,Cdh20,cadherin 20,23836,8015
+22052,Cdh23,cadherin 23 (otocadherin),22295,11142
+88525,Cdh24,cadherin-like 24,239096,56951
+12345,Cdh3,cadherin 3,12560,20425
+12346,Cdh4,cadherin 4,12561,48044
+12347,Cdh5,cadherin 5,12562,1359
+12348,Cdh6,cadherin 6,12563,21027
+88823,Cdh7,"cadherin 7, type 2",241201,68391
+12349,Cdh8,cadherin 8,12564,55604
+12350,Cdh9,cadherin 9,12565,9450
+81990,Cdhr1,cadherin-related family member 1,170677,13215
+47881,Cdhr5,cadherin-related family member 5,72040,69345
+12353,Cdk5,cyclin-dependent kinase 5,12568,3623
+12354,Cdk5r1,"cyclin-dependent kinase 5, regulatory subunit 1 (p35)",12569,31200
+37081,Cdon,cell adhesion molecule-related/down-regulated by oncogenes,57810,22996
+50437,Cds1,CDP-diacylglycerol synthase 1,74596,68173
+12375,Cdx1,caudal type homeobox 1,12590,1366
+12376,Cdx2,caudal type homeobox 2,12591,968
+12377,Cdx4,caudal type homeobox 4,12592,3806
+12391,Cebpa,"CCAAT/enhancer binding protein (C/EBP), alpha",12606,3211
+12394,Cebpd,"CCAAT/enhancer binding protein (C/EBP), delta",12609,3808
+74949,Cebpe,"CCAAT/enhancer binding protein (C/EBP), epsilon",110794,1367
+12396,Cebpg,"CCAAT/enhancer binding protein (C/EBP), gamma",12611,1368
+12399,Celsr1,"cadherin, EGF LAG seven-pass G-type receptor 1 (flamingo homolog, Drosophila)",12614,7665
+33178,Celsr2,"cadherin, EGF LAG seven-pass G-type receptor 2 (flamingo homolog, Drosophila)",53883,1078
+72096,Celsr3,"cadherin, EGF LAG seven-pass G-type receptor 3 (flamingo homolog, Drosophila)",107934,1077
+12401,Cenpb,centromere protein B,12616,1370
+85972,Cerk,ceramide kinase,223753,11247
+43103,Cers4,ceramide synthase 4,67260,11582
+47790,Cers5,ceramide synthase 5,71949,23634
+12412,Cfc1,"cripto, FRL-1, cryptic family 1",12627,50007
+12418,Cflar,CASP8 and FADD-like apoptosis regulator,12633,7652
+12432,Chat,choline acetyltransferase,12647,40693
+12446,Chl1,cell adhesion molecule with homology to L1CAM,12661,21314
+12454,Chrm1,"cholinergic receptor, muscarinic 1, CNS",12669,20189
+89123,Chrm2,"cholinergic receptor, muscarinic 2, cardiac",243764,20190
+12456,Chrm3,"cholinergic receptor, muscarinic 3, cardiac",12671,20191
+12457,Chrm4,"cholinergic receptor, muscarinic 4",12672,20192
+84603,Chrm5,"cholinergic receptor, muscarinic 5",213788,22697
+11224,Chrna1,"cholinergic receptor, nicotinic, alpha polypeptide 1 (muscle)",11435,59
+75055,Chrna2,"cholinergic receptor, nicotinic, alpha polypeptide 2 (neuronal)",110902,20193
+74989,Chrna3,"cholinergic receptor, nicotinic, alpha polypeptide 3",110834,591
+11227,Chrna4,"cholinergic receptor, nicotinic, alpha polypeptide 4",11438,592
+74990,Chrna5,"cholinergic receptor, nicotinic, alpha polypeptide 5",110835,55485
+11229,Chrna6,"cholinergic receptor, nicotinic, alpha polypeptide 6",11440,20888
+11230,Chrna7,"cholinergic receptor, nicotinic, alpha polypeptide 7",11441,593
+87214,Chrna9,"cholinergic receptor, nicotinic, alpha polypeptide 9",231252,9729
+11233,Chrnb2,"cholinergic receptor, nicotinic, beta polypeptide 2 (neuronal)",11444,595
+72205,Chrnb3,"cholinergic receptor, nicotinic, beta polypeptide 3",108043,36035
+72177,Chrnb4,"cholinergic receptor, nicotinic, beta polypeptide 4",108015,20196
+33662,Chst2,carbohydrate sulfotransferase 2,54371,3150
+84269,Churc1,churchill domain containing 1,211151,17046
+47563,Cic,capicua homolog (Drosophila),71722,87637
+12488,Cit,citron,12704,21404
+12489,Cited1,Cbp/p300-interacting transactivator with Glu/Asp-rich carboxy-terminal domain 1,12705,3057
+17451,Cited2,"Cbp/p300-interacting transactivator, with Glu/Asp-rich carboxy-terminal domain, 2",17684,4433
+56568,Clca3a2,chloride channel calcium activated 3A2,80797,74932
+12512,Clcn5,chloride channel 5,12728,73872
+18184,Cldn11,claudin 11,18417,4093
+12525,Cldn5,claudin 5,12741,2459
+35923,Clec7a,"C-type lectin domain family 7, member a",56644,49606
+12537,Clock,circadian locomotor output cycles kaput,12753,3603
+41788,Clstn1,calsyntenin 1,65945,8814
+40718,Clstn2,calsyntenin 2,64085,49698
+12543,Clu,clusterin,12759,1382
+12582,Cnp,"2',3'-cyclic nucleotide 3' phosphodiesterase",12799,7672
+12584,Cnr1,cannabinoid receptor 1 (brain),12801,7273
+12585,Cnr2,cannabinoid receptor 2 (macrophage),12802,1389
+12588,Cntn1,contactin 1,12805,7274
+21128,Cntn2,contactin 2,21367,3720
+18254,Cntn3,contactin 3,18488,7461
+33165,Cntn6,contactin 6,53870,8702
+81891,Cntnap4,contactin associated protein-like 4,170571,24912
+26666,Cntrl,centriolin,26920,38260
+12593,Coch,coagulation factor C homolog (Limulus polyphemus),12810,20868
+12597,Col11a1,"collagen, type XI, alpha 1",12814,56389
+12598,Col11a2,"collagen, type XI, alpha 2",12815,22547
+12599,Col12a1,"collagen, type XII, alpha 1",12816,3217
+12600,Col13a1,"collagen, type XIII, alpha 1",12817,22421
+12601,Col14a1,"collagen, type XIV, alpha 1",12818,18741
+12602,Col15a1,"collagen, type XV, alpha 1",12819,1396
+71746,Col16a1,"collagen, type XVI, alpha 1",107581,1397
+12605,Col18a1,"collagen, type XVIII, alpha 1",12822,7673
+12625,Col1a1,"collagen, type I, alpha 1",12842,73874
+88369,Col23a1,"collagen, type XXIII, alpha 1",237759,72101
+47196,Col24a1,"collagen, type XXIV, alpha 1",71355,65061
+12607,Col2a1,"collagen, type II, alpha 1",12824,55607
+12608,Col3a1,"collagen, type III, alpha 1",12825,55433
+12609,Col4a1,"collagen, type IV, alpha 1",12826,20437
+12610,Col4a2,"collagen, type IV, alpha 2",12827,1390
+12613,Col4a5,"collagen, type IV, alpha 5",12830,22422
+12614,Col5a1,"collagen, type V, alpha 1",12831,55434
+12615,Col5a2,"collagen, type V, alpha 2",12832,20119
+12616,Col6a1,"collagen, type VI, alpha 1",12833,1391
+12620,Col8a1,"collagen, type VIII, alpha 1",12837,22423
+12622,Col9a1,"collagen, type IX, alpha 1",12839,1393
+12624,Col9a3,"collagen, type IX, alpha 3",12841,20438
+12629,Comt,catechol-O-methyltransferase,12846,30982
+33453,Copg2,"coatomer protein complex, subunit gamma 2",54160,56292
+26501,Cops5,"COP9 (constitutive photomorphogenic) homolog, subunit 5 (Arabidopsis thaliana)",26754,55992
+12637,Cort,cortistatin,12854,997
+47883,Cotl1,coactosin-like 1 (Dictyostelium),72042,10898
+12645,Cox6a2,cytochrome c oxidase subunit VIa polypeptide 2,12862,38020
+69759,Cphx1,cytoplasmic polyadenylated homeobox 1,105594,104299
+87854,Cpne2,copine II,234577,27392
+66447,Cpne7,copine VII,102278,65128
+12695,Creb1,cAMP responsive element binding protein 1,12912,3223
+12696,Creb3,cAMP responsive element binding protein 3,12913,31375
+26175,Creb3l1,cAMP responsive element binding protein 3-like 1,26427,8058
+83997,Creb3l2,cAMP responsive element binding protein 3-like 2,208647,18690
+84003,Creb3l3,cAMP responsive element binding protein 3-like 3,208677,13080
+54124,Creb3l4,cAMP responsive element binding protein 3-like 4,78284,12693
+12697,Crebbp,CREB binding protein,12914,68393
+87640,Crebzf,CREB/ATF bZIP transcription factor,233490,10926
+12701,Crh,corticotropin releasing hormone,12918,599
+12704,Crhr1,corticotropin releasing hormone receptor 1,12921,20920
+12705,Crhr2,corticotropin releasing hormone receptor 2,12922,55612
+12714,Crlf1,cytokine receptor-like factor 1,12931,3489
+48673,Crtac1,cartilage acidic protein 1,72832,23070
+12734,Crx,cone-rod homeobox,12951,467
+142452,Crxos,"cone-rod homeobox, opposite strand",546024,86022
+12754,Crym,"crystallin, mu",12971,1424
+70024,Csdc2,"cold shock domain containing C2, RNA binding",105859,8701
+12760,Csf1,colony stimulating factor 1 (macrophage),12977,7282
+12761,Csf1r,colony stimulating factor 1 receptor,12978,3817
+60339,Csnk1a1,"casein kinase 1, alpha 1",93687,111694
+68483,Csnk1d,"casein kinase 1, delta",104318,74841
+27118,Csnk1e,"casein kinase 1, epsilon",27373,121695
+84736,Csnk1g1,"casein kinase 1, gamma 1",214897,48692
+67403,Csnk1g2,"casein kinase 1, gamma 2",103236,100845
+12778,Csnk2a1,"casein kinase 2, alpha 1 polypeptide",12995,90874
+12783,Csnk2a2,"casein kinase 2, alpha prime polypeptide",13000,20444
+12784,Csnk2b,"casein kinase 2, beta polypeptide",13001,55572
+12793,Cst3,cystatin C,13010,78
+12800,Ctbp2,C-terminal binding protein 2,13017,75187
+153829,Ctcfl,CCCTC-binding factor (zinc finger protein)-like,664799,46476
+12802,Ctf1,cardiotrophin 1,13019,1016
+13996,Ctgf,connective tissue growth factor,14219,1431
+12172,Ctnnb1,"catenin (cadherin associated protein), beta 1",12387,1434
+42930,Ctnnbip1,catenin beta interacting protein 1,67087,10641
+12173,Ctnnd1,"catenin (cadherin associated protein), delta 1",12388,1017
+86867,Ctso,cathepsin O,229445,1020
+36114,Ctsr,cathepsin R,56835,75127
+12821,Ctss,cathepsin S,13040,20867
+29776,Cttnbp2,cortactin binding protein 2,30785,14125
+12828,Cux1,cut-like homeobox 1,13047,22551
+12829,Cux2,cut-like homeobox 2,13048,22426
+20075,Cx3cl1,chemokine (C-X3-C motif) ligand 1,20312,2251
+20078,Cxcl12,chemokine (C-X-C motif) ligand 12,20315,507
+12551,Cxcr4,chemokine (C-X-C motif) receptor 4,12767,20739
+106413,Cxxc4,CXXC finger 4,319478,11878
+42288,Cyc1,cytochrome c-1,66445,55617
+12856,Cyp19a1,"cytochrome P450, family 19, subfamily a, polypeptide 1",13075,30955
+87382,Cyp26b1,"cytochrome P450, family 26, subfamily b, polypeptide 1",232174,23179
+35335,Cyp39a1,"cytochrome P450, family 39, subfamily a, polypeptide 1",56050,9580
+12903,Cyp7b1,"cytochrome P450, family 7, subfamily b, polypeptide 1",13123,3544
+15780,Cyr61,cysteine rich protein 61,16007,1194
+106849,D630021H01Rik,RIKEN cDNA D630021H01 gene,319914,
+84026,Daam1,dishevelled associated activator of morphogenesis 1,208846,36635
+52282,Daam2,dishevelled associated activator of morphogenesis 2,76441,69186
+12911,Dab1,disabled 1,13131,32084
+12914,Dach1,dachshund 1 (Drosophila),13134,7288
+60489,Dach2,dachshund 2 (Drosophila),93837,33472
+37599,Dact1,"dapper homolog 1, antagonist of beta-catenin (xenopus)",59036,9613
+12946,Dbh,dopamine beta hydroxylase,13166,615
+12947,Dbi,diazepam binding inhibitor,13167,39086
+12950,Dbp,D site albumin promoter binding protein,13170,1035
+12952,Dbx1,developing brain homeobox 1,13172,19002
+85987,Dbx2,developing brain homeobox 2,223843,54981
+47674,Dcaf7,DDB1 and CUL4 associated factor 7,71833,55930
+12956,Dcc,deleted in colorectal carcinoma,13176,21081
+12959,Dcn,decorin,13179,22430
+77609,Dcun1d1,"DCN1, defective in cullin neddylation 1, domain containing 1 (S. cerevisiae)",114893,10773
+87722,Dcun1d3,"DCN1, defective in cullin neddylation 1, domain containing 3 (S. cerevisiae)",233805,16155
+64907,Dcun1d4,"DCN1, defective in cullin neddylation 1, domain containing 4 (S. cerevisiae)",100737,22867
+52703,Dcun1d5,"DCN1, defective in cullin neddylation 1, domain containing 5 (S. cerevisiae)",76863,9028
+12973,Dcx,doublecortin,13193,7683
+12975,Ddc,dopa decarboxylase,13195,618
+12978,Ddit3,DNA-damage inducible transcript 3,13198,3012
+49125,Ddit4l,DNA-damage-inducible transcript 4-like,73284,12698
+12090,Ddr1,"discoidin domain receptor family, member 1",12305,68212
+17981,Ddr2,"discoidin domain receptor family, member 2",18214,68505
+12987,Ddx5,DEAD (Asp-Glu-Ala-Asp) box polypeptide 5,13207,6797
+33299,Deaf1,deformed epidermal autoregulatory factor 1 (Drosophila),54006,9647
+62168,Deptor,DEP domain containing MTOR-interacting protein,97998,32551
+89267,Disc1,disrupted in schizophrenia 1,244667,10257
+13159,Dkk1,dickkopf homolog 1 (Xenopus laevis),13380,7689
+36090,Dkk2,dickkopf homolog 2 (Xenopus laevis),56811,8681
+30269,Dkk3,dickkopf homolog 3 (Xenopus laevis),50781,8303
+87790,Dkk4,dickkopf homolog 4 (Xenopus laevis),234130,8680
+13164,Dlg4,"discs, large homolog 4 (Drosophila)",13385,1047
+13165,Dlk1,delta-like 1 homolog (Drosophila),13386,2846
+13167,Dll1,delta-like 1 (Drosophila),13388,4104
+13168,Dll3,delta-like 3 (Drosophila),13389,7291
+33776,Dll4,delta-like 4 (Drosophila),54485,10411
+13169,Dlx1,distal-less homeobox 1,13390,22558
+13171,Dlx2,distal-less homeobox 2,13392,3244
+13172,Dlx3,distal-less homeobox 3,13393,74544
+13173,Dlx4,distal-less homeobox 4,13394,7292
+13174,Dlx5,distal-less homeobox 5,13395,3825
+13175,Dlx6,distal-less homeobox 6,13396,87855
+79890,Dmbx1,diencephalon/mesencephalon homeobox 1,140477,15639
+88733,Dmrt3,doublesex and mab-3 related transcription factor 3,240590,10935
+35576,Dmrtb1,"DMRT-like family B with proline-rich C-terminal, 1",56296,13207
+85070,Dnahc2,"dynein, axonemal, heavy chain 2",216851,
+86552,Dner,delta/notch-like EGF-related receptor,227325,26722
+13212,Dnmt1,DNA methyltransferase (cytosine-5) 1,13433,124071
+13214,Dnmt3a,DNA methyltransferase 3A,13435,7294
+13215,Dnmt3b,DNA methyltransferase 3B,13436,56000
+33718,Dnmt3l,DNA (cytosine-5-)-methyltransferase 3-like,54427,8362
+13226,Doc2b,"double C2, beta",13447,20796
+29596,Dpf1,"D4, zinc and double PHD fingers family 1",29861,3415
+19471,Dpf2,"D4, zinc and double PHD fingers family 2",19708,21265
+41755,Dpysl5,dihydropyrimidinase-like 5,65254,41347
+42399,Drap1,Dr1 associated protein 1 (negative cofactor 2 alpha),66556,4703
+46274,Draxin,dorsal inhibitory axon guidance protein,70433,19233
+13267,Drd1,dopamine receptor D1,13488,30992
+13268,Drd2,dopamine receptor D2,13489,22561
+13269,Drd3,dopamine receptor D3,13490,623
+13270,Drd4,dopamine receptor D4,13491,20215
+13271,Drd5,dopamine receptor D5,13492,20216
+13273,Drg1,developmentally regulated GTP binding protein 1,13494,3060
+13285,Dsc2,desmocollin 2,13506,8397
+13286,Dsc3,desmocollin 3,13507,1462
+77592,Dscaml1,Down syndrome cell adhesion molecule like 1,114873,79549
+13289,Dsg1a,desmoglein 1 alpha,13510,1463
+86223,Dsg1b,desmoglein 1 beta,225256,1463
+84359,Dsg1c,desmoglein 1 gamma,211924,
+13291,Dsg3,desmoglein 3,13512,55513
+73778,Dsp,desmoplakin,109620,37922
+13297,Dst,dystonin,13518,85087
+14133,Dtx1,deltex 1 homolog (Drosophila),14357,74522
+50039,Dtx2,deltex 2 homolog (Drosophila),74198,56904
+56674,Dtx3,deltex 3 homolog (Drosophila),80904,12754
+83873,Dtx4,deltex 4 homolog (Drosophila),207521,27781
+35685,Dusp14,dual specificity phosphatase 14,56405,5100
+43446,Dusp6,dual specificity phosphatase 6,67603,55621
+93453,Duxbl1,double homeobox B-like 1,278672,18848
+13321,Dvl1,"dishevelled, dsh homolog 1 (Drosophila)",13542,20926
+13322,Dvl2,"dishevelled 2, dsh homolog (Drosophila)",13543,20927
+13323,Dvl3,"dishevelled 3, dsh homolog (Drosophila)",13544,20928
+13334,E2f1,E2F transcription factor 1,13555,3828
+88998,E2f2,E2F transcription factor 2,242705,48264
+13336,E2f3,E2F transcription factor 3,13557,74413
+68559,E2f4,E2F transcription factor 4,104394,1471
+13338,E2f5,E2F transcription factor 5,13559,1472
+29986,E2f6,E2F transcription factor 6,50496,1473
+32159,E2f7,E2F transcription factor 7,52679,18685
+73120,E2f8,E2F transcription factor 8,108961,11654
+13369,Ebf1,early B cell factor 1,13591,7297
+13370,Ebf2,early B cell factor 2,13592,56471
+13371,Ebf3,early B cell factor 3,13593,56472
+86747,Ebf4,early B cell factor 4,228598,65064
+71687,Ece2,endothelin converting enzyme 2,107522,56679
+13377,Ecel1,endothelin converting enzyme-like 1,13599,3549
+13396,Ednrb,endothelin receptor type B,13618,89
+13404,Eed,embryonic ectoderm development,13626,2814
+85011,Efemp1,epidermal growth factor-containing fibulin-like extracellular matrix protein 1,216616,3028
+13414,Efna1,ephrin A1,13636,3262
+13415,Efna2,ephrin A2,13637,1075
+13416,Efna3,ephrin A3,13638,3635
+13417,Efna4,ephrin A4,13639,3830
+13418,Efna5,ephrin A5,13640,1482
+13419,Efnb1,ephrin B1,13641,3263
+13420,Efnb2,ephrin B2,13642,3019
+13421,Efnb3,ephrin B3,13643,1076
+13423,Egf,epidermal growth factor,13645,1483
+13427,Egfr,epidermal growth factor receptor,13649,74545
+13431,Egr1,early growth response 1,13653,56394
+13432,Egr2,early growth response 2,13654,20123
+13433,Egr3,early growth response 3,13655,37923
+13439,Ehf,ets homologous factor,13661,7301
+13487,Elf1,E74-like factor 1,13709,7303
+45099,Elf2,E74-like factor 2,69257,5006
+13488,Elf3,E74-like factor 3,13710,3265
+35781,Elf4,E74-like factor 4 (ets domain transcription factor),56501,31036
+13489,Elf5,E74-like factor 5,13711,7702
+13490,Elk1,"ELK1, member of ETS oncogene family",13712,3832
+13491,Elk3,"ELK3, member of ETS oncogene family",13713,3833
+13492,Elk4,"ELK4, member of ETS oncogene family",13714,1492
+13574,Emx1,empty spiracles homeobox 1,13796,55799
+13575,Emx2,empty spiracles homeobox 2,13797,3023
+13576,En1,engrailed 1,13798,50663
+13577,En2,engrailed 2,13799,55579
+13578,Enah,enabled homolog (Drosophila),13800,130639
+13581,Enc1,ectodermal-neural cortex 1,13803,2694
+13583,Eng,endoglin,13805,92
+13591,Eomes,eomesodermin homolog (Xenopus laevis),13813,3971
+108486,Ep300,E1A binding protein p300,328572,1094
+13597,Epas1,endothelial PAS domain protein 1,13819,1095
+13613,Epha1,Eph receptor A1,13835,3835
+87096,Epha10,Eph receptor A10,230735,124707
+13614,Epha2,Eph receptor A2,13836,20929
+13615,Epha3,Eph receptor A3,13837,21083
+13616,Epha4,Eph receptor A4,13838,20933
+13617,Epha5,Eph receptor A5,13839,55824
+13618,Epha6,Eph receptor A6,13840,56396
+13619,Epha7,Eph receptor A7,13841,20935
+13620,Epha8,Eph receptor A8,13842,22436
+92948,Ephb1,Eph receptor B1,270190,20936
+13622,Ephb2,Eph receptor B2,13844,37925
+13623,Ephb3,Eph receptor B3,13845,20938
+13624,Ephb4,Eph receptor B4,13846,20939
+13626,Ephb6,Eph receptor B6,13848,20940
+13644,Erbb2,"v-erb-b2 erythroblastic leukemia viral oncogene homolog 2, neuro/glioblastoma derived oncogene homolog (avian)",13866,3273
+13645,Erbb3,v-erb-b2 erythroblastic leukemia viral oncogene homolog 3 (avian),13867,20457
+13647,Erbb4,v-erb-a erythroblastic leukemia viral oncogene homolog 4 (avian),13869,21084
+13652,Ereg,epiregulin,13874,1097
+13653,Erf,Ets2 repressor factor,13875,68516
+13654,Erg,avian erythroblastosis virus E-26 (v-ets) oncogene related,13876,15848
+13759,Esr1,estrogen receptor 1 (alpha),13982,47906
+13760,Esr2,estrogen receptor 2 (beta),13983,1100
+26127,Esrra,"estrogen related receptor, alpha",26379,20941
+26128,Esrrb,"estrogen related receptor, beta",26380,69108
+26129,Esrrg,estrogen-related receptor gamma,26381,55581
+13761,Esx1,"extraembryonic, spermatogenesis, homeobox 1",13984,49152
+23624,Ets1,"E26 avian leukemia oncogene 1, 5' domain",23871,3837
+23625,Ets2,"E26 avian leukemia oncogene 2, 3' domain",23872,3838
+13786,Etv1,ets variant 1,14009,3636
+13785,Etv2,ets variant 2,14008,7308
+26794,Etv3,ets variant 3,27049,21085
+183554,Etv3l,ets variant 3-like,546801,79096
+18378,Etv4,ets variant 4,18612,1504
+68321,Etv5,ets variant 5,104156,3276
+13788,Etv6,ets variant 6,14011,37560
+13797,Evi5,ecotropic viral integration site 5,14020,121902
+13803,Evl,Ena-vasodilator stimulated phosphoprotein,14026,56752
+13805,Evx1,even skipped homeotic gene 1 homolog,14028,1507
+13806,Evx2,even skipped homeotic gene 2 homolog,14029,74879
+13828,Eya4,eyes absent 4 homolog (Drosophila),14051,3025
+13850,Faah,fatty acid amide hydrolase,14073,68184
+120110,Fam189a2,"family with sequence similarity 189, member A2",381217,3540
+27743,Fam3c,"family with sequence similarity 3, member C",27999,8926
+108911,Far2,fatty acyl CoA reductase 2,330450,69247
+13879,Fas,Fas (TNF receptor superfamily member 6),14102,27
+13884,Fat1,FAT tumor suppressor homolog 1 (Drosophila),14107,66302
+92930,Fat3,FAT tumor suppressor homolog 3 (Drosophila),270120,82252
+29829,Fbxw4,F-box and WD-40 domain protein 4,30838,32197
+30242,Fbxw7,F-box and WD-40 domain protein 7,50754,117451
+13910,Fcna,ficolin A,14133,117949
+13911,Fcnb,ficolin B,14134,1518
+77439,Ferd3l,Fer3-like (Drosophila),114712,14136
+92072,Fev,FEV (ETS oncogene family),260298,9706
+87970,Fez1,fasciculation and elongation protein zeta 1 (zygin I),235180,21063
+34002,Fezf2,Fez family zinc finger 2,54713,9957
+13941,Fgf1,fibroblast growth factor 1,14164,625
+13942,Fgf10,fibroblast growth factor 10,14165,3284
+13944,Fgf12,fibroblast growth factor 12,14167,10874
+13946,Fgf14,fibroblast growth factor 14,14169,3037
+13947,Fgf15,fibroblast growth factor 15,14170,3754
+56673,Fgf16,fibroblast growth factor 16,80903,11057
+13948,Fgf17,fibroblast growth factor 17,14171,2872
+13949,Fgf18,fibroblast growth factor 18,14172,2867
+13950,Fgf2,fibroblast growth factor 2,14173,1521
+56628,Fgf20,fibroblast growth factor 20,80857,10527
+41236,Fgf23,fibroblast growth factor 23,64654,10771
+13951,Fgf3,fibroblast growth factor 3,14174,3841
+13952,Fgf4,fibroblast growth factor 4,14175,1522
+13953,Fgf5,fibroblast growth factor 5,14176,3283
+13954,Fgf6,fibroblast growth factor 6,14177,10870
+13955,Fgf7,fibroblast growth factor 7,14178,7316
+13956,Fgf8,fibroblast growth factor 8,14179,7715
+13957,Fgf9,fibroblast growth factor 9,14180,1523
+13958,Fgfbp1,fibroblast growth factor binding protein 1,14181,3766
+13959,Fgfr1,fibroblast growth factor receptor 1,14182,69065
+13960,Fgfr2,fibroblast growth factor receptor 2,14183,22566
+13961,Fgfr3,fibroblast growth factor receptor 3,14184,55437
+13963,Fgfr4,fibroblast growth factor receptor 4,14186,20461
+78019,Fgfrl1,fibroblast growth factor receptor-like 1,116701,11067
+87798,Fgl1,fibrinogen-like protein 1,234199,37927
+13967,Fgl2,fibrinogen-like protein 2,14190,4864
+63140,Fibcd1,fibrinogen C domain containing 1,98970,122246
+13982,Figf,c-fos induced growth factor,14205,3288
+26656,Figla,folliculogenesis specific basic helix-loop-helix,26910,49294
+14024,Fli1,Friend leukemia integration 1,14247,55624
+14031,Flt1,FMS-like tyrosine kinase 1,14254,20463
+14032,Flt3,FMS-like tyrosine kinase 3,14255,3040
+14034,Flt4,FMS-like tyrosine kinase 4,14257,7321
+14038,Fmo1,flavin containing monooxygenase 1,14261,55520
+14042,Fmr1,fragile X mental retardation syndrome 1,14265,1531
+14045,Fn1,fibronectin 1,14268,1533
+106383,Fndc3a,fibronectin type III domain containing 3A,319448,8952
+14058,Fos,FBJ osteosarcoma oncogene,14281,3844
+14061,Fosl2,fos-like antigen 2,14284,3845
+15150,Foxa1,forkhead box A1,15375,3307
+15151,Foxa2,forkhead box A2,15376,7762
+15152,Foxa3,forkhead box A3,15377,3308
+40891,Foxb1,forkhead box B1,64290,8138
+14017,Foxb2,forkhead box B2,14240,32028
+17069,Foxc1,forkhead box C1,17300,20373
+14011,Foxc2,forkhead box C2,14234,21091
+15005,Foxd1,forkhead box D1,15229,3290
+17070,Foxd2,forkhead box D2,17301,3292
+14997,Foxd3,forkhead box D3,15221,49239
+14014,Foxd4,forkhead box D4,14237,83248
+15003,Foxf1,forkhead box F1,15227,1114
+14015,Foxf2,forkhead box F2,14238,1115
+15004,Foxg1,forkhead box G1,15228,3843
+13883,Foxh1,forkhead box H1,14106,2914
+14010,Foxi1,forkhead box I1,14233,8140
+14999,Foxj1,forkhead box J1,15223,1117
+38070,Foxj2,forkhead box J2,60611,10187
+87088,Foxj3,forkhead box J3,230700,35243
+17193,Foxk1,forkhead box K1,17425,82414
+44679,Foxk2,forkhead box K2,68837,18748
+14018,Foxl1,forkhead box L1,14241,48335
+14012,Foxm1,forkhead box M1,14235,7318
+14994,Foxn1,forkhead box N1,15218,2664
+14013,Foxn2,forkhead box N2,14236,31078
+47216,Foxn3,forkhead box N3,71375,3809
+78123,Foxn4,forkhead box N4,116810,17526
+35738,Foxo1,forkhead box O1,56458,1527
+35764,Foxo3,forkhead box O3,56484,31039
+33892,Foxo4,forkhead box O4,54601,4342
+72814,Foxp1,forkhead box P1,108655,13092
+76994,Foxp2,forkhead box P2,114142,33482
+20134,Foxp3,forkhead box P3,20371,8516
+49964,Foxp4,forkhead box P4,74123,12536
+14996,Foxq1,forkhead box Q1,15220,7359
+14016,Foxs1,forkhead box S1,14239,20871
+14072,Frat1,frequently rearranged in advanced T cell lymphomas,14296,3999
+84413,Frat2,frequently rearranged in advanced T cell lymphomas 2,212398,8095
+88906,Frem2,Fras1 related extracellular matrix protein 2,242022,18454
+20141,Frzb,frizzled-related protein,20378,1126
+14090,Fstl1,follistatin-like 1,14314,5144
+37655,Fxyd6,FXYD domain-containing ion transport regulator 6,59095,11090
+14136,Fyn,Fyn proto-oncogene,14360,48068
+14138,Fzd1,frizzled homolog 1 (Drosophila),14362,20750
+60546,Fzd10,frizzled homolog 10 (Drosophila),93897,21411
+36541,Fzd2,frizzled homolog 2 (Drosophila),57265,20377
+14141,Fzd3,frizzled homolog 3 (Drosophila),14365,23004
+14142,Fzd4,frizzled homolog 4 (Drosophila),14366,7325
+14143,Fzd5,frizzled homolog 5 (Drosophila),14367,2590
+14144,Fzd6,frizzled homolog 6 (Drosophila),14368,2617
+14145,Fzd7,frizzled homolog 7 (Drosophila),14369,20751
+14146,Fzd8,frizzled homolog 8 (Drosophila),14370,40606
+14147,Fzd9,frizzled homolog 9 (Drosophila),14371,2619
+33684,Gabbr1,"gamma-aminobutyric acid (GABA) B receptor, 1",54393,1132
+88950,Gabbr2,"gamma-aminobutyric acid (GABA) B receptor, 2",242425,55902
+14166,Gabpa,"GA repeat binding protein, alpha",14390,1543
+14167,Gabpb1,"GA repeat binding protein, beta 1",14391,7723
+14170,Gabra1,"gamma-aminobutyric acid (GABA) A receptor, subunit alpha 1",14394,629
+14171,Gabra2,"gamma-aminobutyric acid (GABA) A receptor, subunit alpha 2",14395,20217
+14172,Gabra3,"gamma-aminobutyric acid (GABA) A receptor, subunit alpha 3",14396,20218
+14173,Gabra4,"gamma-aminobutyric acid (GABA) A receptor, subunit alpha 4",14397,631
+75040,Gabra5,"gamma-aminobutyric acid (GABA) A receptor, subunit alpha 5",110886,20219
+14175,Gabra6,"gamma-aminobutyric acid (GABA) A receptor, subunit alpha 6",14399,20220
+14176,Gabrb1,"gamma-aminobutyric acid (GABA) A receptor, subunit beta 1",14400,20221
+14177,Gabrb2,"gamma-aminobutyric acid (GABA) A receptor, subunit beta 2",14401,7327
+14178,Gabrb3,"gamma-aminobutyric acid (GABA) A receptor, subunit beta 3",14402,633
+14179,Gabrd,"gamma-aminobutyric acid (GABA) A receptor, subunit delta",14403,55489
+14180,Gabre,"gamma-aminobutyric acid (GABA) A receptor, subunit epsilon",14404,68425
+14181,Gabrg1,"gamma-aminobutyric acid (GABA) A receptor, subunit gamma 1",14405,22570
+14182,Gabrg2,"gamma-aminobutyric acid (GABA) A receptor, subunit gamma 2",14406,22443
+14183,Gabrg3,"gamma-aminobutyric acid (GABA) A receptor, subunit gamma 3",14407,22444
+85019,Gabrp,"gamma-aminobutyric acid (GABA) A receptor, pi",216643,22798
+36525,Gabrq,"gamma-aminobutyric acid (GABA) A receptor, subunit theta",57249,10233
+14184,Gabrr1,"gamma-aminobutyric acid (GABA) C receptor, subunit rho 1",14408,20470
+14185,Gabrr2,"gamma-aminobutyric acid (GABA) C receptor, subunit rho 2",14409,20471
+14191,Gad1,glutamate decarboxylase 1,14415,635
+14193,Gad2,glutamic acid decarboxylase 2,14417,20223
+14195,Gal,galanin,14419,7724
+14203,Galr1,galanin receptor 1,14427,74396
+14204,Galr2,galanin receptor 2,14428,2863
+14208,Gap43,growth associated protein 43,14432,1545
+14227,Gas1,growth arrest specific 1,14451,1548
+14237,Gata2,GATA binding protein 2,14461,32030
+14238,Gata3,GATA binding protein 3,14462,1550
+14241,Gata6,GATA binding protein 6,14465,68449
+43053,Gatad1,GATA zinc finger domain containing 1,67210,56916
+87820,Gatad2a,GATA zinc finger domain containing 2A,234366,9766
+87178,Gbx1,gastrulation brain homeobox 1,231044,41063
+14248,Gbx2,gastrulation brain homeobox 2,14472,1138
+14302,Gcg,glucagon,14526,1553
+14304,Gch1,GTP cyclohydrolase 1,14528,132
+14307,Gcm1,glial cells missing homolog 1 (Drosophila),14531,2702
+72051,Gcm2,glial cells missing homolog 2 (Drosophila),107889,3490
+14320,Gda,guanine deaminase,14544,3171
+14335,Gdf1,growth differentiation factor 1,14559,105644
+14336,Gdf10,growth differentiation factor 10,14560,3640
+14337,Gdf11,growth differentiation factor 11,14561,21183
+23639,Gdf15,growth differentiation factor 15,23886,3576
+11951,Gdf2,growth differentiation factor 2,12165,32299
+14338,Gdf3,growth differentiation factor 3,14562,7336
+14339,Gdf5,growth differentiation factor 5,14563,468
+88938,Gdf6,growth differentiation factor 6,242316,40883
+88417,Gdf7,growth differentiation factor 7,238057,32177
+14342,Gdf9,growth differentiation factor 9,14566,3851
+14349,Gdnf,glial cell line derived neurotrophic factor,14573,433
+14356,Gfap,glial fibrillary acidic protein,14580,1554
+14361,Gfra1,glial cell line derived neurotrophic factor family receptor alpha 1,14585,3855
+14362,Gfra2,glial cell line derived neurotrophic factor family receptor alpha 2,14586,1145
+14363,Gfra3,glial cell line derived neurotrophic factor family receptor alpha 3,14587,1146
+14377,Ghrh,growth hormone releasing hormone,14601,7731
+83947,Ghsr,growth hormone secretagogue receptor,208188,57161
+14385,Gja1,"gap junction protein, alpha 1",14609,136
+14393,Gjd2,"gap junction protein, delta 2",14617,7734
+82074,Glcci1,glucocorticoid induced transcript 1,170772,15773
+14408,Gli1,GLI-Kruppel family member GLI1,14632,3859
+14409,Gli2,GLI-Kruppel family member GLI2,14633,12725
+14410,Gli3,GLI-Kruppel family member GLI3,14634,139
+86346,Glis3,GLIS family zinc finger 3,226075,34989
+14428,Glp1r,glucagon-like peptide 1 receptor,14652,1558
+14430,Glra1,"glycine receptor, alpha 1 subunit",14654,20083
+88304,Glra2,"glycine receptor, alpha 2 subunit",237213,31070
+74461,Glra3,"glycine receptor, alpha 3 subunit",110304,142
+14433,Glra4,"glycine receptor, alpha 4 subunit",14657,69070
+14434,Glrb,"glycine receptor, beta subunit",14658,20224
+14436,Gls,glutaminase,14660,22726
+84969,Gls2,"glutaminase 2 (liver, mitochondrial)",216456,40861
+14421,Glul,glutamate-ammonia ligase (glutamine synthetase),14645,37567
+121534,Gm1441,"gene model 1441, (NCBI)",384670,
+156642,Gm6753,predicted gene 6753,627415,
+14472,Gnb4,"guanine nucleotide binding protein (G protein), beta 4",14696,69140
+14490,Gnrh1,gonadotropin releasing hormone 1,14714,641
+14510,Gpc3,glypican 3,14734,20944
+89374,Gpr101,G protein-coupled receptor 101,245424,14273
+31869,Gpr123,G protein-coupled receptor 123,52389,18582
+84148,Gpr139,G protein-coupled receptor 139,209776,45860
+88778,Gpr161,G protein-coupled receptor 161,240888,17824
+52047,Gpr165,G protein-coupled receptor 165,76206,85287
+87765,Gpr26,G protein-coupled receptor 26,233919,17764
+14539,Gpr37,G protein-coupled receptor 37,14763,3875
+82624,Gpr37l1,G protein-coupled receptor 37-like 1,171469,3500
+86553,Gpr55,G protein-coupled receptor 55,227326,36184
+14542,Gpr56,G protein-coupled receptor 56,14766,4156
+80092,Gpr6,G protein-coupled receptor 6,140741,38026
+14384,Gpr83,G protein-coupled receptor 83,14608,7732
+40979,Gpr88,G-protein coupled receptor 88,64378,11104
+74944,Gpr98,G protein-coupled receptor 98,110789,19815
+40898,Gprc5b,"G protein-coupled receptor, family C, group 5, member B",64297,9435
+14551,Gpx1,glutathione peroxidase 1,14775,20155
+14554,Gpx3,glutathione peroxidase 3,14778,20480
+83373,Grhl1,grainyhead-like 1 (Drosophila),195733,32219
+90078,Grhl2,grainyhead-like 2 (Drosophila),252973,32616
+14575,Gria1,"glutamate receptor, ionotropic, AMPA1 (alpha 1)",14799,20226
+14576,Gria2,"glutamate receptor, ionotropic, AMPA2 (alpha 2)",14800,20225
+32941,Gria3,"glutamate receptor, ionotropic, AMPA3 (alpha 3)",53623,37353
+14578,Gria4,"glutamate receptor, ionotropic, AMPA4 (alpha 4)",14802,20227
+14579,Grid1,"glutamate receptor, ionotropic, delta 1",14803,69017
+14580,Grid2,"glutamate receptor, ionotropic, delta 2",14804,74399
+14581,Grik1,"glutamate receptor, ionotropic, kainate 1",14805,68992
+14582,Grik2,"glutamate receptor, ionotropic, kainate 2 (beta 2)",14806,40717
+14583,Grik3,"glutamate receptor, ionotropic, kainate 3",14807,73901
+74793,Grik4,"glutamate receptor, ionotropic, kainate 4",110637,81829
+14585,Grik5,"glutamate receptor, ionotropic, kainate 5 (gamma 2)",14809,1578
+14586,Grin1,"glutamate receptor, ionotropic, NMDA1 (zeta 1)",14810,7187
+14587,Grin2a,"glutamate receptor, ionotropic, NMDA2A (epsilon 1)",14811,645
+14588,Grin2b,"glutamate receptor, ionotropic, NMDA2B (epsilon 2)",14812,646
+14589,Grin2c,"glutamate receptor, ionotropic, NMDA2C (epsilon 3)",14813,647
+14590,Grin2d,"glutamate receptor, ionotropic, NMDA2D (epsilon 4)",14814,648
+88952,Grin3a,"glutamate receptor ionotropic, NMDA3A",242443,128613
+81804,Grin3b,"glutamate receptor, ionotropic, NMDA3B",170483,15606
+14548,Grk4,G protein-coupled receptor kinase 4,14772,23158
+14592,Grm1,"glutamate receptor, metabotropic 1",14816,649
+72230,Grm2,"glutamate receptor, metabotropic 2",108068,20229
+72231,Grm3,"glutamate receptor, metabotropic 3",108069,651
+92621,Grm4,"glutamate receptor, metabotropic 4",268934,20230
+72233,Grm5,"glutamate receptor, metabotropic 5",108071,37354
+72234,Grm6,"glutamate receptor, metabotropic 6",108072,20232
+14599,Grm8,"glutamate receptor, metabotropic 8",14823,654
+86272,Grp,gastrin releasing peptide,225642,1580
+14612,Gsc,goosecoid homeobox,14836,7744
+83328,Gsc2,goosecoid homebox 2,195333,3884
+92892,Gsg1l,GSG1-like,269994,78152
+143309,Gsk3a,glycogen synthase kinase 3 alpha,606496,88581
+35917,Gsk3b,glycogen synthase kinase 3 beta,56637,55629
+14618,Gsx1,GS homeobox 1,14842,17092
+14619,Gsx2,GS homeobox 2,14843,15377
+43996,Gtf2e2,"general transcription factor II E, polypeptide 2 (beta subunit)",68153,37573
+42310,Gtf2h5,"general transcription factor IIH, polypeptide 5",66467,45635
+36358,Gtf2ird1,general transcription factor II I repeat domain-containing 1,57080,4158
+42439,Gtf3a,general transcription factor III A,66596,55630
+87736,Gtf3c1,general transcription factor III C 1,233863,31040
+47593,Gtf3c2,"general transcription factor IIIC, polypeptide 2, beta",71752,37490
+74163,Gusb,"glucuronidase, beta",110006,37271
+14886,Hand1,heart and neural crest derivatives expressed transcript 1,15110,3545
+14890,Hap1,huntingtin-associated protein 1,15114,2935
+14906,Hbb-b2,"hemoglobin, beta adult minor chain",15130,
+14976,Hbegf,heparin-binding EGF-like growth factor,15200,1466
+49230,Hbp1,high mobility group box transcription factor 1,73389,8171
+14941,Hcn1,"hyperpolarization-activated, cyclic nucleotide-gated K+ 1",15165,32093
+14947,Hcrt,hypocretin,15171,1166
+87114,Hcrtr1,hypocretin (orexin) receptor 1,230777,37492
+122371,Hcrtr2,hypocretin (orexin) receptor 2,387285,1168
+14958,Hdac2,histone deacetylase 2,15182,68187
+14960,Hdac5,histone deacetylase 5,15184,3995
+14961,Hdac6,histone deacetylase 6,15185,31353
+14962,Hdc,histidine decarboxylase,15186,20490
+89416,Hdx,highly divergent homeobox,245596,16963
+87804,Helt,helt bHLH transcription factor,234219,18357
+14981,Hes1,hairy and enhancer of split 1 (Drosophila),15205,38067
+14982,Hes2,hairy and enhancer of split 2 (Drosophila),15206,22455
+14983,Hes3,hairy and enhancer of split 3 (Drosophila),15207,7358
+14984,Hes5,hairy and enhancer of split 5 (Drosophila),15208,7755
+35214,Hes6,hairy and enhancer of split 6,55927,23111
+58851,Hes7,hairy and enhancer of split 7 (Drosophila),84653,23779
+14985,Hesx1,homeobox gene expressed in ES cells,15209,20831
+14989,Hey1,hairy/enhancer-of-split related with YRPW motif 1,15213,7756
+14990,Hey2,hairy/enhancer-of-split related with YRPW motif 2,15214,22705
+35481,Heyl,hairy/enhancer-of-split related with YRPW motif-like,56198,8494
+14992,Hfe,hemochromatosis,15216,88330
+33717,Hgfac,hepatocyte growth factor activator,54426,1170
+15018,Hhex,hematopoietically expressed homeobox,15242,31110
+15021,Hhip,Hedgehog-interacting protein,15245,32469
+15027,Hif1a,"hypoxia inducible factor 1, alpha subunit",15251,1171
+32897,Hif3a,"hypoxia inducible factor 3, alpha subunit",53417,9646
+74677,Hivep1,human immunodeficiency virus type I enhancer binding protein 1,110521,1596
+15048,Hivep2,human immunodeficiency virus type I enhancer binding protein 2,15273,4900
+16428,Hivep3,human immunodeficiency virus type I enhancer binding protein 3,16656,7803
+85119,Hlf,hepatic leukemia factor,217082,31074
+15059,Hlx,H2.0-like homeobox,15284,7363
+85487,Hmbox1,homeobox containing 1,219150,11589
+42710,Hmg20a,high mobility group 20A,66867,32399
+15128,Hmg20b,high mobility group 20B,15353,74949
+15136,Hmga1,high mobility group AT-hook 1,15361,
+15139,Hmga2,high mobility group AT-hook 2,15364,2602
+15064,Hmgb1,high mobility group box 1,15289,110676
+15129,Hmgb3,high mobility group box 3,15354,84734
+45159,Hmgb4,high-mobility group box 4,69317,83321
+15087,Hmgn1,high mobility group nucleosomal binding domain 1,15312,3643
+15106,Hmgn2,high mobility group nucleosomal binding domain 2,15331,128537
+60980,Hmgn3,high mobility group nucleosomal binding domain 3,94353,3130
+30371,Hmgn5,high-mobility group nucleosome binding domain 5,50887,47593
+71059,Hmgxb3,HMG box domain containing 3,106894,44229
+46664,Hmgxb4,HMG box domain containing 4,70823,4007
+15146,Hmx1,H6 homeobox 1,15371,49241
+15147,Hmx2,H6 homeobox 2,15372,24625
+15148,Hmx3,H6 homeobox 3,15373,40612
+21166,Hnf1a,HNF1 homeobox A,21405,459
+21171,Hnf1b,HNF1 homeobox B,21410,396
+15153,Hnf4a,"hepatic nuclear factor 4, alpha",15378,395
+29932,Hnf4g,"hepatocyte nuclear factor 4, gamma",30942,37886
+15159,Hnrnpab,heterogeneous nuclear ribonucleoprotein A/B,15384,74950
+26303,Homer1,homer homolog 1 (Drosophila),26556,3155
+88527,Homez,homeodomain leucine zipper-encoding gene,239099,10828
+50159,Hopx,HOP homeobox,74318,15859
+15169,Hoxa1,homeobox A1,15394,4032
+15170,Hoxa10,homeobox A10,15395,7365
+15171,Hoxa11,homeobox A11,15396,4033
+15173,Hoxa13,homeobox A13,15398,73882
+15174,Hoxa2,homeobox A2,15399,4901
+15175,Hoxa3,homeobox A3,15400,40725
+15176,Hoxa4,homeobox A4,15401,37583
+15178,Hoxa6,homeobox A6,15403,7765
+15179,Hoxa7,homeobox A7,15404,56001
+15180,Hoxa9,homeobox A9,15405,7766
+15182,Hoxb1,homeobox B1,15407,1615
+15183,Hoxb13,homeobox B13,15408,4640
+68056,Hoxb2,homeobox B2,103889,37584
+15185,Hoxb3,homeobox B3,15410,1617
+15187,Hoxb4,homeobox B4,15412,32095
+15188,Hoxb5,homeobox B5,15413,37585
+15189,Hoxb6,homeobox B6,15414,7366
+15190,Hoxb7,homeobox B7,15415,55828
+15191,Hoxb8,homeobox B8,15416,7768
+15192,Hoxb9,homeobox B9,15417,7367
+84109,Hoxc10,homeobox C10,209448,130362
+73821,Hoxc11,homeobox C11,109663,128521
+15196,Hoxc12,homeobox C12,15421,7769
+15197,Hoxc13,homeobox C13,15422,7770
+15198,Hoxc4,homeobox C4,15423,8408
+15199,Hoxc5,homeobox C5,15424,41296
+15200,Hoxc6,homeobox C6,15425,19533
+15201,Hoxc8,homeobox C8,15426,130642
+15202,Hoxc9,homeobox C9,15427,128283
+15204,Hoxd1,homeobox D1,15429,7772
+15205,Hoxd10,homeobox D10,15430,1619
+15207,Hoxd12,homeobox D12,15432,7369
+15208,Hoxd13,homeobox D13,15433,20147
+15209,Hoxd3,homeobox D3,15434,5034
+15211,Hoxd4,homeobox D4,15436,7773
+15212,Hoxd8,homeobox D8,15437,10473
+15213,Hoxd9,homeobox D9,15438,8409
+15235,Hr,hairless,15460,3774
+15240,Hrh1,histamine receptor H1,15465,668
+63466,Hrh3,histamine receptor H3,99296,5232
+15258,Hsd11b1,hydroxysteroid 11-beta dehydrogenase 1,15483,68471
+15274,Hsf1,heat shock factor 1,15499,74556
+56658,Hspb8,heat shock protein 8,80888,8654
+15285,Hspd1,heat shock protein 1 (chaperonin),15510,1626
+15325,Htr1a,5-hydroxytryptamine (serotonin) receptor 1A,15550,20148
+15326,Htr1b,5-hydroxytryptamine (serotonin) receptor 1B,15551,669
+15327,Htr1d,5-hydroxytryptamine (serotonin) receptor 1D,15552,20240
+15332,Htr1f,5-hydroxytryptamine (serotonin) receptor 1F,15557,37361
+15333,Htr2a,5-hydroxytryptamine (serotonin) receptor 2A,15558,68073
+15334,Htr2b,5-hydroxytryptamine (serotonin) receptor 2B,15559,55492
+15335,Htr2c,5-hydroxytryptamine (serotonin) receptor 2C,15560,20242
+15336,Htr3a,5-hydroxytryptamine (serotonin) receptor 3A,15561,671
+36293,Htr3b,5-hydroxytryptamine (serotonin) receptor 3B,57014,38131
+15337,Htr4,5 hydroxytryptamine (serotonin) receptor 4,15562,20243
+15338,Htr5a,5-hydroxytryptamine (serotonin) receptor 5A,15563,22461
+15339,Htr5b,5-hydroxytryptamine (serotonin) receptor 5B,15564,74951
+15340,Htr6,5-hydroxytryptamine (serotonin) receptor 6,15565,673
+15341,Htr7,5-hydroxytryptamine (serotonin) receptor 7,15566,20244
+15669,Icam2,intercellular adhesion molecule 2,15896,675
+15671,Icam5,"intercellular adhesion molecule 5, telencephalin",15898,2447
+15674,Id1,inhibitor of DNA binding 1,15901,1631
+15675,Id2,inhibitor of DNA binding 2,15902,1632
+15676,Id3,inhibitor of DNA binding 3,15903,1633
+15677,Id4,inhibitor of DNA binding 4,15904,1186
+15732,Ifit3,interferon-induced protein with tetratricopeptide repeats 3,15959,128285
+15773,Igf1,insulin-like growth factor 1,16000,515
+15774,Igf1r,insulin-like growth factor I receptor,16001,30997
+15775,Igf2,insulin-like growth factor 2,16002,510
+15779,Igfbp1,insulin-like growth factor binding protein 1,16006,498
+15781,Igfbp2,insulin-like growth factor binding protein 2,16008,499
+15782,Igfbp3,insulin-like growth factor binding protein 3,16009,500
+15783,Igfbp4,insulin-like growth factor binding protein 4,16010,1192
+15784,Igfbp5,insulin-like growth factor binding protein 5,16011,56489
+15785,Igfbp6,insulin-like growth factor binding protein 6,16012,1641
+29552,Igfbp7,insulin-like growth factor binding protein 7,29817,1193
+86416,Igfn1,immunoglobulin-like and fibronectin type III domain containing 1,226438,130054
+47899,Igsf5,"immunoglobulin superfamily, member 5",72058,12437
+22535,Ikzf1,IKAROS family zinc finger 1,22778,55948
+42986,Ikzf5,IKAROS family zinc finger 5,67143,23363
+15937,Il13ra1,"interleukin 13 receptor, alpha 1",16164,1198
+15943,Il16,interleukin 16,16170,18157
+15950,Il1r1,"interleukin 1 receptor, type I",16177,677
+15968,Il6st,interleukin 6 signal transducer,16195,1645
+16095,Inha,inhibin alpha,16322,1652
+16096,Inhba,inhibin beta-A,16323,1653
+16097,Inhbb,inhibin beta-B,16324,1654
+16098,Inhbc,inhibin beta-C,16325,21142
+16099,Inhbe,inhibin beta E,16326,7381
+16102,Inpp1,inositol polyphosphate-1-phosphatase,16329,1655
+87845,Inpp4b,"inositol polyphosphate-4-phosphatase, type II",234515,20832
+23672,Insl5,insulin-like 5,23919,48350
+27101,Insl6,insulin-like 6,27356,5197
+32944,Insm1,insulinoma-associated 1,53626,31080
+16110,Insr,insulin receptor,16337,20090
+23673,Insrr,insulin receptor-related receptor,23920,56539
+16121,Invs,inversin,16348,7786
+16135,Irf1,interferon regulatory factor 1,16362,1658
+16136,Irf2,interferon regulatory factor 2,16363,1659
+16143,Irs4,insulin receptor substrate 4,16370,2673
+16144,Irx1,Iroquois related homeobox 1 (Drosophila),16371,19065
+16145,Irx2,Iroquois related homeobox 2 (Drosophila),16372,56490
+16146,Irx3,Iroquois related homeobox 3,16373,7385
+30400,Irx4,Iroquois related homeobox 4 (Drosophila),50916,9485
+33643,Irx5,Iroquois related homeobox 5 (Drosophila),54352,38105
+40980,Irx6,Iroquois related homeobox 6 (Drosophila),64379,41481
+16165,Isl1,"ISL1 transcription factor, LIM/homeodomain",16392,1661
+68525,Isl2,insulin related protein 2 (islet 2),104360,10730
+42150,Isoc1,isochorismatase domain containing 1,66307,9361
+47438,Isx,intestine specific homeobox,71597,28312
+16173,Itga3,integrin alpha 3,16400,21129
+16174,Itga4,integrin alpha 4,16401,37364
+16182,Itgam,integrin alpha M,16409,526
+16183,Itgav,integrin alpha V,16410,20510
+16185,Itgb1,integrin beta 1 (fibronectin receptor beta),16412,22999
+16189,Itgb3,integrin beta 3,16416,55444
+107845,Itgb8,integrin beta 8,320910,18567
+85894,Itgbl1,"integrin, beta-like 1",223272,3519
+16199,Itih3,"inter-alpha trypsin inhibitor, heavy chain 3",16426,1669
+16202,Itln1,intelectin 1 (galactofuranose binding),16429,128658
+143285,Itlnb,intelectin b,493583,
+16211,Itpr1,"inositol 1,4,5-trisphosphate receptor 1",16438,1673
+16216,Itsn1,intersectin 1 (SH3 domain protein 1A),16443,2277
+16222,Jag1,jagged 1,16449,180
+16223,Jag2,jagged 2,16450,1677
+58180,Jam3,junction adhesion molecule 3,83964,11338
+87350,Jazf1,JAZF zinc finger 1,231986,18291
+57385,Jdp2,Jun dimerization protein 2,81703,12787
+72988,Jmjd1c,jumonji domain containing 1C,108829,3129
+16242,Jrk,jerky,16469,2762
+16249,Jun,jun proto-oncogene,16476,1679
+16251,Jund,jun D proto-oncogene,16478,3910
+85129,Kat7,K(lysine) acetyltransferase 7,217127,5134
+16258,Kcna1,"potassium voltage-gated channel, shaker-related subfamily, member 1",16485,183
+16263,Kcna2,"potassium voltage-gated channel, shaker-related subfamily, member 2",16490,21034
+16270,Kcnab1,"potassium voltage-gated channel, shaker-related subfamily, beta member 1",16497,56491
+16272,Kcnab3,"potassium voltage-gated channel, shaker-related subfamily, beta member 3",16499,55844
+62911,Kcnb2,"potassium voltage gated channel, Shab-related subfamily, member 2",98741,31263
+92471,Kcnc2,"potassium voltage gated channel, Shaw-related subfamily, member 2",268345,71199
+16277,Kcnc3,"potassium voltage gated channel, Shaw-related subfamily, member 3",16504,3650
+16281,Kcnd2,"potassium voltage-gated channel, Shal-related family, member 2",16508,40828
+42576,Kcng4,"potassium voltage-gated channel, subfamily G, member 4",66733,23553
+82041,Kcnh7,"potassium voltage-gated channel, subfamily H (eag-related), member 7",170738,13249
+56676,Kcnip2,Kv channel-interacting protein 2,80906,86999
+16288,Kcnj12,"potassium inwardly-rectifying channel, subfamily J, member 12",16515,7793
+16295,Kcnj6,"potassium inwardly-rectifying channel, subfamily J, member 6",16522,1688
+16299,Kcnk2,"potassium channel, subfamily K, member 2",16526,7794
+37365,Kcnmb4,"potassium large conductance calcium-activated channel, subfamily M, beta member 4",58802,8721
+79905,Kcnn2,"potassium intermediate/small conductance calcium-activated channel, subfamily N, member 2",140492,23150
+75016,Kcnq3,"potassium voltage-gated channel, subfamily Q, member 3",110862,20949
+88550,Kctd12,potassium channel tetramerisation domain containing 12,239217,16316
+69605,Kctd9,potassium channel tetramerisation domain containing 9,105440,9754
+51446,Kdm5b,lysine (K)-specific demethylase 5B,75605,48448
+16315,Kdr,kinase insert domain protein receptor,16542,55639
+16347,Kif5c,kinesin family member 5C,16574,56234
+16363,Kit,kit oncogene,16590,187
+17080,Kitl,kit ligand,17311,692
+42120,Klf15,Kruppel-like factor 15,66277,8553
+16371,Klf2,Kruppel-like factor 2 (lung),16598,7395
+16373,Klf4,Kruppel-like factor 4 (gut),16600,3123
+12009,Klf5,Kruppel-like factor 5,12224,37520
+23602,Klf6,Kruppel-like factor 6,23849,996
+60343,Klf7,Kruppel-like factor 7 (ubiquitous),93691,2751
+83975,Klhl29,kelch-like 29,208439,66272
+87181,Kmt2c,lysine (K)-specific methyltransferase 2C,231051,46480
+120035,Kmt2d,lysine (K)-specific methyltransferase 2D,381022,86893
+58251,Kremen1,kringle containing transmembrane protein 1,84035,12935
+48857,Kremen2,kringle containing transmembrane protein 2,73016,65132
+16500,L1cam,L1 cell adhesion molecule,16728,20128
+88886,L3mbtl1,l(3)mbt-like (Drosophila),241764,41846
+16544,Lama1,"laminin, alpha 1",16772,21146
+16546,Lama3,"laminin, alpha 3",16774,18279
+16549,Lamb1,laminin B1,16777,1722
+16552,Lamb3,"laminin, beta 3",16780,191
+52002,Lamp5,"lysosomal-associated membrane protein family, member 5",76161,8173
+76980,Laptm4b,lysosomal-associated protein transmembrane 4B,114128,10182
+16566,Large,like-glycosyltransferase,16795,7810
+89294,Layn,layilin,244864,18716
+53729,Lbh,limb-bud and heart,77889,12687
+16585,Lbx1,ladybird homeobox homolog 1 (Drosophila),16814,4784
+16586,Lbx2,ladybird homeobox homolog 2 (Drosophila),16815,36314
+84411,Lcor,ligand dependent nuclear receptor corepressor,212391,18153
+16596,Ldb1,LIM domain binding 1,16825,2891
+16597,Ldb2,LIM domain binding 2,16826,989
+16613,Lef1,lymphoid enhancer binding factor 1,16842,7813
+13368,Lefty1,left right determination factor 1,13590,49231
+107137,Lefty2,left-right determination factor 2,320202,2434
+16618,Lepr,leptin receptor,16847,1731
+44456,Letmd1,LETM1 domain containing 1,68614,9128
+16619,Lfng,LFNG O-fucosylpeptide 3-beta-N-acetylglucosaminyltransferase,16848,22475
+16623,Lgals1,"lectin, galactose binding, soluble 1",16852,7399
+89814,Lgi2,"leucine-rich repeat LGI family, member 2",246316,10048
+84562,Lgi3,"leucine-rich repeat LGI family, member 3",213469,16406
+18904,Lgmn,legumain,19141,38075
+16640,Lhx1,LIM homeobox protein 1,16869,4068
+16641,Lhx2,LIM homeobox protein 2,16870,55848
+16642,Lhx3,LIM homeobox protein 3,16871,7814
+16643,Lhx4,LIM homeobox protein 4,16872,56497
+16644,Lhx5,LIM homeobox protein 5,16873,40621
+16645,Lhx6,LIM homeobox protein 6,16874,7401
+16646,Lhx8,LIM homeobox protein 8,16875,62661
+16647,Lhx9,LIM homeobox protein 9,16876,7816
+16651,Lifr,leukemia inhibitory factor receptor,16880,1735
+16656,Limk1,"LIM-domain containing, protein kinase",16885,1738
+74984,Lims1,LIM and senescent cell antigen-like domains 1,110829,68428
+88047,Lman1l,"lectin, mannose-binding 1 like",235416,11047
+29927,Lmcd1,LIM and cysteine-rich domains 1,30937,22823
+73752,Lmo1,LIM domain only 1,109594,48101
+16679,Lmo2,LIM domain only 2,16909,4072
+73751,Lmo3,LIM domain only 3,109593,38552
+16681,Lmo4,LIM domain only 4,16911,4927
+87332,Lmtk2,lemur tyrosine kinase 2,231876,8948
+120482,Lmtk3,lemur tyrosine kinase 3,381983,79449
+74804,Lmx1a,LIM homeobox transcription factor 1 alpha,110648,24921
+16687,Lmx1b,LIM homeobox transcription factor 1 beta,16917,55648
+129337,LOC432748,similar to ras responsive element binding protein 1; RAS-responsive element binding protein-1; DNA-binding protein,432748,
+129813,LOC433228,hypothetical gene supported by AK082257,433228,
+130020,LOC433436,"similar to titin isoform N2-A; connectin; CMH9, included; cardiomyopathy, dilated 1G (autosomal dominant)",433436,
+142666,LOC545810,-,545810,
+143363,LOC546316,-,546316,
+16719,Loxl1,lysyl oxidase-like 1,16949,4074
+60979,Loxl2,lysyl oxidase-like 2,94352,1742
+16726,Lpl,lipoprotein lipase,16956,200
+16740,Lrmp,lymphoid-restricted membrane protein,16970,4483
+16741,Lrp1,low density lipoprotein receptor-related protein 1,16971,1744
+16743,Lrp5,low density lipoprotein receptor-related protein 5,16973,1746
+16744,Lrp6,low density lipoprotein receptor-related protein 6,16974,1747
+16745,Lrp8,"low density lipoprotein receptor-related protein 8, apolipoprotein e receptor",16975,31250
+82847,Lrrc4,leucine rich repeat containing 4,192198,36403
+42568,Lrrk2,leucine-rich repeat kinase 2,66725,18982
+16751,Lrrn3,"leucine rich repeat protein 3, neuronal",16981,36315
+50183,Lrrtm1,leucine rich repeat transmembrane neuronal 1,74342,41763
+33428,Lsr,lipolysis stimulated lipoprotein receptor,54135,9306
+16775,Ltk,leukocyte tyrosine kinase,17005,130502
+16805,Lxn,latexin,17035,36361
+23686,Ly6h,"lymphocyte antigen 6 complex, locus H",23934,1758
+16865,Lyl1,lymphoblastomic leukemia 1,17095,4078
+48426,Lypd1,Ly6/Plaur domain containing 1,72585,16937
+16875,Lyz2,lysozyme 2,17105,124183
+42706,Lztr1,"leucine-zipper-like transcriptional regulator, 1",66863,4925
+84266,Lzts1,"leucine zipper, putative tumor suppressor 1",211134,10873
+62728,Mael,maelstrom homolog (Drosophila),98558,13143
+16902,Maf,avian musculoaponeurotic fibrosarcoma (v-maf) AS42 oncogene homolog,17132,74552
+44719,Maf1,MAF1 homolog (S. cerevisiae),68877,49867
+119719,Mafa,"v-maf musculoaponeurotic fibrosarcoma oncogene family, protein A (avian)",378435,65867
+16430,Mafb,"v-maf musculoaponeurotic fibrosarcoma oncogene family, protein B (avian)",16658,31315
+16904,Mafg,"v-maf musculoaponeurotic fibrosarcoma oncogene family, protein G (avian)",17134,81816
+16905,Mafk,"v-maf musculoaponeurotic fibrosarcoma oncogene family, protein K (avian)",17135,1770
+60907,Maged1,"melanoma antigen, family D, 1",94275,5077
+67973,Maml1,mastermind like 1 (Drosophila),103806,8845
+16930,Maoa,monoamine oxidase A,17161,203
+73888,Maob,monoamine oxidase B,109731,20251
+17523,Map2,microtubule-associated protein 2,17756,
+26157,Map3k7,mitogen-activated protein kinase kinase kinase 7,26409,37743
+26162,Mapk10,mitogen-activated protein kinase 10,26414,56439
+26167,Mapk8,mitogen-activated protein kinase 8,26419,56760
+29947,Mapk8ip3,mitogen-activated protein kinase 8 interacting protein 3,30957,22790
+26168,Mapk9,mitogen-activated protein kinase 9,26420,55685
+17529,Mapt,microtubule-associated protein tau,17762,74962
+17125,Marcksl1,MARCKS-like 1,17357,40748
+16956,Max,Max protein,17187,1786
+16957,Maz,MYC-associated zinc finger protein (purine-binding transcription factor),17188,1787
+16965,Mbp,myelin basic protein,17196,1788
+16970,Mc3r,melanocortin 3 receptor,17201,7412
+16971,Mc4r,melanocortin 4 receptor,17202,4320
+141246,mCG146432,AB mCG146432,,
+83907,Mchr1,melanin-concentrating hormone receptor 1,207911,21097
+50603,Mdga1,MAM domain containing glycosylphosphatidylinositol anchor 1,74762,17780
+17216,Mdh2,"malate dehydrogenase 2, NAD (mitochondrial)",17448,55938
+37587,Med12,mediator complex subunit 12,59024,68441
+45633,Med6,mediator complex subunit 6,69792,3990
+17027,Mef2a,myocyte enhancer factor 2A,17258,4080
+17028,Mef2b,myocyte enhancer factor 2B,17259,48381
+17029,Mef2c,myocyte enhancer factor 2C,17260,31087
+17030,Mef2d,myocyte enhancer factor 2D,17261,4327
+17037,Meis1,Meis homeobox 1,17268,86803
+17303,Meis2,Meis homeobox 2,17536,7846
+17304,Meis3,Meis homeobox 3,17537,7425
+17054,Meox1,mesenchyme homeobox 1,17285,3326
+17055,Meox2,mesenchyme homeobox 2,17286,4330
+17058,Mertk,c-mer proto-oncogene tyrosine kinase,17289,4626
+43786,Mesdc2,mesoderm development candidate 2,67943,11347
+17061,Mesp1,mesoderm posterior 1,17292,32039
+17062,Mesp2,mesoderm posterior 2,17293,7420
+17063,Mest,mesoderm specific transcript,17294,1800
+17064,Met,met proto-oncogene,17295,206
+52134,Mfap4,microfibrillar-associated protein 4,76293,36098
+17073,Mfge8,milk fat globule-EGF factor 8 protein,17304,4334
+29543,Mga,MAX gene associated,29808,49351
+92513,Mgat5b,"mannoside acetylglucosaminyltransferase 5, isoenzyme B",268510,27821
+42290,Mgst3,microsomal glutathione S-transferase 3,66447,3327
+86214,Mib1,mindbomb homolog 1 (Drosophila),225164,10810
+52421,Mib2,mindbomb homolog 2 (Drosophila),76580,16062
+17087,Mid1,midline 1,17318,7837
+17111,Mitf,microphthalmia-associated transcription factor,17342,4892
+26962,Mixl1,Mix1 homeobox-like 1 (Xenopus laevis),27217,8445
+84230,Mkx,mohawk homeobox,210719,72239
+21189,Mlx,MAX-like protein X,21428,7969
+83930,Mlxip,MLX interacting protein,208104,22851
+37368,Mlxipl,MLX interacting protein-like,58805,32507
+17163,Mmp9,matrix metallopeptidase 9,17395,3659
+17196,Mnt,max binding protein,17428,7842
+15060,Mnx1,motor neuron and pancreas homeobox 1,15285,21137
+17201,Mobp,myelin-associated oligodendrocytic basic protein,17433,32040
+17209,Mog,myelin oligodendrocyte glycoprotein,17441,111009
+17244,Mpeg1,macrophage expressed gene 1,17476,11216
+85966,Mpped1,metallophosphoesterase domain containing 1,223726,15012
+17448,Msc,musculin,17681,3738
+35467,Msgn1,mesogenin 1,56184,10466
+15011,Mst1,macrophage stimulating 1 (hepatocyte growth factor-like),15235,7360
+19645,Mst1r,macrophage stimulating 1 receptor (c-met-related tyrosine kinase),19882,1835
+17467,Mstn,myostatin,17700,3850
+17468,Msx1,msh homeobox 1,17701,1836
+17469,Msx2,msh homeobox 2,17702,1837
+17470,Msx3,msh homeobox 3,17703,101667
+78178,Mta1,metastasis associated 1,116870,3442
+23693,Mta2,"metastasis-associated gene family, member 2",23942,3480
+78179,Mta3,metastasis associated 3,116871,14282
+50079,Mterf2,mitochondrial transcription termination factor 2,74238,11869
+17531,Mtf1,metal response element binding transcription factor 1,17764,4347
+17532,Mtf2,metal response element binding transcription factor 2,17765,7207
+35996,Mtor,mechanistic target of rapamycin (serine/threonine kinase),56717,3637
+17965,Musk,"muscle, skeletal, receptor tyrosine kinase",18198,4084
+16889,Mxd1,MAX dimerization protein 1,17119,1767
+16891,Mxd3,Max dimerization protein 3,17121,32333
+16892,Mxd4,Max dimerization protein 4,17122,4712
+17626,Mxi1,Max interacting protein 1,17859,4351
+17630,Myb,myeloblastosis oncogene,17863,31311
+18199,Mybbp1a,MYB binding protein (P160) 1a,18432,40954
+17631,Mybl1,myeloblastosis oncogene-like 1,17864,32045
+17632,Mybl2,myeloblastosis oncogene-like 2,17865,1847
+73431,Mybpc1,"myosin binding protein C, slow-type",109272,1846
+17636,Myc,myelocytomatosis oncogene,17869,31092
+69854,Mycbp2,MYC binding protein 2,105689,9005
+16688,Mycl,"v-myc myelocytomatosis viral oncogene homolog, lung carcinoma derived (avian)",16918,3921
+17876,Mycn,"v-myc myelocytomatosis viral related oncogene, neuroblastoma derived (avian)",18109,3922
+17637,Mycs,"myc-like oncogene, s-myc protein",17870,7854
+17644,Myf5,myogenic factor 5,17877,4085
+17645,Myf6,myogenic factor 6,17878,1850
+53419,Myh10,"myosin, heavy polypeptide 10, non-muscle",77579,55941
+17653,Myh9,"myosin, heavy polypeptide 9, non-muscle",17886,129835
+71754,Mylk,"myosin, light polypeptide kinase",107589,14202
+17693,Myoc,myocilin,17926,220
+17694,Myod1,myogenic differentiation 1,17927,7857
+17695,Myog,myogenin,17928,1854
+17699,Myt1,myelin transcription factor 1,17932,3332
+17700,Myt1l,myelin transcription factor 1-like,17933,7435
+17703,Nab1,Ngfi-A binding protein 1,17936,4352
+47791,Nanog,Nanog homeobox,71950,78027
+17734,Ncam1,neural cell adhesion molecule 1,17967,40754
+17735,Ncam2,neural cell adhesion molecule 2,17968,3336
+17741,Nck2,non-catalytic region of tyrosine kinase adaptor protein 2,17974,20794
+30368,Nckap1,NCK-associated protein 1,50884,8384
+17744,Ncoa1,nuclear receptor coactivator 1,17977,7859
+17745,Ncoa2,nuclear receptor coactivator 2,17978,4768
+17746,Ncoa3,nuclear receptor coactivator 3,17979,4764
+35686,Ncoa6,nuclear receptor coactivator 6,56406,40920
+19948,Ncor1,nuclear receptor co-repressor 1,20185,38166
+20364,Ncor2,nuclear receptor co-repressor 2,20602,31370
+37711,Ncstn,nicastrin,59287,41029
+43046,Nde1,nuclear distribution gene E homolog 1 (A nidulans),67203,32354
+57675,Ndel1,nuclear distribution gene E-like homolog 1 (A. nidulans),83431,32567
+44012,Ndnf,neuron-derived neurotrophic factor,68169,11593
+41177,Ndst4,N-deacetylase/N-sulfotransferase (heparin glucosaminyl) 4,64580,11208
+78444,Necab2,N-terminal EF-hand calcium binding protein 2,117148,62200
+119884,Nefh,"neurofilament, heavy polypeptide",380684,40755
+37685,Nek7,NIMA (never in mitosis gene a)-related expressed kinase 7,59125,69340
+17774,Neo1,neogenin,18007,1870
+17775,Nes,nestin,18008,31391
+17779,Neurod1,neurogenic differentiation 1,18012,1871
+17780,Neurod2,neurogenic differentiation 2,18013,4489
+11709,Neurod4,neurogenic differentiation 4,11923,7234
+11708,Neurod6,neurogenic differentiation 6,11922,7632
+17781,Neurog1,neurogenin 1,18014,4490
+11710,Neurog2,neurogenin 2,11924,7633
+11711,Neurog3,neurogenin 3,11925,40692
+17782,Nf1,neurofibromatosis 1,18015,226
+92672,Nfasc,neurofascin,269116,24945
+33737,Nfat5,nuclear factor of activated T cells 5,54446,4811
+17785,Nfatc1,"nuclear factor of activated T cells, cytoplasmic, calcineurin dependent 1",18018,32336
+17786,Nfatc2,"nuclear factor of activated T cells, cytoplasmic, calcineurin dependent 2",18019,7861
+17788,Nfatc3,"nuclear factor of activated T cells, cytoplasmic, calcineurin dependent 3",18021,27827
+49022,Nfatc4,"nuclear factor of activated T cells, cytoplasmic, calcineurin dependent 4",73181,3349
+17789,Nfe2,"nuclear factor, erythroid derived 2",18022,4491
+17790,Nfe2l1,"nuclear factor, erythroid derived 2,-like 1",18023,20685
+17791,Nfe2l2,"nuclear factor, erythroid derived 2, like 2",18024,2412
+17792,Nfe2l3,"nuclear factor, erythroid derived 2, like 3",18025,3168
+17794,Nfia,nuclear factor I/A,18027,4086
+17795,Nfib,nuclear factor I/B,18028,4087
+17796,Nfic,nuclear factor I/C,18029,4088
+17797,Nfil3,"nuclear factor, interleukin 3, regulated",18030,3928
+17799,Nfix,nuclear factor I/X,18032,1872
+17800,Nfkb1,"nuclear factor of kappa light polypeptide gene enhancer in B cells 1, p105",18033,2971
+17802,Nfkbia,"nuclear factor of kappa light polypeptide gene enhancer in B cells inhibitor, alpha",18035,7863
+17804,Nfkbie,"nuclear factor of kappa light polypeptide gene enhancer in B cells inhibitor, epsilon",18037,36160
+65148,Nfxl1,"nuclear transcription factor, X-box binding-like 1",100978,26752
+17811,Nfya,nuclear transcription factor-Y alpha,18044,32114
+17812,Nfyb,nuclear transcription factor-Y beta,18045,38149
+17813,Nfyc,nuclear transcription factor-Y gamma,18046,7440
+33266,Ngef,neuronal guanine nucleotide exchange factor,53972,75120
+17816,Ngf,nerve growth factor,18049,1876
+17820,Ngfr,"nerve growth factor receptor (TNFR superfamily, member 16)",18053,1877
+17838,Nhlh1,nescient helix loop helix 1,18071,4089
+17839,Nhlh2,nescient helix loop helix 2,18072,4090
+60608,Nkd1,naked cuticle 1 homolog (Drosophila),93960,12343
+48134,Nkd2,naked cuticle 2 homolog (Drosophila),72293,12459
+159922,Nkx1-1,"NK1 transcription factor related, locus 1 (Drosophila)",672284,78303
+19994,Nkx1-2,"NK1 transcription factor related, locus 2 (Drosophila)",20231,7525
+21628,Nkx2-1,NK2 homeobox 1,21869,2488
+17855,Nkx2-2,NK2 homeobox 2,18088,1879
+17856,Nkx2-3,NK2 homeobox 3,18089,17061
+86764,Nkx2-4,NK2 homeobox 4,228731,41526
+17859,Nkx2-6,NK2 homeobox 6,18092,22604
+17861,Nkx2-9,NK2 homeobox 9,18094,7444
+17862,Nkx3-1,"NK-3 transcription factor, locus 1 (Drosophila)",18095,4494
+11806,Nkx3-2,NK3 homeobox 2,12020,68168
+17863,Nkx6-1,NK6 homeobox 1,18096,4495
+14688,Nkx6-2,NK6 homeobox 2,14912,18580
+50402,Nkx6-3,NK6 homeobox 3,74561,46375
+85106,Nle1,notchless homolog 1 (Drosophila),217011,5494
+17866,Nlk,nemo like kinase,18099,130631
+43882,Nmb,neuromedin B,68039,36392
+17868,Nmbr,neuromedin B receptor,18101,20560
+43667,Nmral1,NmrA-like family domain containing 1,67824,41388
+17878,Nnat,neuronatin,18111,36176
+18058,Nobox,NOBOX oogenesis homeobox,18291,51066
+17886,Nodal,nodal,18119,8417
+17888,Nog,noggin,18121,3979
+17892,Nos1,"nitric oxide synthase 1, neuronal",18125,37327
+46570,Nos1ap,nitric oxide synthase 1 (neuronal) adaptor protein,70729,40976
+17894,Nos3,"nitric oxide synthase 3, endothelial cell",18127,504
+17895,Notch1,notch 1,18128,32049
+17896,Notch2,notch 2,18129,7865
+17898,Notch3,notch 3,18131,376
+17899,Notch4,notch 4,18132,3351
+17900,Nov,nephroblastoma overexpressed gene,18133,1884
+17909,Npas1,neuronal PAS domain protein 1,18142,1886
+17910,Npas2,neuronal PAS domain protein 2,18143,1887
+27131,Npas3,neuronal PAS domain protein 3,27386,8461
+86310,Npas4,neuronal PAS domain protein 4,225872,15333
+33906,Npff,neuropeptide FF-amide peptide precursor,54615,48236
+68608,Npffr2,neuropeptide FF receptor 2,104443,56982
+106174,Npsr1,neuropeptide S receptor 1,319239,45515
+37991,Npvf,neuropeptide VF precursor,60531,11064
+73806,Npy,neuropeptide Y,109648,697
+17933,Npy1r,neuropeptide Y receptor Y1,18166,700
+17934,Npy2r,neuropeptide Y receptor Y2,18167,701
+17935,Npy5r,neuropeptide Y receptor Y5,18168,21241
+11401,Nr0b1,"nuclear receptor subfamily 0, group B, member 1",11614,403
+23708,Nr0b2,"nuclear receptor subfamily 0, group B, member 2",23957,8030
+85138,Nr1d1,"nuclear receptor subfamily 1, group D, member 1",217166,23324
+110666,Nr1d2,"nuclear receptor subfamily 1, group D, member 2",353187,3763
+22017,Nr1h2,"nuclear receptor subfamily 1, group H, member 2",22260,21397
+22016,Nr1h3,"nuclear receptor subfamily 1, group H, member 3",22259,21165
+19949,Nr1h4,"nuclear receptor subfamily 1, group H, member 4",20186,3760
+120237,Nr1h5,"nuclear receptor subfamily 1, group H, member 5",381463,131277
+17938,Nr1i2,"nuclear receptor subfamily 1, group I, member 2",18171,40757
+12140,Nr1i3,"nuclear receptor subfamily 1, group I, member 3",12355,3759
+21782,Nr2c1,"nuclear receptor subfamily 2, group C, member 1",22025,55731
+21783,Nr2c2,"nuclear receptor subfamily 2, group C, member 2",22026,2475
+21664,Nr2e1,"nuclear receptor subfamily 2, group E, member 1",21907,37750
+23709,Nr2e3,"nuclear receptor subfamily 2, group E, member 3",23958,84397
+13643,Nr2f1,"nuclear receptor subfamily 2, group F, member 1",13865,21158
+11606,Nr2f2,"nuclear receptor subfamily 2, group F, member 2",11819,7628
+13642,Nr2f6,"nuclear receptor subfamily 2, group F, member 6",13864,7706
+14591,Nr3c1,"nuclear receptor subfamily 3, group C, member 1",14815,30960
+74939,Nr3c2,"nuclear receptor subfamily 3, group C, member 2",110784,121495
+15145,Nr4a1,"nuclear receptor subfamily 4, group A, member 1",15370,1612
+17994,Nr4a2,"nuclear receptor subfamily 4, group A, member 2",18227,4509
+17891,Nr4a3,"nuclear receptor subfamily 4, group A, member 3",18124,5074
+26171,Nr5a1,"nuclear receptor subfamily 5, group A, member 1",26423,3638
+26172,Nr5a2,"nuclear receptor subfamily 5, group A, member 2",26424,20827
+14312,Nr6a1,"nuclear receptor subfamily 6, group A, member 1",14536,36308
+106439,Nrcam,neuronal cell adhesion molecule,319504,21041
+84285,Nrg1,neuregulin 1,211323,8509
+120090,Nrg2,neuregulin 2,100042150,75024
+17950,Nrg3,neuregulin 3,18183,32051
+58177,Nrg4,neuregulin 4,83961,12921
+40644,Nrgn,neurogranin,64011,4500
+92612,Nrip1,nuclear receptor interacting protein 1,268903,2606
+37806,Nrip2,nuclear receptor interacting protein 2,60345,11023
+54433,Nrip3,nuclear receptor interacting protein 3,78593,10764
+17952,Nrl,neural retina leucine zipper gene,18185,4501
+44246,Nrn1,neuritin 1,68404,9577
+17953,Nrp1,neuropilin 1,18186,2876
+17954,Nrp2,neuropilin 2,18187,2875
+17955,Nrtn,neurturin,18188,7450
+17956,Nrxn1,neurexin I,18189,21005
+17960,Nsd1,nuclear receptor-binding SET-domain protein 1,18193,32543
+17972,Ntf3,neurotrophin 3,18205,1896
+54245,Ntf5,neurotrophin 5,78405,4503
+87964,Ntm,neurotrimin,235106,41139
+17975,Ntn1,netrin 1,18208,21008
+17976,Ntn3,netrin 3,18209,74567
+37036,Ntn4,netrin 4,57764,10934
+56653,Ntng1,netrin G1,80883,8949
+82364,Ntng2,netrin G2,171171,13053
+17978,Ntrk1,"neurotrophic tyrosine kinase, receptor, type 1",18211,1898
+17979,Ntrk2,"neurotrophic tyrosine kinase, receptor, type 2",18212,4504
+17980,Ntrk3,"neurotrophic tyrosine kinase, receptor, type 3",18213,49183
+43248,Nts,neurotensin,67405,4506
+17983,Ntsr1,neurotensin receptor 1,18216,68261
+17984,Ntsr2,neurotensin receptor 2,18217,7452
+32802,Nucb2,nucleobindin 2,53322,3676
+17989,Numb,numb gene homolog (Drosophila),18222,2775
+17990,Numbl,numb-like,18223,68413
+68246,Nxph4,neurexophilin 4,104080,11020
+47309,Obox1,oocyte specific homeobox 1,71468,44937
+89950,Obox3,oocyte specific homeobox 3,246791,44937
+183340,Obox4,oocyte specific homeobox 4,252828,
+89954,Obox5,oocyte specific homeobox 5,252829,44937
+89955,Obox6,oocyte specific homeobox 6,252830,44937
+30398,Olig1,oligodendrocyte transcription factor 1,50914,9667
+30397,Olig2,oligodendrocyte transcription factor 2,50913,4241
+60856,Olig3,oligodendrocyte transcription factor 3,94222,14201
+15154,Onecut1,"one cut domain, family member 1",15379,3309
+86270,Onecut2,"one cut domain, family member 2",225631,113592
+89612,Onecut3,"one cut domain, family member 3",246086,82258
+18153,Oprd1,"opioid receptor, delta 1",18386,20252
+18154,Oprk1,"opioid receptor, kappa 1",18387,20253
+18157,Oprm1,"opioid receptor, mu 1",18390,37368
+20172,Ostf1,osteoclast stimulating factor 1,20409,8227
+58004,Otof,otoferlin,83762,12892
+18187,Otp,orthopedia homolog (Drosophila),18420,7874
+18190,Otx1,orthodenticle homolog 1,18423,7875
+18191,Otx2,orthodenticle homolog 2,18424,11026
+18196,Oxt,oxytocin,18429,55494
+18197,Oxtr,oxytocin receptor,18430,20255
+18205,P2rx4,"purinergic receptor P2X, ligand-gated ion channel 4",18438,1923
+18206,P2rx7,"purinergic receptor P2X, ligand-gated ion channel, 7",18439,1925
+18238,Pafah1b1,"platelet-activating factor acetylhydrolase, isoform 1b, subunit 1",18472,371
+18244,Pah,phenylalanine hydroxylase,18478,234
+18245,Pak1,p21 protein (Cdc42/Rac)-activated kinase 1,18479,1936
+23603,Pappa2,pappalysin 2,23850,10661
+60394,Pard3,par-3 family cell polarity regulator,93742,10489
+30357,Park2,"Parkinson disease (autosomal recessive, juvenile) 2, parkin",50873,3355
+87243,Parm1,prostate androgen-regulated mucin-like protein 1,231440,41036
+82039,Parvb,"parvin, beta",170736,8342
+35501,Patz1,POZ (BTB) and AT hook containing zinc finger 1,56218,8636
+77498,Pawr,"PRKC, apoptosis, WT1, regulator",114774,1940
+18269,Pax1,paired box 1,18503,4514
+18270,Pax2,paired box 2,18504,2968
+18271,Pax3,paired box 3,18505,22494
+18272,Pax4,paired box 4,18506,4515
+18273,Pax5,paired box 5,18507,56419
+18274,Pax6,paired box 6,18508,1212
+18275,Pax7,paired box 7,18509,55665
+18276,Pax8,paired box 8,18510,2589
+18277,Pax9,paired box 9,18511,31360
+42766,Pbrm1,polybromo 1,66923,10044
+18280,Pbx1,pre B cell leukemia homeobox 1,18514,20574
+18281,Pbx2,pre B cell leukemia homeobox 2,18515,48115
+18282,Pbx3,pre B cell leukemia homeobox 3,18516,21243
+56494,Pbx4,pre B cell leukemia homeobox 4,80720,57027
+86886,Pbxip1,pre B cell leukemia transcription factor interacting protein 1,229534,10740
+12960,Pcbd1,pterin 4 alpha carbinolamine dehydratase/dimerization cofactor of hepatocyte nuclear factor 1 alpha (TCF1) 1,13180,57028
+51440,Pcdh1,protocadherin 1,75599,12613
+18292,Pcdh10,protocadherin 10,18526,74967
+89410,Pcdh11x,protocadherin 11 X-linked,245578,13194
+32919,Pcdh12,protocadherin 12,53601,9574
+49014,Pcdh18,protocadherin 18,73173,10389
+93556,Pcdh19,protocadherin 19,279653,18916
+85500,Pcdh20,protocadherin 20,219257,11277
+12722,Pcdha7,protocadherin alpha 7,12939,117962
+60534,Pcdhb14,protocadherin beta 14,93885,70876
+60524,Pcdhb4,protocadherin beta 4,93875,62176
+60529,Pcdhb9,protocadherin beta 9,93880,87124
+60376,Pcdhga12,"protocadherin gamma subfamily A, 12",93724,115665
+46882,Pcgf6,polycomb group ring finger 6,71041,12378
+26621,Pclo,piccolo (presynaptic cytomatrix protein),26875,69111
+18307,Pcnt,pericentrin (kendrin),18541,86942
+18311,Pcp2,Purkinje cell protein 2 (L7),18545,7464
+18312,Pcp4,Purkinje cell protein 4,18546,4519
+18315,Pcsk2,proprotein convertase subtilisin/kexin type 2,18549,37640
+23735,Pde10a,phosphodiesterase 10A,23984,4852
+88851,Pde11a,phosphodiesterase 11A,241489,56763
+18339,Pde1a,"phosphodiesterase 1A, calmodulin-dependent",18573,21043
+18341,Pde1c,phosphodiesterase 1C,18575,3682
+88926,Pde5a,"phosphodiesterase 5A, cGMP-specific",242202,842
+18356,Pdgfa,"platelet derived growth factor, alpha",18590,32055
+18357,Pdgfb,"platelet derived growth factor, B polypeptide",18591,74303
+33926,Pdgfc,"platelet-derived growth factor, C polypeptide",54635,9423
+47626,Pdgfd,"platelet-derived growth factor, D polypeptide",71785,11875
+18361,Pdgfra,"platelet derived growth factor receptor, alpha polypeptide",18595,31361
+18362,Pdgfrb,"platelet derived growth factor receptor, beta polypeptide",18596,1960
+33425,Pdlim1,PDZ and LIM domain 1 (elfin),54132,9643
+14502,Pdpn,podoplanin,14726,4729
+18375,Pdx1,pancreatic and duodenal homeobox 1,18609,175
+18376,Pdyn,prodynorphin,18610,10321
+43913,Pdzd2,PDZ domain containing 2,68070,23393
+81989,Peg10,paternally expressed 10,170676,116067
+27157,Peg12,paternally expressed 12,27412,8465
+18385,Penk,preproenkephalin,18619,4528
+18392,Per1,period circadian clock 1,18626,1966
+18393,Per2,period circadian clock 2,18627,7885
+40691,Perp,"PERP, TP53 apoptosis effector",64058,11098
+37432,Pex5l,peroxisomal biogenesis factor 5-like,58869,9562
+18433,Pgr,progesterone receptor,18667,713
+46645,Pgrmc2,progesterone receptor membrane component 2,70804,38169
+11820,Phb2,prohibitin 2,12034,5263
+87154,Phf13,PHD finger protein 13,230936,17822
+49857,Phf19,PHD finger protein 19,74016,12524
+11646,Phox2a,paired-like homeobox 2a,11859,31296
+18698,Phox2b,paired-like homeobox 2b,18935,68371
+18450,Phtf1,putative homeodomain transcription factor 1,18685,4817
+44612,Phtf2,putative homeodomain transcription factor 2,68770,10713
+50610,Pik3cb,"phosphatidylinositol 3-kinase, catalytic, beta polypeptide",74769,21250
+18473,Pik3r1,"phosphatidylinositol 3-kinase, regulatory subunit, polypeptide 1 (p85 alpha)",18708,7889
+18504,Pitx1,paired-like homeodomain transcription factor 1,18740,20584
+18505,Pitx2,paired-like homeodomain transcription factor 2,18741,55454
+18506,Pitx3,paired-like homeodomain transcription factor 3,18742,3689
+18527,Pkd1,polycystic kidney disease 1 homolog,18763,250
+18535,Pknox1,Pbx/knotted 1 homeobox,18771,3363
+83924,Pknox2,Pbx/knotted 1 homeobox 2,208076,32527
+43294,Pkp2,plakophilin 2,67451,3364
+22391,Plagl1,pleiomorphic adenoma gene-like 1,22634,31401
+18562,Plcb4,"phospholipase C, beta 4",18798,8471
+18563,Plcd1,"phospholipase C, delta 1",18799,21252
+18567,Plcg1,"phospholipase C, gamma 1",18803,1997
+92752,Plch1,"phospholipase C, eta 1",269437,88833
+129609,Plcxd2,"phosphatidylinositol-specific phospholipase C, X domain containing 2",433022,44374
+84601,Plekhg1,"pleckstrin homology domain containing, family G (with RhoGef domain) member 1",213783,18897
+18587,Plp1,proteolipid protein (myelin) 1,18823,448
+18608,Plxna1,plexin A1,18844,56426
+18609,Plxna2,plexin A2,18845,56427
+18610,Plxna3,plexin A3,18846,7481
+89119,Plxna4,plexin A4,243743,77587
+88096,Plxnb1,plexin B1,235611,130508
+79944,Plxnb2,plexin B2,140570,66630
+34001,Plxnc1,plexin C1,54712,4211
+43627,Plxnd1,plexin D1,67784,22866
+74469,Pmch,pro-melanin-concentrating hormone,110312,37653
+18617,Pml,promyelocytic leukemia,18854,13245
+86518,Pms1,postmeiotic segregation increased 1 (S. cerevisiae),227099,449
+18712,Pnn,pinin,18949,37656
+17922,Pnoc,prepronociceptin,18155,4537
+79897,Pofut1,protein O-fucosyltransferase 1,140484,9104
+42822,Pole4,"polymerase (DNA-directed), epsilon 4 (p12 subunit)",66979,41339
+19781,Polr1d,polymerase (RNA) I polypeptide D,20018,22239
+87230,Polr2b,polymerase (RNA) II (DNA directed) polypeptide B,231329,722
+89478,Polr2h,polymerase (RNA) II (DNA directed) polypeptide H,245841,4540
+27759,Polr2m,polymerase (RNA) II (DNA directed) polypeptide M,28015,9181
+42848,Polr3k,polymerase (RNA) III (DNA directed) polypeptide K,67005,5610
+18739,Pomc,pro-opiomelanocortin-alpha,18976,723
+44115,Pomgnt1,"protein O-linked mannose beta 1,2-N-acetylglucosaminyltransferase",68273,9806
+32945,Porcn,porcupine homolog (Drosophila),53627,41529
+30195,Postn,"periostin, osteoblast specific factor",50706,4730
+18500,Pou1f1,"POU domain, class 1, transcription factor 1",18736,259
+18748,Pou2af1,"POU domain, class 2, associating factor 1",18985,4543
+18749,Pou2f1,"POU domain, class 2, transcription factor 1",18986,37658
+18750,Pou2f2,"POU domain, class 2, transcription factor 2",18987,55674
+18751,Pou2f3,"POU domain, class 2, transcription factor 3",18988,7898
+18754,Pou3f1,"POU domain, class 3, transcription factor 1",18991,20590
+18755,Pou3f2,"POU domain, class 3, transcription factor 2",18992,4095
+18756,Pou3f3,"POU domain, class 3, transcription factor 3",18993,68509
+18757,Pou3f4,"POU domain, class 3, transcription factor 4",18994,260
+18759,Pou4f1,"POU domain, class 4, transcription factor 1",18996,21255
+18760,Pou4f2,"POU domain, class 4, transcription factor 2",18997,20959
+18761,Pou4f3,"POU domain, class 4, transcription factor 3",18998,2023
+18762,Pou5f1,"POU domain, class 5, transcription factor 1",18999,8422
+51348,Pou5f2,"POU domain class 5, transcription factor 2",75507,83454
+18772,Pou6f1,"POU domain, class 6, transcription factor 1",19009,7703
+85303,Pou6f2,"POU domain, class 6, transcription factor 2",218030,5245
+18776,Ppara,peroxisome proliferator activated receptor alpha,19013,21047
+18778,Ppard,peroxisome proliferator activator receptor delta,19015,4544
+18779,Pparg,peroxisome proliferator activated receptor gamma,19016,7899
+18780,Ppargc1a,"peroxisome proliferative activated receptor, gamma, coactivator 1 alpha",19017,7485
+43376,Ppfibp1,"PTPRF interacting protein, binding protein 1 (liprin beta 1)",67533,2685
+18812,Ppp1r1b,"protein phosphatase 1, regulatory (inhibitor) subunit 1B",19049,12972
+18818,Ppp3ca,"protein phosphatase 3, catalytic subunit, alpha isoform",19055,55497
+18822,Ppp3r2,"protein phosphatase 3, regulatory subunit B, alpha isoform (calcineurin B, type II)",19059,68797
+120183,Prdm12,PR domain containing 12,381359,10999
+46620,Prdm5,PR domain containing 5,70779,10274
+61045,Prg4,"proteoglycan 4 (megakaryocyte stimulating factor, articular superficial zone protein)",96875,130465
+18511,Prkaca,"protein kinase, cAMP dependent, catalytic, alpha",18747,121574
+18515,Prkcb,"protein kinase C, beta",18751,56424
+18517,Prkcd,"protein kinase C, delta",18753,55963
+18879,Prlr,prolactin receptor,19116,733
+18885,Prnp,prion protein,19122,7904
+18888,Prodh,proline dehydrogenase,19125,40764
+18889,Prom1,prominin 1,19126,4390
+18890,Prop1,paired like homeodomain factor 1,19127,4558
+18891,Pros1,protein S (alpha),19128,264
+18893,Prox1,prospero homeobox 1,19130,2069
+49263,Prox2,prospero homeobox 2,73422,18421
+18895,Prph,peripherin,19132,4559
+18696,Prrx1,paired related homeobox 1,18933,7896
+19967,Prrx2,paired related homeobox 2,20204,7524
+71913,Prrxl1,paired related homeobox protein-like 1,107751,
+18905,Prss12,"protease, serine 12 neurotrypsin (motopsin)",19142,7490
+49569,Psd,pleckstrin and Sec7 domain containing,73728,31115
+18927,Psen1,presenilin 1,19164,7186
+18928,Psen2,presenilin 2,19165,386
+42183,Psenen,presenilin enhancer 2 homolog (C. elegans),66340,11952
+18960,Pspn,persephin,19197,3065
+18969,Ptch1,patched homolog 1,19206,223
+18974,Pten,phosphatase and tensin homolog,19211,265
+18976,Ptf1a,"pancreas specific transcription factor, 1a",19213,10304
+18978,Ptgds,prostaglandin D2 synthase (brain),19215,737
+18988,Ptgs2,prostaglandin-endoperoxide synthase 2,19225,31000
+18990,Pthlh,parathyroid hormone-like peptide,19227,2113
+13860,Ptk2,PTK2 protein tyrosine kinase 2,14083,7314
+47302,Ptk7,PTK7 protein tyrosine kinase 7,71461,43672
+19027,Ptprc,"protein tyrosine phosphatase, receptor type, C",19264,2126
+19035,Ptprk,"protein tyrosine phosphatase, receptor type, K",19272,55693
+19036,Ptpru,"protein tyrosine phosphatase, receptor type, U",19273,4168
+19046,Ptprz1,"protein tyrosine phosphatase, receptor type Z, polypeptide 1",19283,2136
+19056,Pvalb,parvalbumin,19293,2137
+37265,Pvrl1,poliovirus receptor-related 1,58235,2138
+19057,Pvrl2,poliovirus receptor-related 2,19294,86092
+37561,Pvrl3,poliovirus receptor-related 3,58998,9162
+47581,Pvrl4,poliovirus receptor-related 4,71740,32744
+47976,Pygo1,pygopus 1,72135,41050
+44753,Pygo2,pygopus 2,68911,44519
+85147,Pyy,peptide YY,217212,3066
+74548,Qdpr,quinoid dihydropteridine reductase,110391,271
+37252,Rab37,"RAB37, member RAS oncogene family",58222,23303
+19102,Rab3a,"RAB3A, member RAS oncogene family",19339,20629
+45749,Rab3b,"RAB3B, member RAS oncogene family",69908,2149
+19116,Rac1,RAS-related C3 botulinum substrate 1,19353,69035
+19117,Rac2,RAS-related C3 botulinum substrate 2,19354,55699
+82061,Rac3,RAS-related C3 botulinum substrate 3,170758,68433
+19140,Rai1,retinoic acid induced 1,19377,7508
+71908,Rapgef1,Rap guanine nucleotide exchange factor (GEF) 1,107746,50501
+85296,Rapgef5,Rap guanine nucleotide exchange factor (GEF) 5,217944,56563
+19164,Rara,"retinoic acid receptor, alpha",19401,20262
+85409,Rarb,"retinoic acid receptor, beta",218772,68100
+19174,Rarg,"retinoic acid receptor, gamma",19411,20263
+77440,Rasa2,RAS p21 protein activator 2,114713,4745
+19180,Rasgrf1,RAS protein-specific guanine nucleotide-releasing factor 1,19417,74972
+19181,Rasgrf2,RAS protein-specific guanine nucleotide-releasing factor 2,19418,2169
+19197,Rax,retina and anterior neural fold homeobox,19434,8383
+19408,Rb1,retinoblastoma 1,19645,272
+19427,Rbpj,recombination signal binding protein for immunoglobulin kappa J region,19664,7511
+19435,Rcn1,reticulocalbin 1,19672,20637
+68548,Rcor2,REST corepressor 2,104383,14280
+19460,Rela,v-rel reticuloendotheliosis viral oncogene homolog A (avian),19697,32064
+19462,Reln,reelin,19699,3699
+44545,Rere,arginine glutamic acid dipeptide (RE) repeats,68703,8101
+19475,Rest,RE1-silencing transcription factor,19712,4099
+19476,Ret,ret proto-oncogene,19713,7517
+19488,Rfx2,"regulatory factor X, 2 (influences HLA class II expression)",19725,30980
+46978,Rfx4,"regulatory factor X, 4 (influences HLA class II expression)",71137,31119
+33264,Rfx5,"regulatory factor X, 5 (influences HLA class II expression)",53970,388
+43708,Rgs10,regulator of G-protein signalling 10,67865,37710
+19499,Rgs4,regulator of G-protein signaling 4,19736,4100
+19507,Rheb,Ras homolog enriched in brain,19744,123916
+11635,Rhoa,"ras homolog gene family, member A",11848,1257
+121786,Rhox1,reproductive homeobox 1,385343,
+131349,Rhox10,reproductive homeobox 10,434769,86786
+83251,Rhox11,reproductive homeobox 11,194738,52370
+120612,Rhox12,reproductive homeobox 12,382282,54211
+37009,Rhox4b,reproductive homeobox 4B,57737,79553
+83266,Rhox4e,reproductive homeobox 4E,194856,79553
+18383,Rhox5,reproductive homeobox 5,18617,
+18965,Rhox6,reproductive homeobox 6,19202,124456
+131348,Rhox8,reproductive homeobox 8,434768,90879
+68549,Rhox9,reproductive homeobox 9,104384,124456
+19536,Rln1,relaxin 1,19773,55524
+84379,Rln3,relaxin 3,212108,15448
+11645,Rnd2,Rho family GTPase 2,11858,21123
+36015,Rnf14,ring finger protein 14,56736,129170
+19639,Robo1,roundabout homolog 1 (Drosophila),19876,2206
+92611,Robo2,roundabout homolog 2 (Drosophila),268902,43188
+19412,Robo3,roundabout homolog 3 (Drosophila),19649,32119
+19641,Rock2,Rho-associated coiled-coil containing protein kinase 2,19878,21010
+26310,Ror1,receptor tyrosine kinase-like orphan receptor 1,26563,3675
+26311,Ror2,receptor tyrosine kinase-like orphan receptor 2,26564,55831
+19646,Rora,RAR-related orphan receptor alpha,19883,56594
+86335,Rorb,RAR-related orphan receptor beta,225998,38250
+19648,Rorc,RAR-related orphan receptor gamma,19885,21051
+19649,Ros1,Ros1 proto-oncogene,19886,2207
+43717,Rprm,"reprimo, TP53 dependent G2 arrest mediator candidate",67874,10524
+19805,Rps12,ribosomal protein S12,20042,110750
+19865,Rps4x,"ribosomal protein S4, X-linked",20102,128052
+50211,Rptor,"regulatory associated protein of MTOR, complex 1",74370,80210
+44592,Rreb1,ras responsive element binding protein 1,68750,2218
+82848,Rspo1,R-spondin homolog (Xenopus laevis),192199,52148
+88569,Rspo2,R-spondin 2 homolog (Xenopus laevis),239405,18235
+48621,Rspo3,R-spondin 3 homolog (Xenopus laevis),72780,12484
+86769,Rspo4,"R-spondin family, member 4",228770,65290
+41603,Rtn4r,reticulon 4 receptor,65079,11299
+88381,Rtn4rl1,reticulon 4 receptor-like 1,237847,18611
+12179,Runx1,runt related transcription factor 1,12394,1331
+12180,Runx1t1,"runt-related transcription factor 1; translocated to, 1 (cyclin D-related)",12395,3801
+12178,Runx2,runt related transcription factor 2,12393,68389
+120252,Rxfp1,relaxin/insulin-like family peptide receptor 1,381489,11007
+88559,Rxfp3,relaxin family peptide receptor 3,239336,9568
+19944,Rxra,retinoid X receptor alpha,20181,2220
+19945,Rxrb,retinoid X receptor beta,20182,7923
+19946,Rxrg,retinoid X receptor gamma,20183,21373
+35633,Rybp,RING1 and YY1 binding protein,56353,8159
+19950,Ryk,receptor-like tyrosine kinase,20187,68287
+19957,S100a10,S100 calcium binding protein A10 (calpactin),20194,2228
+19966,S100b,"S100 protein, beta polypeptide, neural",20203,4567
+13387,S1pr1,sphingosine-1-phosphate receptor 1,13609,1071
+37230,Sall1,sal-like 1 (Drosophila),58198,2230
+30014,Sall2,sal-like 2 (Drosophila),50524,9269
+20451,Sall3,sal-like 3 (Drosophila),20689,18142
+63547,Sall4,sal-like 4 (Drosophila),99377,10716
+19993,Satb1,special AT-rich sequence binding protein 1,20230,2232
+84457,Satb2,special AT-rich sequence binding protein 2,212712,32249
+85488,Scara3,"scavenger receptor class A, member 3",219151,9437
+20540,Scarb1,"scavenger receptor class B, member 1",20778,21132
+86028,Scarf2,"scavenger receptor class F, member 2",224024,17817
+73391,Sccpdh,saccharopine dehydrogenase (putative),109232,9334
+20017,Scg2,secretogranin II,20254,2591
+20018,Scg3,secretogranin III,20255,7526
+20157,Scg5,secretogranin V,20394,130635
+20027,Scn10a,"sodium channel, voltage-gated, type X, alpha",20264,21300
+20028,Scn1a,"sodium channel, voltage-gated, type I, alpha",20265,21375
+124782,Scn4b,"sodium channel, type IV, beta",399548,18384
+20034,Scn5a,"sodium channel, voltage-gated, type V, alpha",20271,22738
+20039,Scnn1a,"sodium channel, nonvoltage-gated 1 alpha",20276,811
+50458,Scpep1,serine carboxypeptidase 1,74617,41443
+20050,Sct,secretin,20287,7928
+41281,Scube1,"signal peptide, CUB domain, EGF-like 1",64706,11224
+20052,Scx,scleraxis,20289,85195
+18059,Sebox,SEBOX homeobox,18292,32052
+20101,Sel1l,sel-1 suppressor of lin-12-like (C. elegans),20338,31286
+20108,Selplg,"selectin, platelet (p-selectin) ligand",20345,2261
+20109,Sema3a,"sema domain, immunoglobulin domain (Ig), short basic domain, secreted, (semaphorin) 3A",20346,31358
+20110,Sema3b,"sema domain, immunoglobulin domain (Ig), short basic domain, secreted, (semaphorin) 3B",20347,20972
+20111,Sema3c,"sema domain, immunoglobulin domain (Ig), short basic domain, secreted, (semaphorin) 3C",20348,36201
+72311,Sema3d,"sema domain, immunoglobulin domain (Ig), short basic domain, secreted, (semaphorin) 3D",108151,23664
+20112,Sema3e,"sema domain, immunoglobulin domain (Ig), short basic domain, secreted, (semaphorin) 3E",20349,8247
+20113,Sema3f,"sema domain, immunoglobulin domain (Ig), short basic domain, secreted, (semaphorin) 3F",20350,20885
+20114,Sema4a,"sema domain, immunoglobulin domain (Ig), transmembrane domain (TM) and short cytoplasmic domain, (semaphorin) 4A",20351,8425
+20115,Sema4b,"sema domain, immunoglobulin domain (Ig), transmembrane domain (TM) and short cytoplasmic domain, (semaphorin) 4B",20352,8426
+20116,Sema4c,"sema domain, immunoglobulin domain (Ig), transmembrane domain (TM) and short cytoplasmic domain, (semaphorin) 4C",20353,23047
+20117,Sema4d,"sema domain, immunoglobulin domain (Ig), transmembrane domain (TM) and short cytoplasmic domain, (semaphorin) 4D",20354,21282
+20118,Sema4f,"sema domain, immunoglobulin domain (Ig), TM domain, and short cytoplasmic domain",20355,3147
+26204,Sema4g,"sema domain, immunoglobulin domain (Ig), transmembrane domain (TM) and short cytoplasmic domain, (semaphorin) 4G",26456,22682
+20119,Sema5a,"sema domain, seven thrombospondin repeats (type 1 and type 1-like), transmembrane domain (TM) and short cytoplasmic domain, (semaphorin) 5A",20356,2949
+20120,Sema5b,"sema domain, seven thrombospondin repeats (type 1 and type 1-like), transmembrane domain (TM) and short cytoplasmic domain, (semaphorin) 5B",20357,8427
+20121,Sema6a,"sema domain, transmembrane domain (TM), and cytoplasmic domain, (semaphorin) 6A",20358,32426
+20122,Sema6b,"sema domain, transmembrane domain (TM), and cytoplasmic domain, (semaphorin) 6B",20359,8428
+20123,Sema6c,"sema domain, transmembrane domain (TM), and cytoplasmic domain, (semaphorin) 6C",20360,7931
+84750,Sema6d,"sema domain, transmembrane domain (TM), and cytoplasmic domain, (semaphorin) 6D",214968,16195
+20124,Sema7a,"sema domain, immunoglobulin domain (Ig), and GPI membrane anchor, (semaphorin) 7A",20361,2678
+20126,Sepp1,"selenoprotein P, plasma, 1",20363,3945
+20476,Serpina3k,"serine (or cysteine) peptidase inhibitor, clade A, member 3K",20714,40659
+47748,Serpina9,"serine (or cysteine) peptidase inhibitor, clade A (alpha-1 antiproteinase, antitrypsin), member 9",71907,23633
+42065,Serpinb1a,"serine (or cysteine) peptidase inhibitor, clade B, member 1a",66222,69399
+37204,Sertad2,SERTA domain containing 2,58172,8843
+49092,Setd7,SET domain containing (lysine methyltransferase) 7,73251,12741
+20140,Sfrp1,secreted frizzled-related protein 1,20377,2266
+20082,Sfrp2,secreted frizzled-related protein 2,20319,56438
+20142,Sfrp4,secreted frizzled-related protein 4,20379,2267
+33903,Sfrp5,secreted frizzled-related sequence protein 5,54612,2268
+23803,Sgcd,"sarcoglycan, delta (dystrophin-associated glycoprotein)",24052,285
+20156,Sgk1,serum/glucocorticoid regulated kinase 1,20393,48364
+84435,Sh3bgrl2,SH3 domain binding glutamic acid-rich protein like 2,212531,12876
+37264,Shank3,SH3/ankyrin domain gene 3,58234,75163
+20178,Shbg,sex hormone binding globulin,20415,813
+20179,Shc1,src homology 2 domain-containing transforming protein C1,20416,7934
+20186,Shh,sonic hedgehog,20423,30961
+20192,Shox2,short stature homeobox 2,20429,68535
+20227,Sim1,single-minded homolog 1 (Drosophila),20464,3715
+20228,Sim2,single-minded homolog 2 (Drosophila),20465,3716
+89268,Sipa1l2,signal-induced proliferation-associated 1 like 2,244668,18956
+20233,Six1,sine oculis-related homeobox 1,20471,4360
+20234,Six2,sine oculis-related homeobox 2,20472,56518
+20235,Six3,sine oculis-related homeobox 3,20473,3947
+20236,Six4,sine oculis-related homeobox 4,20474,69089
+20237,Six5,sine oculis-related homeobox 5,20475,72248
+20238,Six6,sine oculis-related homeobox 6,20476,7220
+83882,Skor1,SKI family transcriptional corepressor 1,207667,18175
+20258,Slc12a2,"solute carrier family 12, member 2",20496,20283
+20264,Slc16a2,"solute carrier family 16 (monocarboxylic acid transporters), member 2",20502,39495
+80230,Slc17a6,"solute carrier family 17 (sodium-dependent inorganic phosphate cotransporter), member 6",140919,121617
+48802,Slc17a7,"solute carrier family 17 (sodium-dependent inorganic phosphate cotransporter), member 7",72961,113454
+84940,Slc17a8,"solute carrier family 17 (sodium-dependent inorganic phosphate cotransporter), member 8",216227,13584
+75031,Slc18a1,"solute carrier family 18 (vesicular monoamine), member 1",110877,20664
+84624,Slc18a2,"solute carrier family 18 (vesicular monoamine), member 2",214084,2298
+20270,Slc18a3,"solute carrier family 18 (vesicular monoamine), member 3",20508,11022
+20272,Slc1a1,"solute carrier family 1 (neuronal/epithelial high affinity glutamate transporter, system Xag), member 1",20510,20881
+20273,Slc1a2,"solute carrier family 1 (glial high affinity glutamate transporter), member 2",20511,3075
+20274,Slc1a3,"solute carrier family 1 (glial high affinity glutamate transporter), member 3",20512,20882
+35249,Slc1a4,"solute carrier family 1 (glutamate/neutral amino acid transporter), member 4",55963,20655
+20275,Slc1a6,"solute carrier family 1 (high affinity aspartate/glutamate transporter), member 6",20513,21055
+89066,Slc29a4,"solute carrier family 29 (nucleoside transporters), member 4",243328,71345
+20287,Slc2a1,"solute carrier family 2 (facilitated glucose transporter), member 1",20525,68520
+22105,Slc32a1,"solute carrier family 32 (GABA vesicular transporter), member 1",22348,56451
+33240,Slc40a1,"solute carrier family 40 (iron-regulated transporter), member 1",53945,40959
+20299,Slc5a1,"solute carrier family 5 (sodium/glucose cotransporter), member 1",20537,55456
+87401,Slc6a1,"solute carrier family 6 (neurotransmitter transporter, GABA), member 1",232333,2290
+89107,Slc6a11,"solute carrier family 6 (neurotransmitter transporter, GABA), member 11",243616,129935
+14188,Slc6a13,"solute carrier family 6 (neurotransmitter transporter, GABA), member 13",14412,9592
+20300,Slc6a2,"solute carrier family 6 (neurotransmitter transporter, noradrenalin), member 2",20538,816
+12942,Slc6a3,"solute carrier family 6 (neurotransmitter transporter, dopamine), member 3",13162,55547
+15342,Slc6a4,"solute carrier family 6 (neurotransmitter transporter, serotonin), member 4",15567,817
+68410,Slc6a5,"solute carrier family 6 (neurotransmitter transporter, glycine), member 5",104245,37901
+26686,Slc9a3r1,"solute carrier family 9 (sodium/hydrogen exchanger), member 3 regulator 1",26941,3137
+109037,Slc9a9,"solute carrier family 9 (sodium/hydrogen exchanger), member 9",331004,69753
+20324,Slit1,slit homolog 1 (Drosophila),20562,2302
+20325,Slit2,slit homolog 2 (Drosophila),20563,3516
+20326,Slit3,slit homolog 3 (Drosophila),20564,2303
+52805,Slitrk1,"SLIT and NTRK-like family, member 1",76965,14174
+16895,Smad1,SMAD family member 1,17125,21196
+16896,Smad2,SMAD family member 2,17126,21197
+16897,Smad3,SMAD family member 3,17127,55937
+16898,Smad4,SMAD family member 4,17128,31310
+16899,Smad5,SMAD family member 5,17129,4313
+16900,Smad6,SMAD family member 6,17130,4079
+16901,Smad7,SMAD family member 7,17131,4314
+35279,Smad9,SMAD family member 9,55994,21198
+20348,Smarca4,"SWI/SNF related, matrix associated, actin dependent regulator of chromatin, subfamily a, member 4",20586,55712
+36650,Smarce1,"SWI/SNF related, matrix associated, actin dependent regulator of chromatin, subfamily e, member 1",57376,37727
+106692,Smo,smoothened homolog (Drosophila),319757,4115
+40707,Smoc2,SPARC related modular calcium binding 2,64074,11150
+20379,Snca,"synuclein, alpha",20617,293
+20380,Sncg,"synuclein, gamma",20618,2322
+27425,Snf8,"SNF8, ESCRT-II complex subunit, homolog (S. cerevisiae)",27681,5239
+20411,Sntb1,"syntrophin, basic 1",20649,9618
+42197,Snw1,SNW domain containing 1,66354,56557
+50275,Sohlh2,spermatogenesis and oogenesis specific basic helix-loop-helix 2,74434,9864
+20174,Sorbs1,sorbin and SH3 domain containing 1,20411,83252
+20422,Sorl1,"sortilin-related receptor, LDLR class A repeats-containing",20660,2336
+20423,Sort1,sortilin 1,20661,129885
+41885,Sostdc1,sclerostin domain containing 1,66042,9154
+88370,Sowaha,sosondowah ankyrin repeat domain family member A,237761,18488
+20427,Sox10,SRY (sex determining region Y)-box 10,20665,5055
+20428,Sox11,SRY (sex determining region Y)-box 11,20666,37733
+20429,Sox12,SRY (sex determining region Y)-box 12,20667,5057
+20430,Sox13,SRY (sex determining region Y)-box 13,20668,4159
+20431,Sox14,SRY (sex determining region Y)-box 14,20669,31224
+20432,Sox15,SRY (sex determining region Y)-box 15,20670,74586
+20433,Sox17,SRY (sex determining region Y)-box 17,20671,7948
+20434,Sox18,SRY (sex determining region Y)-box 18,20672,7546
+20436,Sox2,SRY (sex determining region Y)-box 2,20674,68298
+85888,Sox21,SRY (sex determining region Y)-box 21,223227,5143
+20437,Sox3,SRY (sex determining region Y)-box 3,20675,4118
+84627,Sox30,SRY (sex determining region Y)-box 30,214105,34027
+20439,Sox4,SRY (sex determining region Y)-box 4,20677,2338
+20440,Sox5,SRY (sex determining region Y)-box 5,20678,21378
+20441,Sox6,SRY (sex determining region Y)-box 6,20679,22631
+20442,Sox7,SRY (sex determining region Y)-box 7,20680,7949
+20443,Sox8,SRY (sex determining region Y)-box 8,20681,7950
+20444,Sox9,SRY (sex determining region Y)-box 9,20682,294
+20449,Sp3,trans-acting transcription factor 3,20687,7952
+41007,Sp5,trans-acting transcription factor 5,64406,11190
+107080,Sp8,trans-acting transcription factor 8,320145,18548
+120188,Sp9,trans-acting transcription factor 9,381373,66935
+20454,Sparc,secreted acidic cysteine rich glycoprotein,20692,31132
+29762,Spdef,SAM pointed domain containing ets transcription factor,30051,8231
+35661,Spen,"SPEN homolog, transcriptional regulator (Drosophila)",56381,124461
+20138,Spi1,spleen focus forming virus (SFFV) proviral integration oncogene,20375,2346
+93060,Spib,Spi-B transcription factor (Spi-1/PU.1 related),272382,79220
+20490,Spic,Spi-C transcription factor (Spi-1/PU.1 related),20728,7953
+20495,Spint2,"serine protease inhibitor, Kunitz type 2",20733,7955
+20512,Spp1,secreted phosphoprotein 1,20750,20156
+56098,Sptbn4,"spectrin beta, non-erythrocytic 4",80297,11879
+54765,Srd5a1,steroid 5 alpha-reductase 1,78925,37426
+20549,Srebf1,sterol regulatory element binding transcription factor 1,20787,3079
+20550,Srebf2,sterol regulatory element binding factor 2,20788,20966
+20569,Srf,serum response factor,20807,31135
+20579,Srpk2,serine/arginine-rich protein specific kinase 2,20817,101663
+21435,Sry,sex determining region of Chr Y,21674,
+92739,Ss18l1,synovial sarcoma translocation gene on chromosome 18-like 1,269397,9191
+20595,Ssrp1,structure specific recognition protein 1,20833,110735
+20366,Sst,somatostatin,20604,819
+20367,Sstr1,somatostatin receptor 1,20605,820
+20368,Sstr2,somatostatin receptor 2,20606,37427
+20369,Sstr3,somatostatin receptor 3,20607,20285
+20370,Sstr4,somatostatin receptor 4,20608,20286
+88752,St18,suppression of tumorigenicity 18,240690,8792
+40846,St7,suppression of tumorigenicity 7,64213,10185
+81782,Stard5,StAR-related lipid transfer (START) domain containing 5,170460,11346
+20608,Stat1,signal transducer and activator of transcription 1,20846,21428
+20610,Stat3,signal transducer and activator of transcription 3,20848,7960
+20611,Stat4,signal transducer and activator of transcription 4,20849,20679
+20612,Stat5a,signal transducer and activator of transcription 5A,20850,20680
+20613,Stat5b,signal transducer and activator of transcription 5B,20851,55718
+78462,Steap4,STEAP family member 4,117167,36422
+107544,Strip2,striatin interacting protein 2,320609,66198
+20669,Stx1a,syntaxin 1A (brain),20907,37941
+20670,Stx3,syntaxin 3,20908,80191
+85214,Stxbp6,syntaxin binding protein 6 (amisyn),217517,8579
+89116,Styk1,serine/threonine/tyrosine kinase 1,243659,49545
+77466,Supt16,suppressor of Ty 16,114741,5207
+20686,Supt5,suppressor of Ty 5,20924,2384
+20725,Syn1,synapsin I,20964,48483
+47844,Synpr,synaptoporin,72003,11407
+20740,Syt1,synaptotagmin I,20979,4122
+33817,Syt10,synaptotagmin X,54526,10303
+21094,Tac1,tachykinin 1,21333,2394
+21095,Tac2,tachykinin 2,21334,7560
+21097,Tacr1,tachykinin receptor 1,21336,20288
+21098,Tacr2,tachykinin receptor 2,21337,55548
+21099,Tacr3,tachykinin receptor 3,21338,824
+63900,Taf13,"TAF13 RNA polymerase II, TATA box binding protein (TBP)-associated factor",99730,4126
+21104,Taf6,"TAF6 RNA polymerase II, TATA box binding protein (TBP)-associated factor",21343,7561
+23825,Taf7,"TAF7 RNA polymerase II, TATA box binding protein (TBP)-associated factor",24074,11768
+72303,Taf9,"TAF9 RNA polymerase II, TATA box binding protein (TBP)-associated factor",108143,39986
+21107,Tagln2,transgelin 2,21346,20789
+21110,Tal1,T cell acute lymphocytic leukemia 1,21349,2400
+21111,Tal2,T cell acute lymphocytic leukemia 2,21350,3954
+21136,Tbr1,T-box brain gene 1,21375,4807
+21145,Tbx15,T-box 15,21384,7967
+52206,Tbx18,T-box18,76365,11384
+58209,Tbx19,T-box 19,83993,3779
+21146,Tbx2,T-box 2,21385,38123
+36522,Tbx20,T-box 20,57246,32476
+37037,Tbx21,T-box 21,57765,8353
+21147,Tbx3,T-box 3,21386,4371
+51711,Tcam1,testicular cell adhesion molecule 1,75870,123944
+43766,Tceb1,"transcription elongation factor B (SIII), polypeptide 1",67923,38083
+46412,Tcerg1l,transcription elongation regulator 1-like,70571,52165
+21167,Tcf12,transcription factor 12,21406,40774
+21168,Tcf15,transcription factor 15,21407,37943
+21172,Tcf20,transcription factor 20,21411,4131
+21173,Tcf21,transcription factor 21,21412,2414
+45693,Tcf23,transcription factor 23,69852,76449
+42698,Tcf25,transcription factor 25 (basic helix-loop-helix),66855,5701
+21184,Tcf3,transcription factor 3,21423,2408
+21174,Tcf4,transcription factor 4,21413,2407
+21175,Tcf7,"transcription factor 7, T cell specific",21414,2410
+21176,Tcf7l1,"transcription factor 7 like 1 (T cell specific, HMG box)",21415,7563
+21177,Tcf7l2,"transcription factor 7 like 2, T cell specific, HMG box",21416,7564
+93209,Tcfl5,transcription factor-like 5 (basic helix-loop-helix),277353,4814
+21428,Tdgf1,teratocarcinoma-derived growth factor 1,21667,2416
+35999,Tdo2,"tryptophan 2,3-dioxygenase",56720,4132
+21437,Tead1,TEA domain family member 1,21676,2418
+21438,Tead2,TEA domain family member 2,21677,19662
+21439,Tead3,TEA domain family member 3,21678,81821
+21445,Tef,thyrotroph embryonic factor,21685,31140
+21447,Tek,endothelial-specific receptor tyrosine kinase,21687,397
+23716,Tenm3,teneurin transmembrane protein 3,23965,22673
+21511,Tert,telomerase reverse transcriptase,21752,31141
+21539,Tfam,"transcription factor A, mitochondrial",21780,31139
+21179,Tfap2a,"transcription factor AP-2, alpha",21418,2421
+21180,Tfap2b,transcription factor AP-2 beta,21419,20688
+21181,Tfap2c,"transcription factor AP-2, gamma",21420,2423
+86489,Tfap2d,"transcription factor AP-2, delta",226896,17700
+109135,Tfap2e,"transcription factor AP-2, epsilon",332937,2422
+57632,Tfap4,transcription factor AP4,83383,2424
+15053,Tfb2m,"transcription factor B2, mitochondrial",15278,7362
+21183,Tfcp2,transcription factor CP2,21422,4134
+21540,Tfdp1,transcription factor Dp 1,21781,38276
+84320,Tfdp2,transcription factor Dp 2,211586,4578
+84108,Tfe3,transcription factor E3,209446,4755
+21186,Tfeb,transcription factor EB,21425,5182
+21187,Tfec,transcription factor EC,21426,32148
+21561,Tgfa,transforming growth factor alpha,21802,2431
+21562,Tgfb1,"transforming growth factor, beta 1",21803,540
+21567,Tgfb2,"transforming growth factor, beta 2",21808,2432
+21568,Tgfb3,"transforming growth factor, beta 3",21809,2433
+21571,Tgfbr1,"transforming growth factor, beta receptor I",21812,3177
+21572,Tgfbr2,"transforming growth factor, beta receptor II",21813,2435
+21573,Tgfbr3,"transforming growth factor, beta receptor III",21814,2436
+21574,Tgif1,TGFB-induced factor homeobox 1,21815,7574
+86790,Tgif2,TGFB-induced factor homeobox 2,228839,32514
+89412,Tgif2lx1,"TGFB-induced factor homeobox 2-like, X-linked 1",245583,51391
+21575,Tgm1,"transglutaminase 1, K polypeptide",21816,306
+21582,Th,tyrosine hydroxylase,21823,307
+21586,Thbs3,thrombospondin 3,21827,5159
+21592,Thra,thyroid hormone receptor alpha,21833,37747
+21593,Thrb,thyroid hormone receptor beta,21834,36025
+21603,Tiam1,T cell lymphoma invasion and metastasis 1,21844,2443
+23752,Tiam2,T cell lymphoma invasion and metastasis 2,24001,40796
+21605,Tie1,tyrosine kinase with immunoglobulin-like and EGF-like domains 1,21846,3957
+69899,Tigd5,tigger transposable element derived 5,105734,129878
+21644,Tle1,"transducin-like enhancer of split 1, homolog of Drosophila E(spl)",21885,21058
+21646,Tle3,"transducin-like enhancer of split 3, homolog of Drosophila E(spl)",21887,21059
+21647,Tle4,"transducin-like enhancer of split 4, homolog of Drosophila E(spl)",21888,38259
+77337,Tle6,"transducin-like enhancer of split 6, homolog of Drosophila E(spl)",114606,11701
+23839,Tlr2,toll-like receptor 2,24088,20695
+21665,Tlx1,"T cell leukemia, homeobox 1",21908,4031
+21666,Tlx2,"T cell leukemia, homeobox 2",21909,7575
+26885,Tlx3,"T cell leukemia, homeobox 3",27140,23181
+41954,Tmed3,transmembrane emp24 domain containing 3,66111,7213
+87282,Tmem119,transmembrane protein 119,231633,17145
+85299,Tmem196,transmembrane protein 196,217951,27397
+21680,Tnc,tenascin C,21923,55636
+21681,Tnnc1,"troponin C, cardiac/slow skeletal",21924,55728
+21712,Tnnt1,"troponin T1, skeletal, slow",21955,20704
+21726,Top1,topoisomerase (DNA) I,21969,2467
+89963,Tox,thymocyte selection-associated high mobility group box,252838,8822
+92738,Tox2,TOX high mobility group box family member 2,269389,13155
+89252,Tox3,TOX high mobility group box family member 3,244579,18257
+92572,Tox4,TOX high mobility group box family member 4,268741,8889
+21744,Tpd52l1,tumor protein D52-like 1,21987,2468
+21747,Tph1,tryptophan hydroxylase 1,21990,121565
+84950,Tph2,tryptophan hydroxylase 2,216343,27831
+13213,Trdmt1,tRNA aspartic acid methyltransferase 1,13434,3249
+21798,Trf,transferrin,22041,68153
+21801,Trh,thyrotropin releasing hormone,22044,5163
+21802,Trhr,thyrotropin releasing hormone receptor,22045,20707
+85202,Trib2,tribbles homolog 2 (Drosophila),217410,41445
+21607,Trim24,tripartite motif-containing 24,21848,20830
+21608,Trim28,tripartite motif-containing 28,21849,21175
+27849,Trim36,tripartite motif-containing 36,28105,10275
+108948,Trim66,tripartite motif-containing 66,330627,28044
+45557,Trip13,thyroid hormone receptor interactor 13,69716,3125
+35684,Trip4,thyroid hormone receptor interactor 4,56404,9426
+21816,Trp53,transformation related protein 53,22059,460
+93222,Trp53i11,transformation related protein 53 inducible protein 11,277414,4404
+21818,Trp63,transformation related protein 63,22061,31189
+21819,Trp73,transformation related protein 73,22062,3960
+21823,Trpc4,"transient receptor potential cation channel, subfamily C, member 4",22066,22955
+21824,Trpc5,"transient receptor potential cation channel, subfamily C, member 5",22067,74915
+21825,Trpc6,"transient receptor potential cation channel, subfamily C, member 6",22068,37944
+58142,Trps1,trichorhinophalangeal syndrome I (human),83925,8556
+83052,Trpv1,"transient receptor potential cation channel, subfamily V, member 1",193034,12920
+40516,Trpv4,"transient receptor potential cation channel, subfamily V, member 4",63873,11003
+41454,Tsc1,tuberous sclerosis 1,64930,314
+21841,Tsc2,tuberous sclerosis 2,22084,462
+21566,Tsc22d1,"TSC22 domain family, member 1",21807,7573
+14381,Tsc22d3,"TSC22 domain family, member 3",14605,104035
+54669,Tsc22d4,"TSC22 domain family, member 4",78829,11390
+74951,Tshz1,teashirt zinc finger family member 1,110796,4227
+86813,Tshz2,teashirt zinc finger family member 2,228911,35258
+42968,Tspan31,tetraspanin 31,67125,4359
+49885,Ttf2,"transcription termination factor, RNA polymerase II",74044,37826
+21896,Ttr,transthyretin,22139,317
+37048,Ttyh1,tweety homolog 1 (Drosophila),57776,10779
+21909,Tubb3,"tubulin, beta 3 class III",22152,68503
+44684,Tulp4,tubby like protein 4,68842,32467
+21917,Twist1,twist basic helix-loop-helix transcription factor 1,22160,402
+13125,Twist2,twist basic helix-loop-helix transcription factor 2,13345,40594
+21931,Tyro3,TYRO3 protein tyrosine kinase 3,22174,4585
+21972,Ube3a,ubiquitin protein ligase E3A,22215,7988
+21190,Ubtf,"upstream binding transcription factor, RNA polymerase I",21429,7970
+144479,Ubtfl1,"upstream binding transcription factor, RNA polymerase I-like 1",546118,110115
+21983,Ucn,urocortin,22226,2515
+57672,Ucn3,urocortin 3,83428,49959
+71613,Unc5a,unc-5 homolog A (C. elegans),107448,41474
+71614,Unc5b,unc-5 homolog B (C. elegans),107449,32538
+22010,Unc5c,unc-5 homolog C (C. elegans),22253,2765
+84240,Unc5d,unc-5 homolog D (C. elegans),210801,15450
+22012,Uncx,UNC homeobox,22255,56598
+22035,Usf1,upstream transcription factor 1,22278,31426
+22039,Usf2,upstream transcription factor 2,22282,2527
+22074,Vamp1,vesicle-associated membrane protein 1,22317,40678
+22080,Vasp,vasodilator-stimulated phosphoprotein,22323,7592
+26694,Vat1,vesicle amine transport protein 1 homolog (T californica),26949,36200
+92920,Vat1l,vesicle amine transport protein 1 homolog-like (T. californica),270097,10855
+22082,Vav2,vav 2 oncogene,22325,2530
+22083,Vax1,ventral anterior homeobox 1,22326,7593
+23864,Vax2,ventral anterior homeobox 2,24113,8048
+22094,Vdr,vitamin D receptor,22337,37297
+22096,Vegfa,vascular endothelial growth factor A,22339,2534
+22097,Vegfb,vascular endothelial growth factor B,22340,87131
+22098,Vegfc,vascular endothelial growth factor C,22341,3962
+120344,Vgf,VGF nerve growth factor inducible,381677,2536
+22110,Vip,vasoactive intestinal polypeptide,22353,2539
+22111,Vipr1,vasoactive intestinal peptide receptor 1,22354,3399
+22112,Vipr2,vasoactive intestinal peptide receptor 2,22355,2540
+77607,Vsx1,visual system homeobox 1 homolog (zebrafish),114889,8743
+12462,Vsx2,visual system homeobox 2,12677,7266
+85441,Wdhd1,WD repeat and HMG-box DNA binding protein 1,218973,56019
+37022,Wdr12,WD repeat domain 12,57750,10098
+22150,Wfs1,Wolfram syndrome 1 homolog (human),22393,4380
+49591,Whrn,whirlin,73750,18739
+71985,Whsc1,Wolf-Hirschhorn syndrome candidate 1 (human),107823,26175
+23868,Wif1,Wnt inhibitory factor 1,24117,31430
+22159,Wisp1,WNT1 inducible signaling pathway protein 1,22402,2883
+22165,Wnt1,"wingless-type MMTV integration site family, member 1",22408,3963
+22166,Wnt10a,"wingless-type MMTV integration site family, member 10A",22409,22525
+22167,Wnt10b,"wingless-type MMTV integration site family, member 10B",22410,20721
+22168,Wnt11,"wingless-type MMTV integration site family, member 11",22411,20970
+60387,Wnt16,"wingless-type MMTV integration site family, member 16",93735,62175
+22170,Wnt2,"wingless-type MMTV integration site family, member 2",22413,20719
+22171,Wnt2b,"wingless-type MMTV integration site family, member 2B",22414,22526
+22172,Wnt3,"wingless-type MMTV integration site family, member 3",22415,22527
+22173,Wnt3a,"wingless-type MMTV integration site family, member 3A",22416,22528
+22174,Wnt4,"wingless-type MMTV integration site family, member 4",22417,22529
+22175,Wnt5a,"wingless-type MMTV integration site family, member 5A",22418,20720
+22176,Wnt5b,"wingless-type MMTV integration site family, member 5B",22419,22530
+22177,Wnt6,"wingless-type MMTV integration site family, member 6",22420,4756
+22178,Wnt7a,"wingless-type MMTV integration site family, member 7A",22421,20969
+22179,Wnt7b,"wingless-type MMTV integration site family, member 7B",22422,22531
+20652,Wnt8a,"wingless-type MMTV integration site family, member 8A",20890,7553
+22180,Wnt8b,"wingless-type MMTV integration site family, member 8B",22423,2550
+85049,Wnt9a,"wingless-type MMTV integration site family, member 9A",216795,20722
+22169,Wnt9b,"wingless-type MMTV integration site family, member 9B",22412,2551
+61234,Wwtr1,WW domain containing transcription regulator 1,97064,9159
+22190,Xbp1,X-box binding protein 1,22433,3722
+82048,Xpnpep2,"X-prolyl aminopeptidase (aminopeptidase P) 2, membrane-bound",170745,37766
+88024,Zbtb16,zinc finger and BTB domain containing 16,235320,21214
+35770,Zbtb20,zinc finger and BTB domain containing 20,56490,9226
+36084,Zbtb33,zinc finger and BTB domain containing 33,56805,4931
+16739,Zbtb7a,zinc finger and BTB domain containing 7a,16969,7820
+22481,Zbtb7b,zinc finger and BTB domain containing 7B,22724,7605
+46387,Zdhhc2,"zinc finger, DHHC domain containing 2",70546,81667
+21178,Zeb1,zinc finger E-box binding homeobox 1,21417,31779
+23887,Zeb2,zinc finger E-box binding homeobox 2,24136,8868
+88528,Zfhx2,zinc finger homeobox 2,239102,52657
+11693,Zfhx3,zinc finger homeobox 3,11906,21366
+56662,Zfhx4,zinc finger homeodomain 4,80892,23477
+83115,Zfp184,zinc finger protein 184 (Kruppel-like),193452,113602
+87008,Zfp189,zinc finger protein 189,230162,20737
+37620,Zfp191,zinc finger protein 191,59057,5068
+22437,Zfp207,zinc finger protein 207,22680,2581
+49961,Zfp263,zinc finger protein 263,74120,4197
+11978,Zfp36l1,"zinc finger protein 36, C3H type-like 1",12192,31276
+88115,Zfp445,zinc finger protein 445,235682,27832
+22461,Zfp46,zinc finger protein 46,22704,40684
+88953,Zfp462,zinc finger protein 462,242466,41430
+120835,Zfp488,zinc finger protein 488,382867,17688
+108583,Zfp516,zinc finger protein 516,329003,37122
+86218,Zfp521,zinc finger protein 521,225207,9151
+88584,Zfp647,zinc finger protein 647,239546,27805
+48147,Zfp777,zinc finger protein 777,72306,56721
+22519,Zfpm2,"zinc finger protein, multitype 2",22762,8008
+22527,Zhx1,zinc fingers and homeoboxes 1,22770,5225
+122629,Zhx2,zinc fingers and homeoboxes 2,387609,8968
+107734,Zhx3,zinc fingers and homeoboxes 3,320799,9000
+22528,Zic1,zinc finger protein of the cerebellum 1,22771,2562
+22529,Zic2,zinc finger protein of the cerebellum 2,22772,5171
+22530,Zic3,zinc finger protein of the cerebellum 3,22773,55742
+22531,Zic4,zinc finger protein of the cerebellum 4,22774,32075
+41618,Zic5,zinc finger protein of the cerebellum 5,65100,11301
+50411,Zkscan1,zinc finger with KRAB and SCAN domains 1,74570,34523
+32192,Zkscan6,zinc finger with KRAB and SCAN domains 6,52712,12119
+60333,Zkscan8,zinc finger with KRAB and SCAN domains 8,93681,21268
+107093,Zmat4,"zinc finger, matrin type 4",320158,81899
+129320,Zscan26,zinc finger and SCAN domain containing 26,432731,43739
