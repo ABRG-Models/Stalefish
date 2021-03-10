@@ -494,20 +494,13 @@ public:
 
         morph::HdfData d(this->datafile);
 
-        // Pass in mapAlignAngle for generating the angle maps and rebuild
-        // globalLandmarks afresh from the frames.
-        this->globalLandmarks.clear();
-        for (auto f : this->vFrameData) {
-            f.write (d, this->mapAlignAngle);
-            for (unsigned int glmi = 0; glmi < f.GLM.size(); ++glmi) {
-                this->globalLandmarks.push_back (std::make_pair ((unsigned int)(f.idx+1), glmi));
-            }
-        }
+        // Pass in mapAlignAngle for generating the angle maps
+        for (auto f : this->vFrameData) { f.write (d, this->mapAlignAngle); }
 
         std::cout << "Exporting globallandmarks which has size " << this->globalLandmarks.size() << std::endl;
         // /globallandmarks is an index. See this->globalLandmarks. This gives the index
         // of the frame and within that frame the element of FrameData::GLM for each
-        // global landmark.
+        // global landmark. Order is that in which user added them.
         d.add_contained_vals ("/global_landmarks", this->globalLandmarks);
 
         // For each frame also collect 2d Map data. That's /class/layer_x, /signal/postproc/boxes/means, lmalign/flattened/sbox_linear_distance
@@ -760,6 +753,13 @@ public:
     //! with a corresponding set of global landmarks from another data set. The pair in
     //! the vector holds as .first, the frame number of that global landmark (counting
     //! from 1) and as .second, the index within FrameData::GLM (counting from 0).
+    //! UPDATE: Working with Allen data, which is saggital, means I have to have another
+    //! way to order the global landmarks. I can't rely on the slice ordering - with
+    //! transverse slices ordered from rostral to caudal - to give me the order of
+    //! global landmarks, so I need to preserve the *order in which the user adds the
+    //! global landmarks*. So, the meaning of the pair remains unchanged, but the order
+    //! of the vector is now important and has to retain the order in which the user
+    //! entered the marks.
     std::vector<std::pair<unsigned int, unsigned int>> globalLandmarks;
 
     //! Adapted from Seb's futil library. Create unique file name for temporary file
@@ -1169,7 +1169,8 @@ public:
         }
     }
 
-    //! Draw the global land marks
+    //! Draw the global land marks. The order of global landmarks is defined by order in
+    //! which the user placed them.
     void draw_global_landmarks (const cv::Point& pt)
     {
         DM* _this = DM::i();
@@ -1177,16 +1178,15 @@ public:
         FrameData* cf = _this->gcf();
 
         // circle under the cursor
-        if (cf->ct == InputMode::GlobalLandmark) {
-            circle (*pImg, pt, 7, SF_BLUEISH, 1);
-        }
+        if (cf->ct == InputMode::GlobalLandmark) { circle (*pImg, pt, 7, SF_BLUEISH, 1); }
 
         // Iterate through the frames, to find out what starting index is for the global
         // landmarks on this slice
         size_t start_gl = 1;
-        for (auto f : this->vFrameData) {
-            if (f.idx == cf->idx) { break; }
-            if (f.GLM.size() > 0) { start_gl += f.GLM.size(); }
+        for (const std::pair<unsigned int, unsigned int>& glm : this->globalLandmarks) {
+            int glm_fidx = glm.first-1;
+            if (glm_fidx == cf->idx) { break; }
+            start_gl += this->vFrameData[glm_fidx].GLM.size();
         }
 
         // Draw circles for the axismarks, with a number next to each one.
@@ -1208,9 +1208,7 @@ public:
         FrameData* cf = _this->gcf();
 
         // circle under the cursor
-        if (cf->ct == InputMode::Landmark) {
-            circle (*pImg, pt, 7, SF_BLACK, 1);
-        }
+        if (cf->ct == InputMode::Landmark) { circle (*pImg, pt, 7, SF_BLACK, 1); }
 
         // Draw circles for the landmarks, with a number next to each one.
         cv::Point toffset(8,5); // a text offset
@@ -1258,8 +1256,7 @@ public:
 
     void removeLastThing()
     {
-        // If we're removing a global landmark, have to delete from globalLandmarks,
-        // first.
+        // If we're removing a global landmark, have to delete from globalLandmarks first.
         FrameData* cf = this->gcf();
         if (cf->ct == InputMode::GlobalLandmark) {
             if (!cf->GLM.empty()) {
