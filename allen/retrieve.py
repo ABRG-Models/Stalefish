@@ -75,7 +75,7 @@ def getImageToImageOffsets (images, x, y):
 #
 # Do we downsample the image? downsample 1 divides images in two; downsample 2 makes
 # image a quarter size (along a length), etc.
-def retrieve (exptstr, downsample=3, do_download_expr=0):
+def retrieve (exptstr, downsample=2, do_download_expr=0):
 
     # Values that are going to go into the top level of the expt json file
     section_thickness = -1
@@ -265,8 +265,8 @@ if len(sys.argv) < 2:
     print (' Where expt_number is the number you find for a given slice sequence on the')
     print (' Allen Developing Mouse website')
     print ('')
-    print (' [downsample_num] defaults to 3 and is the number of times the original image')
-    print (' on the Allen server is reduced in size before being sent to you')
+    print (' [downsample_num] defaults to 2 and is the number of times the original (huge) image')
+    print (' on the Allen server is halved in side length before being sent to you')
     print ('')
     print (' [download_expression_images] should be 0 or 1 (if present; defaults to 0)')
     print ('')
