@@ -83,6 +83,22 @@ protected:
     }
 };
 
+// Global colour ordering, used for surfaces and global landmarks
+// 0 red .2 yellow .3 green .4 cyan green .5 cyan .6 blue .7 blue .8 purple .9 red
+vector<float> sfview_hues = {0.0f, 0.7f, 0.8f, 0.1f, 0.5f, 0.6f, 0.1f, 0.8f};
+// Return an application-common hue matching the index idx. Used for surface colours and
+// global landmarks.
+float get_sfview_hue (unsigned int idx)
+{
+    float hue = 0.0f;
+    if (idx < sfview_hues.size()) {
+        hue = sfview_hues[idx];
+    } else {
+        hue = 0.8f;
+    }
+    return hue;
+}
+
 //! libpopt features - the features that are available to change on the command line.
 struct CmdOptions
 {
@@ -332,6 +348,7 @@ void computeTransforms (const vector<string>& datafiles,
 int addLandmarks (SFVisual& v, const string& datafile, const CmdOptions& co,
                   const morph::TransformMatrix<float>& M, int number)
 {
+    std::cout << __FUNCTION__ << " called\n";
     int rtn = 0;
 
     bool align_lm = co.use_autoalign > 0 ? false : true;
@@ -390,6 +407,7 @@ int addLandmarks (SFVisual& v, const string& datafile, const CmdOptions& co,
                     morph::Vector<float, 4> _lm = M * morph::Vector<float, 3>({lm[0],lm[1],lm[2]});
                     landmarks_autoaligned.push_back ({_lm[0], _lm[1], _lm[2]});
                     lmid = (float)lmcount++ / lmidmax;
+
                     landmarks_id.push_back (lmid);
                 }
                 //! convert from vector<array> to vector<Vector> transforming as we go
@@ -402,6 +420,7 @@ int addLandmarks (SFVisual& v, const string& datafile, const CmdOptions& co,
             // Now process global landmarks
             std::vector<std::pair<unsigned int, unsigned int>> glm_table;
             d.read_contained_vals ("/global_landmarks", glm_table);
+            float glmcount = 1.0f;
             for (auto glm : glm_table) {
                 std::cout << "Frame: " << glm.first << ", index: " << glm.second << std::endl;
                 stringstream ss;
@@ -425,7 +444,9 @@ int addLandmarks (SFVisual& v, const string& datafile, const CmdOptions& co,
                     } else {
                         globlm_autoaligned.push_back ({_glm[0], _glm[1], _glm[2]});
                     }
-                    glm_id.push_back (0.3f/number);
+                    glm_id.push_back (glmcount);
+                    glmcount -= 0.2f;
+                    std::cout << "Added global landmark sphere, glm_id = " << glm_id.back() << std::endl;
                 }
             }
 
@@ -453,17 +474,31 @@ int addLandmarks (SFVisual& v, const string& datafile, const CmdOptions& co,
                                                                            morph::ColourMapType::Jet));
                 v.landmarks.push_back (visId);
             } else {
-                visId = v.addVisualModel (new morph::ScatterVisual<float> (v.shaderprog,
-                                                                           &landmarks_autoaligned, offset,
-                                                                           &landmarks_id, 0.07f, scale,
-                                                                           morph::ColourMapType::Plasma));
+                morph::ScatterVisual<float>* lmv = new morph::ScatterVisual<float> (v.shaderprog, offset);
+                lmv->dataCoords = &landmarks_autoaligned;
+                lmv->scalarData = &landmarks_id;
+                lmv->radiusFixed = 0.07f;
+                lmv->colourScale = scale;
+                lmv->cm.setType (morph::ColourMapType::Plasma);
+                lmv->finalize();
+                visId = v.addVisualModel (lmv);
+
                 v.landmarks.push_back (visId);
 
-                std::cout << "Showing auto aligned global landmarks...\n";
-                visId = v.addVisualModel (new morph::ScatterVisual<float> (v.shaderprog,
-                                                                           &globlm_autoaligned, offset,
-                                                                           &glm_id, 0.1f*number, scale,
-                                                                           morph::ColourMapType::Plasma));
+                std::cout << "Showing auto aligned global landmarks number " << number << "...\n";
+                morph::ScatterVisual<float>* glmv = new morph::ScatterVisual<float> (v.shaderprog, offset);
+                glmv->dataCoords = &globlm_autoaligned;
+                glmv->scalarData = &glm_id; // Not ID for the number, instead, pass in index.
+                glmv->radiusFixed = 0.05f;
+                glmv->colourScale.compute_autoscale (0, 1);
+                float hue = get_sfview_hue (number-1);
+                //glmv->cm.setType (morph::ColourMapType::Fixed);
+                //glmv->cm.setHSV (hue, 1.0f, 1.0f);
+                glmv->cm.setType (morph::ColourMapType::Monochrome);
+                glmv->cm.setHue (hue);
+                glmv->finalize();
+                visId = v.addVisualModel (glmv);
+
                 v.landmarks.push_back (visId);
             }
         }
@@ -510,8 +545,11 @@ int addVisMod (SFVisual& v, const string& datafile, const CmdOptions& co, const 
         vector<morph::Vector<float>> points_scaled; // Centres of boxes; for smooth surface (points rows)
         vector<float> means;
 
+        // For the 'centres' These are the locations, around the curve that are an equal
+        // angle about the user-defined brain axis.
         vector<morph::Vector<float>> centres_lmaligned;
         vector<morph::Vector<float>> centres_autoaligned;
+        // Alignment landmarks
         vector<morph::Vector<float>> AM_origins_lmaligned;
         vector<morph::Vector<float>> AM_origins_autoaligned;
         vector<float> centres_id;
@@ -569,6 +607,7 @@ int addVisMod (SFVisual& v, const string& datafile, const CmdOptions& co, const 
 
                 cp[1] = fitted_autoaligned[caa_idx].x;
                 cp[2] = fitted_autoaligned[caa_idx].y;
+                std::cout << "Applying M to centre location\n";
                 _cp = M * cp;
                 centres_autoaligned.push_back ({_cp[0], _cp[1], _cp[2]});
                 centres_id.push_back (0.1f*(float)i);
@@ -580,6 +619,7 @@ int addVisMod (SFVisual& v, const string& datafile, const CmdOptions& co, const 
                     d.read_contained_vals (str.c_str(), AM_lmaligned);
                     cp[1] = AM_lmaligned[0].x;
                     cp[2] = AM_lmaligned[0].y;
+                    std::cout << "Applying M to alignment mark location (lmaligned)\n";
                     _cp = M * cp;
                     //std::cout << "Got LM alignmark at " << _cp[0] << "," << _cp[1] << "," << _cp[2] << ".\n";
                     AM_origins_lmaligned.push_back ({_cp[0], _cp[1], _cp[2]});
@@ -595,6 +635,7 @@ int addVisMod (SFVisual& v, const string& datafile, const CmdOptions& co, const 
                     d.read_contained_vals (str.c_str(), AM_autoaligned);
                     cp[1] = AM_autoaligned[0].x;
                     cp[2] = AM_autoaligned[0].y;
+                    std::cout << "Applying M to alignment mark location (autoaligned)\n";
                     _cp = M * cp;
                     //std::cout << "Got Auto alignmark at " << _cp[0] << "," << _cp[1] << "," << _cp[2] << ".\n";
                     AM_origins_autoaligned.push_back ({_cp[0], _cp[1], _cp[2]});
@@ -645,6 +686,7 @@ int addVisMod (SFVisual& v, const string& datafile, const CmdOptions& co, const 
                     pt[14] = fq[11];
                     pt[15] = 1.0f;
 
+                    ///std::cout << "Applying M to a quad in frameQuads_lmaligned\n";
                     //std::cout << M << "\n*\n" << pt << "\n=\n";
                     morph::TransformMatrix<float> pt_trans = M * pt;
                     //std::cout << pt_trans << "\n--------------\n";
@@ -667,14 +709,57 @@ int addVisMod (SFVisual& v, const string& datafile, const CmdOptions& co, const 
                     //std::cout << "fq[0] = " << fq[0] << ", and pt[0] = " << pt[0] << " (same?)\n";
                 }
                 for (auto fq : frameQuads_lmaligned) {
+                    // Push back just one corner of each frameQuad onto framePoints
                     framePoints_lmaligned.push_back ({fq[0], fq[1], fq[2]});
                 }
 
-                for (auto fq : frameQuads_autoaligned) {
+                for (auto& fq : frameQuads_autoaligned) {
+
+                    morph::TransformMatrix<float> pt;
+                    pt[0] = fq[0];
+                    pt[1] = fq[1];
+                    pt[2] = fq[2];
+                    pt[3] = 1.0f;
+
+                    pt[4] = fq[3];
+                    pt[5] = fq[4];
+                    pt[6] = fq[5];
+                    pt[7] = 1.0f;
+
+                    pt[8] = fq[6];
+                    pt[9] = fq[7];
+                    pt[10] = fq[8];
+                    pt[11] = 1.0f;
+
+                    pt[12] = fq[9];
+                    pt[13] = fq[10];
+                    pt[14] = fq[11];
+                    pt[15] = 1.0f;
+
+                    ///std::cout << "Applying M to a quad in frameQuads_autoaligned\n";
+                    ///std::cout << "Transformed point (" << fq[0] << "," << fq[1] << "," << fq[2] << ") to ";
+                    //std::cout << M << "\n*\n" << pt << "\n=\n";
+                    morph::TransformMatrix<float> pt_trans = M * pt;
+                    //std::cout << pt_trans << "\n--------------\n";
+                    fq[0] = pt_trans[0];
+                    fq[1] = pt_trans[1];
+                    fq[2] = pt_trans[2];
+
+                    fq[3] = pt_trans[4];
+                    fq[4] = pt_trans[5];
+                    fq[5] = pt_trans[6];
+
+                    fq[6] = pt_trans[8];
+                    fq[7] = pt_trans[9];
+                    fq[8] = pt_trans[10];
+
+                    fq[9] = pt_trans[12];
+                    fq[10] = pt_trans[13];
+                    fq[11] = pt_trans[14];
+                    ///std::cout << " point (" << fq[0] << "," << fq[1] << "," << fq[2] << ")\n";
+
                     // FIXME: Use centre of box, or even each end of box, or something
-                    morph::Vector<float> pt = {fq[0],fq[1],fq[2]};
-                    morph::Vector<float, 4> _pt = M * pt;
-                    framePoints_autoaligned.push_back ({_pt[0], _pt[1], _pt[2]});
+                    framePoints_autoaligned.push_back ({pt_trans[0], pt_trans[1], pt_trans[2]});
                 }
 
                 for (auto fq : frameQuads_scaled) {
@@ -698,6 +783,7 @@ int addVisMod (SFVisual& v, const string& datafile, const CmdOptions& co, const 
                     }
                 } catch (const exception& ee) {
                     // Perhaps this slice has not curve on it. Handle this by leaving frameMeans empty and continuing
+                    std::cout << "No curve?\n";
                     continue;
                 }
                 // Gah, convert frameMeans to float (there's a better way to do this)
@@ -792,7 +878,7 @@ int addVisMod (SFVisual& v, const string& datafile, const CmdOptions& co, const 
                                                                                  cmt, hue));
                     }
                 } else {
-                    std::cout << "NON ribbons. Showing a PointRowsVisual\n";
+                    std::cout << "NON ribbons.\n";
                     if (showmesh) {
                         std::cout << "Show mesh. Adding pointRowsMeshVisual with hue=" << hue << std::endl;
                         // hue: 1/6 for yellow. 130/360 for a green. 0 for read
@@ -803,6 +889,7 @@ int addVisMod (SFVisual& v, const string& datafile, const CmdOptions& co, const 
                                                                                          cmt, (0.0/360.0f), 1.0f, 1.0f, 0.015f));
                     } else {
                         std::cout << "NO mesh. Adding PointRowsVisual\n";
+                        std::cout << "points_autoaligned contains " << points_autoaligned.size() << " points\n";
                         visId = v.addVisualModel (new morph::PointRowsVisual<float> (v.shaderprog,
                                                                                      &points_autoaligned, offset,
                                                                                      &means, scale,
@@ -1635,15 +1722,8 @@ int main (int argc, char** argv)
     }
 
     // For each file in cmdOptions.datafiles:
-    // 0 red .2 yellow .3 green .4 cyan green .5 cyan .6 blue .7 blue .8 purple .9 red
-    vector<float> hues = {0.0f, 0.7f, 0.8f, 0.1f, 0.5f, 0.6f, 0.1f, 0.8f};
-    float hue = 0.0f;
     for (unsigned int ii = 0; ii < cmdOptions.datafiles.size(); ++ii) {
-        if (ii < hues.size()) {
-            hue = hues[ii];
-        } else {
-            hue = 0.8f;
-        }
+        float hue = get_sfview_hue (ii);
         // Pass M into addVisMod and apply to the coords therein.
         std::cout << "Calling addVisMod (...,M["<<ii<<"] with hue " << hue << "\n";
         rtn += addVisMod (v, cmdOptions.datafiles[ii], cmdOptions, hue, M[ii]);
