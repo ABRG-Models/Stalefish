@@ -20,7 +20,7 @@ int main (int argc, char** argv)
     }
     std::string paramsfile (argv[1]);
 
-    // Though DM::setup will test filename, lets do so explicitly here as want to exit if file is .json.
+    // First check that the user-supplied paramsfile looks like it's an h5 file
     std::string::size_type jsonpos = paramsfile.find(".json");
     if (jsonpos != std::string::npos) {
         std::cerr << paramsfile << " looks like it IS a json file; exiting." << std::endl;
@@ -33,16 +33,18 @@ int main (int argc, char** argv)
         return -1;
     }
 
-    // Set up from .h5
     std::string jsoncontent("");
     try {
+        // Open the .h5 file with a morph::HdfData object
         morph::HdfData d(paramsfile, true); // true for read
+        // Read out the json config
         d.read_string ("/config", jsoncontent);
+        // Prepare a file for output
         std::string jsonfile(paramsfile);
-        // Strip off .h5
+        // Strip off .h5 suffix and append .json instead
         morph::Tools::stripFileSuffix (jsonfile);
         jsonfile.append(".json");
-        // Check if jsonfile already exists & bail
+        // Check if the json file already exists & if so, bail out
         if (morph::Tools::dirExists (jsonfile)) {
             std::stringstream ee;
             ee << jsonfile << " exists as a directory. Won't replace it.";
@@ -53,6 +55,7 @@ int main (int argc, char** argv)
             ee << jsonfile << " already exists. Won't replace it.";
             throw std::runtime_error (ee.str());
         }
+        // jsonfile path looks good, so write out the config
         std::ofstream jf;
         jf.open (jsonfile.c_str(), std::ios::out|std::ios::trunc);
         if (!jf.is_open()) {
@@ -62,12 +65,12 @@ int main (int argc, char** argv)
         }
         jf << jsoncontent;
         jf.close();
-
+        // success :)
         std::cout << "JSON content written to file '" << jsonfile <<"'\n";
 
     } catch (const std::exception& e) {
         std::cerr << "Error reading h5/writing to json: " << e.what() << std::endl;
-        exit (1);
+        return -1;
     }
 
     return 0;
