@@ -1,3 +1,9 @@
+if (~exist("a", "var"))
+   display('First run the (c++) compare program to extract the pixel colours into the octave variable ''a''. For example: ../build/allen/compare expt/100076267/e100076267_55_101267565 > e100076267_55_101267565.m (and you download that expt, making sure to download both original and ''expression'' amps with: python retrieve.py 100076267 2 1')
+   exit
+end
+
+
 % The expressing group
 b = unique(a, "rows");
 % The non-expressing group
@@ -76,7 +82,7 @@ rt = 0.21 .* t .*255;
 gt = 0.72 .* t .*255;
 bt = 0.07 .* t .*255;
 ng_col = [ 0.21, 0.72, 0.07 ]; % greenish line
-plot3(bt, gt, rt, '.-', 'markerfacecolor', ng_col, 'color', ng_col);
+%plot3(bt, gt, rt, '.-', 'markerfacecolor', ng_col, 'color', ng_col);
 
 % Add the fit line to fig 1 too
 figure(1)
