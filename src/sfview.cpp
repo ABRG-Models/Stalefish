@@ -1749,6 +1749,9 @@ int main (int argc, char** argv)
         // Compute the 2D transforms. D2 = M2 * A2
         std::vector<morph::Matrix33<float>> M2(cmdOptions.datafiles.size()); // Will be constructed with identity matrices
         std::vector<morph::Matrix33<float>> A2(cmdOptions.datafiles.size());
+        for (size_t mi = 0; mi < M2.size(); ++mi) { std::cout << "M2["<<mi<<"]=" << M2[mi] << std::endl; }
+        for (size_t ai = 0; ai < A2.size(); ++ai) { std::cout << "A2["<<ai<<"]=" << A2[ai] << std::endl; }
+
         if (cmdOptions.linear_transforms > 0 && cmdOptions.datafiles.size() > 1 && n_global_landmarks == 3) {
 
             std::cout << "Applying 2D linear transforms...\n";
@@ -1762,13 +1765,12 @@ int main (int argc, char** argv)
                 dfi++;
             }
 
-        } else {
-            std::cout << "FIXME: Am I using the 3D transformed maps as input data here? I think not. They're in M.\n";
-
+        } else if (cmdOptions.linear_transforms > 0 && cmdOptions.datafiles.size() > 1 && n_global_landmarks == 4) {
+            std::cout << "NB: 3D transform will have been applied. THIS code should achieve a suitable unwrapping of the data.\n";
             // What I need to do here (in a loop): Transform the 3D surface positions
             // using M[di]. Unwrap the transformed points to give the map. Done.
-
 #ifdef OLD
+            // This is reading global positions and converting to 2D, right?:
             // Would like to get A2 populated with untransformed coords here.
             std::array<unsigned int, 3> frame_indices;
             for (size_t di = 0; di < cmdOptions.datafiles.size(); ++di) {
@@ -1776,6 +1778,17 @@ int main (int argc, char** argv)
                 A2[di] = convertTwoDims (cmdOptions.datafiles[di], cmdOptions, A3D, frame_indices);
             }
 #endif
+
+        } else {
+            std::cout << "NB: There was not the right number of global landmarks for transformations, just show untransformed flattened maps.\n";
+            // Display flattened (but UNtransformed) maps
+            float xoffs = 0.0f;
+            size_t dfi = 0;
+            for (auto df : cmdOptions.datafiles) {
+                rtn += addFlattened (v, df, cmdOptions, A2[dfi], M2[dfi], {xoffs, 0, 0});
+                xoffs += -6.0f;
+                dfi++;
+            }
         }
     }
 
