@@ -13,6 +13,9 @@ target_link_libraries(stalefish ${MORPH_LIBS_CORE} ${OpenCV_LIBS})
 add_executable(sfresave sfresave.cpp)
 target_link_libraries(sfresave ${MORPH_LIBS_CORE} ${OpenCV_LIBS})
 
+add_executable(sfgetjson sfgetjson.cpp)
+target_link_libraries(sfgetjson ${MORPH_LIBS_CORE} ${OpenCV_LIBS})
+
 add_executable(sfview sfview.cpp)
 # Assume popt is in /usr/local/lib. Can't use target_link_directories without specifying minimum cmake version 3.13
 if(APPLE AND OpenMP_CXX_FOUND)
@@ -21,4 +24,4 @@ else()
   target_link_libraries(sfview ${MORPH_LIBS_CORE} ${MORPH_LIBS_GL} -L/usr/local/lib popt)
 endif()
 
-install(TARGETS stalefish sfview sfresave DESTINATION ${CMAKE_INSTALL_PREFIX}/bin)
+install(TARGETS stalefish sfview sfresave sfgetjson DESTINATION ${CMAKE_INSTALL_PREFIX}/bin)

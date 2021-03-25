@@ -1,3 +1,10 @@
+if (~exist("a", "var"))
+   display('First run the (c++) compare program to extract the pixel colours into the octave variable ''a''. For example: ../build/allen/compare expt/100076267/e100076267_55_101267565 > e100076267_55_101267565.m (and you download that expt, making sure to download both original and ''expression'' amps with: python retrieve.py 100076267 2 1')
+   exit
+end
+
+pydata = {};
+
 % The expressing group
 b = unique(a, "rows");
 % The non-expressing group
@@ -15,6 +22,9 @@ rndIDX = randperm(leno);
 % ne is non-expressing
 ne = o(rndIDX(1:len2), :);
 
+pydata.ex = ex;
+pydata.ne = ne;
+
 % Note: marker face colour is the colour the pixel has on the ISH image.
 figure (1)
 clf
@@ -31,6 +41,7 @@ for ii = 1:len2
     ne_z = [ne(ii,3)];
     plot3(ne_x,ne_y,ne_z,'o','markeredgecolor',nex_col,'markersize', 10, 'markerfacecolor', flip(ne(ii,:)./255.0));
 end
+
 
 plot3([0 255], [0 0], [0 0], 'b-');
 plot3([0 0], [0 255], [0 0], 'g-');
@@ -76,11 +87,15 @@ rt = 0.21 .* t .*255;
 gt = 0.72 .* t .*255;
 bt = 0.07 .* t .*255;
 ng_col = [ 0.21, 0.72, 0.07 ]; % greenish line
-plot3(bt, gt, rt, '.-', 'markerfacecolor', ng_col, 'color', ng_col);
+%plot3(bt, gt, rt, '.-', 'markerfacecolor', ng_col, 'color', ng_col);
 
 % Add the fit line to fig 1 too
 figure(1)
 plot3 (blue(:,1), greenred_calc(:,1), greenred_calc(:,2), 'k.-');
+
+% Data for python
+pydata.blue = blue;
+pydata.greenred_calc = greenred_calc;
 
 % Add Lydia Ng's luminosity line:
 plot3(bt, gt, rt, 'v-', 'markerfacecolor', ng_col, 'color', ng_col);
@@ -213,6 +228,7 @@ A = Ax * Ay * Az;
 fully_transformed = (A*translated_points')';
 % fully transformed & expressing? in black. Line 1.
 plot3 (fully_transformed(:,1), fully_transformed(:,2), fully_transformed(:,3), 'ok');
+pydata.fully_transformed = fully_transformed;
 
 % Let's make a one-shot transformation matrix
 oneshot_figured = 0
@@ -249,6 +265,8 @@ end
 n_expr = (A * (ne-trans_offset3d)')';
 plot3 (n_expr(:,1),n_expr(:,2),n_expr(:,3),'*r');
 
+pydata.n_expr = n_expr;
+
 %% Lets draw the ellipse on Fig 5.
 ellip_major = 2.*sqrt(D(1));
 ellip_minor = 2.*sqrt(D(2));
@@ -264,6 +282,8 @@ plot3(ellip_plus(:,1), ellip_plus(:,2), ellip_plus(:,3), 'ob-')
 % Line 4
 plot3(ellip_minus(:,1), ellip_minus(:,2), ellip_minus(:,3), 'ob-')
 %% Done drawing ellipse
+pydata.ellip_plus=ellip_plus;
+pydata.ellip_minus=ellip_minus;
 
 %% Axes
 % Line 5
@@ -280,8 +300,8 @@ title ('Final transformed points')
 % Last question. Is a point inside the ellipse? Plot, and colour accordingly
 %
 % For a given x,y(red,green) in transformed colour space, do the sum:
-inout = []
-values = []
+inout = [];
+values = [];
 for f = fully_transformed'
     erad = ((f(2).*f(2))./(ellip_major.*ellip_major)) + ((f(3).*f(3))./(ellip_minor.*ellip_minor));
     if (erad > 1)
@@ -302,20 +322,29 @@ luminosity_factor = -1;
 tvalues = luminosity_cutoff + (values(inout==1) .* luminosity_factor);
 tvalues(tvalues<0) = 0;
 % Line 8
-plot3(fully_transformed(inout==1,1), zeros(length(values(inout==1)),1), tvalues, 'go');
+texpr = fully_transformed(inout==1,1);
+plot3(texpr, zeros(length(values(inout==1)),1), tvalues, 'go');
+pydata.tvalues = tvalues;
+pydata.texpr = texpr;
+pydata.tcolr = ex(inout==1,:) % Colour of used expressing pixels
 
 legend('expressing', 'non-expressing', 'e+', 'e-', 'bl\_axis', 'gr\_axis', 'rd\_axis', 'fully-transformed darker=more signal')
 
 % Process each number through the eqn of the ellipse to get a value < or > 1.
-printf ('================ RESULTS ==================\n')
-printf ('3D translation:\n')
-trans_offset3d
-printf ('3D rotation matrix:\n')
-A
-printf ('major & minor axes of ellipse in the (transformed )red-green plane:\n')
-ellip_major
-ellip_minor
-printf ('Luminosity factor and cutoff\n')
-luminosity_factor
-luminosity_cutoff
-printf ('===========================================\n')
+show_results = 0
+if (show_results)
+  printf ('================ RESULTS ==================\n')
+  printf ('3D translation:\n')
+  trans_offset3d
+  printf ('3D rotation matrix:\n')
+  A
+  printf ('major & minor axes of ellipse in the (transformed )red-green plane:\n')
+  ellip_major
+  ellip_minor
+  printf ('Luminosity factor and cutoff\n')
+  luminosity_factor
+  luminosity_cutoff
+  printf ('===========================================\n')
+end
+% Save pydata
+save ('-hdf5', 'pydata.h5', 'pydata');

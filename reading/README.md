@@ -56,7 +56,7 @@ analysis script.
 Each **FrameNNN** contains a number of objects, most of which are
 'sub-containers' which hold the information you'll need for your
 analysis. The **class** object contains data which wouldn't typically be
-required for analysis, but which enables the application to re-open a
+required for analysis, but which enables the stalefish application to re-open your
 project.
 
  * **FrameNNN/nboxes**: Contains the number of sample boxes (the yellow boxes
