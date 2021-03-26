@@ -987,14 +987,33 @@ public:
     //! Remove the last axis mark coordinate
     void removeLastAxismark()
     {
-        if (!this->AM.empty()) { this->AM.pop_back(); }
+        if (!this->AM.empty()) {
+            this->AM.pop_back();
+            size_t AM_sz = this->AM.size();
+            while (this->AM_scaled.size() > AM_sz) { this->AM_scaled.pop_back(); }
+            while (this->AM_lmaligned.size() > AM_sz) { this->AM_lmaligned.pop_back(); }
+            while (this->AM_autoalign_translated.size() > AM_sz) { this->AM_autoalign_translated.pop_back(); }
+            while (this->AM_autoaligned.size() > AM_sz) { this->AM_autoaligned.pop_back(); }
+            while (this->AM_origins_lmaligned.size() > AM_sz) { this->AM_origins_lmaligned.pop_back(); }
+            while (this->AM_origins_autoaligned.size() > AM_sz) { this->AM_origins_autoaligned.pop_back(); }
+        }
     }
 
     //! Add a global landmark
     void addGlobalLandmark (const cv::Point& pt) { this->GLM.push_back (pt); }
 
     //! Remove the last global landmark
-    void removeLastGlobalLandmark() { if (!this->GLM.empty()) { this->GLM.pop_back(); } }
+    void removeLastGlobalLandmark()
+    {
+        if (!this->GLM.empty()) {
+            this->GLM.pop_back();
+            size_t GLM_sz = this->GLM.size();
+            while (this->GLM_scaled.size() > GLM_sz) { this->GLM_scaled.pop_back(); }
+            while (this->GLM_autoalign_translated.size() > GLM_sz) { this->GLM_autoalign_translated.pop_back(); }
+            while (this->GLM_autoaligned.size() > GLM_sz) { this->GLM_autoaligned.pop_back(); }
+            while (this->GLM_lmaligned.size() > GLM_sz) { this->GLM_lmaligned.pop_back(); }
+        }
+    }
 
     //! Remove the last landmark coordinate
     void removeLastLandmark()
