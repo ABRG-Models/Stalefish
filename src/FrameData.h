@@ -2000,10 +2000,9 @@ public:
 
             // Offset the point wrt the angle origin
             cv::Point2d pt = fitted_points[i] - angle_origin;
-            // Find angle diff to neighbouring bin
+            // Find angle diff to neighbouring bin (d_to_n)
             int i_n = i>0 ? i-1 : i+1;
             cv::Point2d pt_n = fitted_points[i_n] - angle_origin;
-
             double angle = std::atan2 (pt.x, pt.y);
             double d_to_n = std::abs(std::atan2 (pt_n.x, pt_n.y) - angle);
             d_to_n = (d_to_n > morph::PI_x3_OVER_2_D) ? std::abs(d_to_n - morph::TWO_PI_D) : d_to_n;
@@ -2017,31 +2016,45 @@ public:
                 // It's a candidate
                 //std::cout << "Candidate point i = " << i << " diff = " << diff
                 //          << " (diff to neigb i_n = " << i_n << ": " << d_to_n << "), radius = " << radius << std::endl;
-                morph::Vector<double, 2> cand_dr = {diff, radius};
-                std::pair<int, morph::Vector<double, 2>> candidate = std::make_pair(i, cand_dr);
+                morph::Vector<double, 2> cand_diffradius = {diff, radius};
+                std::pair<int, morph::Vector<double, 2>> candidate = std::make_pair(i, cand_diffradius);
                 candidates.push_back (candidate);
                 if (radius > max_cand_rad) { max_cand_rad = radius; }
                 if (radius < min_cand_rad) { min_cand_rad = radius; }
             }
         }
 
+#ifdef USE_MEAN_RADIUS_IDEA
+        // This use of a mean radius worked ok for cortex but not so good for spiral hippocampus
         double mean_radius = (max_cand_rad + min_cand_rad) / 2.0;
         double diff_min = 1e9;
-        int i_min = 0;
+        int i_chosen = 0;
         for (std::pair<int, morph::Vector<double, 2>> candidate : candidates) {
             // Test if the candidates radius is greater than the mean:
             if (candidate.second[1] >= mean_radius) {
                 // The find the best difference:
                 if (candidate.second[0] < diff_min) {
                     diff_min = candidate.second[0];
-                    i_min = candidate.first;
+                    i_chosen = candidate.first;
                 }
             }
         }
+#else
+        // Instead, ANY candidate is good enough, because any candidate is closer to the
+        // ideal than the neighbouring box. So here, can simply choose the furthest one.
+        double rad_max = -1.0;
+        int i_chosen = 0;
+        for (std::pair<int, morph::Vector<double, 2>> candidate : candidates) {
+            if (candidate.second[1] > rad_max) {
+                rad_max = candidate.second[1];
+                i_chosen = candidate.first;
+            }
+        }
+#endif
 
-        // The fit point at i_min is the one, mark it as such.
-        //std::cout << "From theta_middle, setting middle_index to " << i_min << " (diff_min: " << diff_min << ")" <<  std::endl;
-        middle_index = i_min;
+        // The fit point at i_chosen is the one, mark it as such.
+        //std::cout << "From theta_middle, setting middle_index to " << i_chosen << " (diff_min: " << diff_min << ")" <<  std::endl;
+        middle_index = i_chosen;
     }
 
     //! Set a centre location in the yz plane (for the purpose of unwrapping the 3D
