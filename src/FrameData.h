@@ -20,9 +20,9 @@
 #include <morph/MathConst.h>
 #include <morph/Winder.h>
 
-// This is the input mode (or you could think of them as tools). So in Bezier mode, you
-// add points for the curve fitting; in freehand mode you draw a loop, and in Landmark
-// mode, you give landmarks for slice alignment.
+//! This is the input mode (or you could think of them as tools). So in Bezier mode, you
+//! add points for the curve fitting; in freehand mode you draw a loop, and in Landmark
+//! mode, you give landmarks for slice alignment.
 enum class InputMode
 {
     Bezier,    // Cubic Bezier: "curve drawing mode"
@@ -37,7 +37,7 @@ enum class InputMode
                // the brain. To help construct nice 2D maps from 3D reconstructions.
 };
 
-// What sort of colour model is in use?
+//! What sort of colour model is in use?
 enum class ColourModel
 {
     Greyscale,
@@ -386,10 +386,6 @@ public:
     //! .h5 file, generate the signal frame
     void setupFrames()
     {
-        // FIXME FIXME I think this is the location where I need to start thinking about
-        // the Allen data, which is coloured. I think *this* code is all very much based
-        // on there being a monochrome input.
-
         std::cout << __FUNCTION__ << " called\n";
         this->frame_maxmin = this->showMaxMinU (this->frame, "frame (original)");
         // Scale and convert frame to float format. frameF is a copy of the image data
