@@ -9,7 +9,7 @@
     "desc_colour_trans" : "Colour translation (prior to colour rotation)",
     "colour_trans" : [0.0, 13.70966, 39.20662],
 
-    "dest_colour_rot" : "Colour rotation (so that the blue axis is the axis of luminance). This is a 3x3 array, but stored as a 1x9 linear array",
+    "desc_colour_rot" : "Colour rotation (so that the blue axis is the axis of luminance). This is a 3x3 array, but stored as a 1x9 linear array",
     "colour_rot" : [ 0.59660, 0.58610,   0.54823,
                      0.78482,  -0.28337,  -0.55114,
                      -0.16767,   0.75907,  -0.62904 ],
