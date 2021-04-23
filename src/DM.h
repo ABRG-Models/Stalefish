@@ -70,14 +70,9 @@ private:
     //! Colour space parameters
     std::string colourmodel = "monochrome";
 
+    //! Allen Developing Mouse Brain Atlas colour mapping parameters
     AllenColourParams acparams;
-#if 0
-    std::array<float, 9> colour_rot; // Colour space rotation
-    std::array<float, 3> colour_trans; // Colour space pre-translation
-    std::array<float, 2> ellip_axes; // red-green ellipse for "elliptical tube of expressing colours
-    float luminosity_factor; // The slope of the linear luminosity vs signal fit.
-    float luminosity_cutoff; // at what luminosity does the signal cut off to zero?
-#endif
+
     // Called by next/previousFrame. Take binA, binB from the frame and change the
     // sliders. Update the fit and refresh boxes. Update the view of boxes/fit line/control points
     void refreshFrame()
