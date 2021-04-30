@@ -676,22 +676,22 @@ int addVisMod (SFVisual& v, const string& datafile, const CmdOptions& co, const 
                 for (unsigned int ii = 0; ii < frameQuads_lmaligned.size()-1; ++ii) {
                     morph::TransformMatrix<float> pt;
                     pt[0] = xx;
-                    pt[1] = linbins[ii+1];
+                    pt[1] = fitted_lmaligned[clm_idx].x+linbins[ii+1];
                     pt[2] = fitted_lmaligned[clm_idx].y;
                     pt[3] = 1.0f;
 
                     pt[4] = xx+thickness; // right?
-                    pt[5] = linbins[ii+1];
+                    pt[5] = fitted_lmaligned[clm_idx].x+linbins[ii+1];
                     pt[6] = fitted_lmaligned[clm_idx].y;
                     pt[7] = 1.0f;
 
                     pt[8] = xx+thickness;
-                    pt[9] = linbins[ii];
+                    pt[9] = fitted_lmaligned[clm_idx].x+linbins[ii];
                     pt[10] = fitted_lmaligned[clm_idx].y;
                     pt[11] = 1.0f;
 
                     pt[12] = xx; // right?
-                    pt[13] = linbins[ii];
+                    pt[13] = fitted_lmaligned[clm_idx].x+linbins[ii];
                     pt[14] = fitted_lmaligned[clm_idx].y;
                     pt[15] = 1.0f;
 
