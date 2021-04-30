@@ -24,4 +24,11 @@ else()
   target_link_libraries(sfview ${MORPH_LIBS_CORE} ${MORPH_LIBS_GL} -L/usr/local/lib popt)
 endif()
 
+add_executable(sfview_unwrap_fig sfview_unwrap_fig.cpp)
+if(APPLE AND OpenMP_CXX_FOUND)
+  target_link_libraries(sfview OpenMP::OpenMP_CXX ${MORPH_LIBS_CORE} ${MORPH_LIBS_GL} -L/usr/local/lib popt)
+else()
+  target_link_libraries(sfview_unwrap_fig ${MORPH_LIBS_CORE} ${MORPH_LIBS_GL} -L/usr/local/lib popt)
+endif()
+
 install(TARGETS stalefish sfview sfresave sfgetjson DESTINATION ${CMAKE_INSTALL_PREFIX}/bin)
