@@ -692,7 +692,7 @@ public:
     //! The offset signal window (this has the blurred background subtracted)
     std::string offsWin = "";
     //! If true, display the window with the offset signal
-    bool showOffsWin = true;
+    bool showOffsWin = false;
     //! Toggle for the blur window
     void toggleBlurWindow() { this->showBlurWin = this->showBlurWin ? false : true; }
     //! Toggle for the offset (signal) window
