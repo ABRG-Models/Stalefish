@@ -1942,9 +1942,9 @@ public:
         return rtn;
     }
 
-    //! Given a centre point location \a othercentre, find the points on
-    //! fitted_lmaligned and fitted_autoaligned which are closest and mark these as
-    //! centre_lmaligned/centre_autoaligned.
+    //! Given a centre point location that is obtained from \a otherframe, find the
+    //! points on fitted_lmaligned and fitted_autoaligned which are closest and mark
+    //! these as centre_lmaligned/centre_autoaligned.
     void setMiddle (const FrameData& otherframe)
     {
         double diff_min = 1e9;
