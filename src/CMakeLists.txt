@@ -10,23 +10,28 @@ set(MORPH_LIBS_GL ${OpenCV_LIBS} OpenGL::GL glfw Freetype::Freetype)
 add_executable(stalefish stalefish.cpp)
 target_link_libraries(stalefish ${MORPH_LIBS_CORE} ${OpenCV_LIBS})
 
+# On Mac, add -headerpad_max_install_names so that the executable can have its paths reconfigured for packaging
+if(APPLE)
+  set(MAC_HEADERPAD -headerpad_max_install_names)
+endif()
+
 add_executable(sfresave sfresave.cpp)
-target_link_libraries(sfresave ${MORPH_LIBS_CORE} ${OpenCV_LIBS})
+target_link_libraries(sfresave ${MORPH_LIBS_CORE} ${OpenCV_LIBS} ${MAC_HEADERPAD})
 
 add_executable(sfgetjson sfgetjson.cpp)
-target_link_libraries(sfgetjson ${MORPH_LIBS_CORE} ${OpenCV_LIBS})
+target_link_libraries(sfgetjson ${MORPH_LIBS_CORE} ${OpenCV_LIBS} ${MAC_HEADERPAD})
 
 add_executable(sfview sfview.cpp)
 # Assume popt is in /usr/local/lib. Can't use target_link_directories without specifying minimum cmake version 3.13
 if(APPLE AND OpenMP_CXX_FOUND)
-  target_link_libraries(sfview OpenMP::OpenMP_CXX ${MORPH_LIBS_CORE} ${MORPH_LIBS_GL} -L/usr/local/lib popt)
+  target_link_libraries(sfview OpenMP::OpenMP_CXX ${MORPH_LIBS_CORE} ${MORPH_LIBS_GL} -L/usr/local/lib popt ${MAC_HEADERPAD})
 else()
   target_link_libraries(sfview ${MORPH_LIBS_CORE} ${MORPH_LIBS_GL} -L/usr/local/lib popt)
 endif()
 
 add_executable(sfview_unwrap_fig sfview_unwrap_fig.cpp)
 if(APPLE AND OpenMP_CXX_FOUND)
-  target_link_libraries(sfview_unwrap_fig OpenMP::OpenMP_CXX ${MORPH_LIBS_CORE} ${MORPH_LIBS_GL} -L/usr/local/lib popt)
+  target_link_libraries(sfview_unwrap_fig OpenMP::OpenMP_CXX ${MORPH_LIBS_CORE} ${MORPH_LIBS_GL} -L/usr/local/lib popt ${MAC_HEADERPAD})
 else()
   target_link_libraries(sfview_unwrap_fig ${MORPH_LIBS_CORE} ${MORPH_LIBS_GL} -L/usr/local/lib popt)
 endif()
