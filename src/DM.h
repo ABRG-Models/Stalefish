@@ -813,6 +813,12 @@ public:
         yh += 50;
         putText (*pImg, std::string("where myfile.json has been set up as described in the documentation."),
                  cv::Point(xh,yh), cv::FONT_HERSHEY_SIMPLEX, fontsz, SF_BLACK, 1, cv::LINE_AA);
+        yh += 50;
+        putText (*pImg, std::string("On a Mac, after a standard install, the command should be:"),
+                 cv::Point(xh,yh), cv::FONT_HERSHEY_SIMPLEX, fontsz, SF_BLACK, 1, cv::LINE_AA);
+        yh += 50;
+        putText (*pImg, std::string("  /Applications/Stalefish.app/Contents/MacOS/stalefish myfile.json"),
+                 cv::Point(xh,yh), cv::FONT_HERSHEY_SIMPLEX, fontsz, SF_BLACK, 1, cv::LINE_AA);
         yh += 60;
         putText (*pImg, std::string("Please press 'x' to exit"),
                  cv::Point(xh,yh), cv::FONT_HERSHEY_SIMPLEX, fontsz, SF_BLACK, 1, cv::LINE_AA);
