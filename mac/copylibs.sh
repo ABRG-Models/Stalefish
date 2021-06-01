@@ -25,19 +25,18 @@ for i in libhdf5.103.dylib libarmadillo.9.dylib libjsoncpp.24.dylib libopencv_dn
 done
 
 # Create the Info.plist file
-cat > Stalefish.app/Info.plist <<EOF
+cat > Stalefish.app/Contents/Info.plist <<EOF
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
 	<key>CFBundleExecutable</key>
-	<string>Stalefish</string>
+	<string>stalefish</string>
 	<key>CFBundleIconFile</key>
 	<string>sf_icons.icns</string>
 	<key>CFBundleIdentifier</key>
 	<string>com.academic.sebjames</string>
 	<key>NSHighResolutionCapable</key>
-	<true/>
 	<true/>
 </dict>
 </plist>
