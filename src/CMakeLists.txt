@@ -26,7 +26,7 @@ endif()
 
 add_executable(sfview_unwrap_fig sfview_unwrap_fig.cpp)
 if(APPLE AND OpenMP_CXX_FOUND)
-  target_link_libraries(sfview OpenMP::OpenMP_CXX ${MORPH_LIBS_CORE} ${MORPH_LIBS_GL} -L/usr/local/lib popt)
+  target_link_libraries(sfview_unwrap_fig OpenMP::OpenMP_CXX ${MORPH_LIBS_CORE} ${MORPH_LIBS_GL} -L/usr/local/lib popt)
 else()
   target_link_libraries(sfview_unwrap_fig ${MORPH_LIBS_CORE} ${MORPH_LIBS_GL} -L/usr/local/lib popt)
 endif()
