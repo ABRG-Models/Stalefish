@@ -112,6 +112,8 @@ struct CmdOptions
     int show_mesh;
     //! If true, use ambient/diffuse lighting
     int lighting;
+    //! If true, use white background
+    int whitebg;
     //! If true, hide colour map and plot in white.
     int hide_colour;
     //! Show landmarks from first model
@@ -146,6 +148,7 @@ void zeroCmdOptions (CmdOptions* copts)
     copts->show_ribbons = 0;
     copts->show_mesh = 0;
     copts->lighting = 0;
+    copts->whitebg = 0;
     copts->hide_colour = 0; // Default to showing colour
     copts->show_landmarks = 1;
     copts->show_landmarks_all = 0;
@@ -778,7 +781,9 @@ int addVisMod (SFVisual& v, const string& datafile, const CmdOptions& co, const 
                         // Use the raw means and autoscale them as an entire group
                         str = frameName+"/signal/postproc/boxes/means";
                         d.read_contained_vals (str.c_str(), frameMeans);
-                        // The morph::Scale object scale with autoscale the who thing.
+                        // The morph::Scale object scale with autoscale the who
+                        // thing. NB: This is used only for the colour scaling in the 3D
+                        // visualization
                         scale.do_autoscale = true;
                     }
                 } catch (const exception& ee) {
@@ -1148,8 +1153,6 @@ void computeFlatTransforms (const CmdOptions& co,
  * \param expression (input) The data for the pixels - in this program its a gene
  * expression signal
  *
- * \param areas (input) The area of each input data pixel - they're not all the same!
- *
  * \param extents (input) The spatial extents for the resampled data grid - can set to 0
  * to auto compute, but this wants to be the same for all images, so setting manually is
  * easiest. Should be configurable via the cmd line.
@@ -1165,13 +1168,13 @@ void computeFlatTransforms (const CmdOptions& co,
  * \param l (input) The output pixel dimensions
  */
 std::pair<unsigned int, unsigned int>
-resample_twod (const vector<morph::Vector<float, 2>>& coords,
-               const vector<float>& expression,
-               const vector<float>& areas,
-               const morph::Vector<float, 4>& extents,
-               vector<morph::Vector<float, 2>>& cartgrid,
-               vector<float>& expr_resampled,
-               const vector<morph::Vector<float, 3>> sigma, const morph::Vector<float, 2> l)
+resample_twod (const vector<morph::Vector<float, 2>>& coords, // input coords
+               const vector<float>& expression,               // input values
+               const morph::Vector<float, 4>& extents,        // parameter - sets output extents
+               vector<morph::Vector<float, 2>>& cartgrid,     // output domain (resized per extents)
+               vector<float>& expr_resampled,                 // output values (resized per extents)
+               const vector<morph::Vector<float, 3>> sigma,   // parameter - sigmas for ellip gaussians
+               const morph::Vector<float, 2> l)               // parameter - how big are the output pixels?
 {
     // Check input
     if (coords.size() != expression.size()) {
@@ -1187,14 +1190,20 @@ resample_twod (const vector<morph::Vector<float, 2>>& coords,
     std::cout << "Image grid length, l is "<< l << std::endl;
     if (l.length() == 0.0f) { throw std::runtime_error ("l must be non-zero"); }
 
+    // cout the input's max/min
+    pair<float, float> imm = morph::MathAlgo::maxmin (expression);
+    std::cout << "Input image max/min: " << imm.first << "/" << imm.second << std::endl;
+
+    // Determine the output extents
     float minx = 1e9, miny = 1e9, maxx = -1e9, maxy = -1e9;
     if (extents.length() > 0.0f) {
+        // Use passed-in extents
         minx = extents[0];
         maxx = extents[1];
         miny = extents[2];
         maxy = extents[3];
     } else {
-    // Find the extents of the output grid
+        // Find the extents of the output grid
         for (auto c : coords) {
             minx = c[0] < minx ? c[0] : minx;
             miny = c[1] < miny ? c[1] : miny;
@@ -1237,7 +1246,7 @@ resample_twod (const vector<morph::Vector<float, 2>>& coords,
                 + costheta * costheta / (2.0f *  sigma[i][1] * sigma[i][1]);
                 morph::Vector<float, 2> d = cartpos - coords[i];
                 float w = std::exp ( -(a * d[0] * d[0]  +  2.0f * b * d[0] * d[1]  +  c * d[1] * d[1]));
-                expr += w * expression[i] * areas[i];
+                expr += w * expression[i];
             }
             //std::cout << "idx: " << idx << " cartpos: " << cartpos << " expr: " << expr << std::endl;
             cartgrid[idx] = cartpos;
@@ -1246,6 +1255,9 @@ resample_twod (const vector<morph::Vector<float, 2>>& coords,
     }
 
     std::cout << "Computed resample for image of " << width_px << "x" << height_px << std::endl;
+    // cout the input's max/min
+    pair<float, float> omm = morph::MathAlgo::maxmin (expr_resampled);
+    std::cout << "Resampled max/min: " << omm.first << "/" << omm.second << std::endl;
     return std::make_pair (width_px, height_px);
 }
 
@@ -1285,6 +1297,8 @@ int addFlattened (SFVisual& v, const string& datafile, const CmdOptions& co,
 
             morph::HdfData d(datafile, morph::FileAccess::ReadOnly);
             morph::HdfData d2(datafile2, morph::FileAccess::TruncateWrite);
+            d2.read_error_action = morph::ReadErrorAction::Continue;
+
             int nf = 0;
             d.read_val ("/nframes", nf);
 
@@ -1333,11 +1347,11 @@ int addFlattened (SFVisual& v, const string& datafile, const CmdOptions& co,
                         // Use the raw means and autoscale them as an entire group
                         str = frameName+"/signal/postproc/boxes/means";
                         d.read_contained_vals (str.c_str(), frameMeansF);
-                        // The morph::Scale object scale with autoscale the who thing.
+                        // The morph::Scale object scales the whole thing with autoscale set true.
                         scale.do_autoscale = true;
                     }
                 } catch (const exception& ee) {
-                    // Perhaps this slice has not curve on it. Handle this by leaving frameMeans empty and continuing
+                    // Perhaps this slice has no curve on it. Handle this by leaving frameMeans empty and continuing
                     std::cout << "no boxes/means for slice " << i << std::endl;
                     continue;
                 }
@@ -1433,7 +1447,7 @@ int addFlattened (SFVisual& v, const string& datafile, const CmdOptions& co,
                     fquads.insert (fquads.end(), flatsurf_boxes.begin(), flatsurf_boxes.end());
                     fmids.insert (fmids.end(), flat_mids.begin(), flat_mids.end());
                 } catch (...) {
-                    std::cout << "Failed; there was no 2D ribbon for slice " << i << std::endl;
+                    // std::cout << "Failed; there was no 2D ribbon for slice " << i << std::endl;
                 }
                 lastxx = xx;
             }
@@ -1447,7 +1461,7 @@ int addFlattened (SFVisual& v, const string& datafile, const CmdOptions& co,
                                                                      morph::ColourMapType::Greyscale));
             v.surfaces_2d.push_back (visId);
 
-            // Add the newly-generate expression and coordinates to the data file.
+            // Add the newly-generated expression and coordinates to the data file.
             d2.add_contained_vals ("/output_map/twod/expression", fmeans);
             d2.add_contained_vals ("/output_map/twod/coordinates", fmids);
 
@@ -1465,10 +1479,8 @@ int addFlattened (SFVisual& v, const string& datafile, const CmdOptions& co,
 
             // Compute area of origin 'pixels'.
             size_t fqs = fquads.size();
-            vector<float> pix_areas(fqs);
             vector<morph::Vector<float, 3>> sigma(fqs);
             for (unsigned int i = 0; i < fquads.size(); ++i) {
-                pix_areas[i] = std::abs(fquads[i][9]-fquads[i][0]) * std::abs(fquads[i][4]-fquads[i][1]);
                 // c1, c2 and c3 are corners on the origin pixel
                 morph::Vector<float, 2> c1 = {fquads[i][0], fquads[i][1]};
                 morph::Vector<float, 2> c2 = {fquads[i][3], fquads[i][4]};
@@ -1482,7 +1494,7 @@ int addFlattened (SFVisual& v, const string& datafile, const CmdOptions& co,
             }
 
             // extents is: { minx, maxx, miny, maxy, }. Set all 0 to auto-determine
-            std::pair<unsigned int, unsigned int> wh = resample_twod (fmids, fmeans, pix_areas,
+            std::pair<unsigned int, unsigned int> wh = resample_twod (fmids, fmeans,
                                                                       cmdOptions.extents, fmids_resampled,
                                                                       fmeans_resampled, sigma, l);
 
@@ -1518,7 +1530,7 @@ int addFlattened (SFVisual& v, const string& datafile, const CmdOptions& co,
             visId = v.addVisualModel (new morph::QuadsVisual<float> (v.shaderprog,
                                                                      &fquads_re, offset,
                                                                      &fmeans_resampled, scale,
-                                                                     morph::ColourMapType::Viridis));
+                                                                     morph::ColourMapType::Greyscale));
             v.surfaces_2d.push_back (visId);
             offset[1]-=7.5f;
 
@@ -1615,6 +1627,10 @@ int main (int argc, char** argv)
          POPT_ARG_NONE, &(cmdOptions.lighting), 0,
          "If set, apply ambient/diffuse lighting in the shader."},
 
+        {"whitebg", 'w',
+         POPT_ARG_NONE, &(cmdOptions.whitebg), 0,
+         "If set, make the sfview background white, not black."},
+
         {"hide_colour", 'c',
          POPT_ARG_NONE, &(cmdOptions.hide_colour), 0,
          "If set, hide the colour that indicates the ISH expression data value."},
@@ -1699,6 +1715,7 @@ int main (int argc, char** argv)
     v.showTitle = false;
     v.showCoordArrows = true;
     v.coordArrowsInScene = false;
+    if (cmdOptions.whitebg > 0) { v.backgroundWhite(); }
     // Enable lighting if asked for, or automatically for mesh views
     if (cmdOptions.lighting > 0 || cmdOptions.show_mesh > 0) {
         v.lightingEffects (true);
