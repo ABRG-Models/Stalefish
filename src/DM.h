@@ -485,6 +485,8 @@ public:
     //! Write frames to HdfData
     void writeFrames()
     {
+        if (this->noFiles == true) { return; }
+
         this->writePrep();
 
         morph::HdfData d(this->datafile);
@@ -574,6 +576,7 @@ public:
 
     void exportLandmarks()
     {
+        if (this->noFiles == true) { return; }
         this->refreshAllBoxes();
         for (auto& f : this->vFrameData) { f.updateAlignments(); }
         int nf = this->vFrameData.size();
@@ -587,6 +590,7 @@ public:
 
     void exportFreehand()
     {
+        if (this->noFiles == true) { return; }
         this->refreshAllBoxes();
         for (auto& f : this->vFrameData) { f.updateAlignments(); }
         int nf = this->vFrameData.size();
@@ -598,6 +602,7 @@ public:
 
     void exportCurves()
     {
+        if (this->noFiles == true) { return; }
         this->refreshAllBoxes();
         for (auto& f : this->vFrameData) { f.updateAlignments(); }
         int nf = this->vFrameData.size();
@@ -610,6 +615,7 @@ public:
     //! Export all user-supplied point information to files
     void exportUserpoints()
     {
+        if (this->noFiles == true) { return; }
         this->refreshAllBoxes();
         for (auto& f : this->vFrameData) { f.updateAlignments(); }
         int nf = this->vFrameData.size();
@@ -636,6 +642,7 @@ public:
     //! Import landmark information from a file
     void importLandmarks()
     {
+        if (this->noFiles == true) { return; }
         try {
             morph::HdfData d(lm_exportfile, true);
             for (auto& f : this->vFrameData) { f.importLandmarks (d); }
@@ -659,6 +666,7 @@ public:
     //! Import freehand loops from a file
     void importFreehand()
     {
+        if (this->noFiles == true) { return; }
         try {
             morph::HdfData d(fh_exportfile, true);
             for (auto& f : this->vFrameData) { f.importFreehand (d); }
@@ -714,6 +722,9 @@ public:
     //! What is the scaling factor to scale the images before saving them in FrameData objects?
     float scaleFactor = 1.0f;
 
+    //! Set true if program was invoked with no .json or .h5 file to open.
+    bool noFiles = false;
+
     //! Set true to read in old data format, to be written out in new format.
     bool readOldFormat = false;
 
@@ -768,6 +779,45 @@ public:
         return rtn;
     }
 
+    //! Special, minimal setup to show a message to the user when they try to open the app on Mac with no filename
+    void noFileSetup()
+    {
+        std::cout << __FUNCTION__ << " called\n";
+        std::string fn("No file provided");
+        cv::Mat emptyFrame = cv::Mat(cv::Size(1024,768), CV_8UC3, SF_WHITE);
+        this->addFrame (emptyFrame, fn, 0);
+        cv::namedWindow (this->winName, cv::WINDOW_NORMAL|cv::WINDOW_FREERATIO);
+        // Make sure there's an image in DM to start with
+        this->cloneFrame();
+        cv::setMouseCallback (this->winName, DM::onmouse, this->getImg());
+        int xh = 30;
+        int yh = 90;
+        int yinc = 40;
+        float fontsz = 0.9f;
+        cv::Mat* pImg = this->getImg();
+        putText (*pImg, std::string("Welcome to Stalefish!"),
+                 cv::Point(xh,yh), cv::FONT_HERSHEY_SIMPLEX, fontsz, SF_BLACK, 1, cv::LINE_AA);
+        fontsz = 0.8f * fontsz;
+        yh += 60;
+        putText (*pImg, std::string("This application has a very simple user interface and has to be run"),
+                 cv::Point(xh,yh), cv::FONT_HERSHEY_SIMPLEX, fontsz, SF_BLACK, 1, cv::LINE_AA);
+        yh += yinc;
+        putText (*pImg, std::string("from the command line. You must specify the JSON or HDF5 file that"),
+                 cv::Point(xh,yh), cv::FONT_HERSHEY_SIMPLEX, fontsz, SF_BLACK, 1, cv::LINE_AA);
+        yh += yinc;
+        putText (*pImg, std::string("the program will read. Typically, you'll open a terminal and run:"),
+                 cv::Point(xh,yh), cv::FONT_HERSHEY_SIMPLEX, fontsz, SF_BLACK, 1, cv::LINE_AA);
+        yh += 50;
+        putText (*pImg, std::string("  /path/to/stalefish myfile.json"),
+                 cv::Point(xh,yh), cv::FONT_HERSHEY_SIMPLEX, fontsz, SF_BLACK, 1, cv::LINE_AA);
+        yh += 50;
+        putText (*pImg, std::string("where myfile.json has been set up as described in the documentation."),
+                 cv::Point(xh,yh), cv::FONT_HERSHEY_SIMPLEX, fontsz, SF_BLACK, 1, cv::LINE_AA);
+        yh += 60;
+        putText (*pImg, std::string("Please press 'x' to exit"),
+                 cv::Point(xh,yh), cv::FONT_HERSHEY_SIMPLEX, fontsz, SF_BLACK, 1, cv::LINE_AA);
+    }
+
     /*!
      * Application setup
      *
@@ -777,6 +827,8 @@ public:
      */
     void setup (const std::string& paramsfile)
     {
+        if (this->noFiles == true) { return this->noFileSetup(); }
+
         std::string jsonfile (paramsfile);
         bool hdf_for_reading = false;
         // Set the HDF5 data file path based on the .json file path
@@ -1278,6 +1330,12 @@ public:
         cv::Mat* pImg = _this->getImg();
         cv::Mat* sImg = _this->getSImg();
         FrameData* cf = _this->gcf();
+
+        // If we're in no file mode, don't respond to the mouse
+        if (_this->noFiles == true) {
+            imshow (_this->winName, *pImg);
+            return;
+        }
 
         // What's the cv::Point under the mouse pointer?
         cv::Point pt = cv::Point(x,y);

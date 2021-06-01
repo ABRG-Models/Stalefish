@@ -12,11 +12,19 @@
 //! Main entry point
 int main (int argc, char** argv)
 {
+    std::string paramsfile = "";
     if (argc < 2) {
+        // If Mac, then show a window with this message saying 'using this as a cmd line app'
         std::cout << "Please supply path to the json conf file" << std::endl;
+#ifdef __OSX__
+        DM::i()->noFiles = true;
+#else
         return 1;
+#endif
+    } else {
+        std::string pfile(argv[1]);
+        paramsfile = pfile;
     }
-    std::string paramsfile (argv[1]);
 
     // In case we need to do something special when upgrading data formats
     if (argc > 2) {
