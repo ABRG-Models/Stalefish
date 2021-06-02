@@ -1,5 +1,8 @@
 #/bin/bash
 
+# Script to create a Mac OS bundle of stalefish, sfview and a couple of the
+# utilities along with all the libraries we should need.
+
 # cmake puts rpaths into the executables by default
 RPATHS_IN_EXE=1
 
