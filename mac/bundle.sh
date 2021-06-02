@@ -3,6 +3,9 @@
 # Script to create a Mac OS bundle of stalefish, sfview and a couple of the
 # utilities along with all the libraries we should need.
 
+# Update the icons
+iconutil -c icns -o sf_icons.icns sf_icons.iconset
+
 # cmake puts rpaths into the executables by default
 RPATHS_IN_EXE=1
 
