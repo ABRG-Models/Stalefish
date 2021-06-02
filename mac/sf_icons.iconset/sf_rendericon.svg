@@ -72,7 +72,7 @@
            id="meshpatch2774">
           <stop
              path="c 29.2089,-0.751676  88.1397,-1.12749  135.552,0"
-             style="stop-color:#c05a5a;stop-opacity:1"
+             style="stop-color:#f32727;stop-opacity:1"
              id="stop2776" />
           <stop
              path="c 0,45.2871  2.22908,91.3258  0,135.861"
@@ -80,11 +80,11 @@
              id="stop2778" />
           <stop
              path="c -45.1841,0  -90.3683,0  -135.552,0"
-             style="stop-color:#ff1d5d;stop-opacity:1"
+             style="stop-color:#c00019;stop-opacity:1"
              id="stop2780" />
           <stop
              path="c 0,-45.2871  -5.57274,-86.4399  0,-135.861"
-             style="stop-color:#e80047;stop-opacity:1"
+             style="stop-color:#e80014;stop-opacity:1"
              id="stop2782" />
         </meshpatch>
       </meshrow>
