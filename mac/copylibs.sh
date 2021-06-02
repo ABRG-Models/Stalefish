@@ -1,5 +1,8 @@
 #/bin/bash
 
+# cmake puts rpaths into the executables by default
+RPATHS_IN_EXE=1
+
 # Create Stalefish.app tree
 mkdir -p Stalefish.app/Contents/MacOS
 mkdir -p Stalefish.app/Contents/Resources
@@ -8,7 +11,7 @@ mkdir -p Stalefish.app/Contents/Resources
 cp sf_icons.icns Stalefish.app/Contents/Resources/
 
 # Copy the freshly built executable(s)
-PROGRAM_LIST="stalefish"
+PROGRAM_LIST="stalefish sfview"
 for j in ${PROGRAM_LIST}; do
     cp ../build/src/${j} Stalefish.app/Contents/MacOS/
 done
@@ -18,10 +21,18 @@ for i in libhdf5.103.dylib libarmadillo.9.dylib libjsoncpp.24.dylib libopencv_dn
     # This copies the versions on Seb's Mac into the package
     cp /usr/local/lib/${i} Stalefish.app/Contents/MacOS/
 
-    # This changes the executable
-    for j in ${PROGRAM_LIST}; do
-        install_name_tool -change /usr/local/lib/${i} @executable_path/${i} Stalefish.app/Contents/MacOS/${j}
-    done
+    # This would change the link to the library in the executable, if, in the executable rpaths weren't already used
+    if [ ${RPATHS_IN_EXE} -ne 1 ]; then
+        for j in ${PROGRAM_LIST}; do
+            install_name_tool -change /usr/local/lib/${i} @executable_path/${i} Stalefish.app/Contents/MacOS/${j}
+        done
+    fi
+done
+
+# Ensure the RPATH is set for our bundled libraries
+for j in ${PROGRAM_LIST}; do
+    # @loader_path is the path to the folder containing the program (${j})
+    install_name_tool -add_rpath @loader_path Stalefish.app/Contents/MacOS/${j}
 done
 
 # Create the Info.plist file
