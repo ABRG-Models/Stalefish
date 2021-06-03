@@ -4,6 +4,9 @@ project(Stalefish)
 set(VERSION 0.1)
 set(SOVERSION 1.0)
 
+# 10.14 is Mojave. I'm on 11.4 which is Big Sur
+set(CMAKE_OSX_DEPLOYMENT_TARGET "10.14")
+
 set(CMAKE_CXX_STANDARD 17)
 
 message(STATUS "Install prefix: ${CMAKE_INSTALL_PREFIX}")
