@@ -26,7 +26,7 @@ I used some OpenMP pragmas in sfview, so on a Mac, you need to make sure you hav
 
 ```
 git clone https://github.com/llvm/llvm-project.git
-cd llvm-project
+cd llvm-project/openmp
 mkdir build && cd build
 cmake -DCMAKE_INSTALL_PREFIX=/usr/local -DCMAKE_OSX_DEPLOYMENT_TARGET=10.14 ..
 make omp
