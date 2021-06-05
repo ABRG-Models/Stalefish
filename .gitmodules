@@ -1,0 +1,3 @@
+[submodule "morphologica"]
+	path = morphologica
+	url = https://github.com/ABRG-Models/morphologica.git
