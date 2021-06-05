@@ -1,0 +1,58 @@
+name: stalefish
+version: git
+summary: Neuroscience tool
+description: |
+  Stalefish is a tool to analyse gene expression.
+  From your brain slice images you can build 3D
+  expression surfaces and then convert these into
+  2D expression maps. For more details see...
+
+confinement: devmode
+base: core20
+
+parts:
+  stalefish:
+    plugin: cmake
+    cmake-parameters:
+    - -DCMAKE_INSTALL_PREFIX=/usr
+    source-type: git
+    source: https://github.com/ABRG-Models/Stalefish
+    build-packages:
+      - build-essential
+      - cmake
+      - wget
+      - freeglut3-dev
+      - libglu1-mesa-dev
+      - libxmu-dev
+      - libxi-dev
+      - liblapack-dev
+      - libopencv-dev
+      - libarmadillo-dev
+      - libjsoncpp-dev
+      - libglfw3-dev
+      - libhdf5-dev
+      - libfreetype-dev
+      - libpopt-dev
+      - libopengl-dev
+    stage-packages:
+      - libglu1-mesa
+      - libxmu6
+      - libxi6
+      - liblapack3
+      - libopencv-core4.2
+      - libopencv-highgui4.2
+      - libopencv-imgcodecs4.2
+      - libopencv-imgproc4.2
+      - libarmadillo9
+      - libjsoncpp1
+      - libglfw3
+      - libhdf5-103
+      - libfreetype6
+      - libpopt0
+      - libopengl0
+
+apps:
+  stalefish:
+    command: stalefish
+  sfview:
+    command: sfview
