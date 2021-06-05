@@ -346,16 +346,16 @@ void computeTransforms (const vector<string>& datafiles,
 //! Add just the landmarks (and global landmarks) in the datafile
 //! M: the transform matrix
 int addLandmarks (SFVisual& v, const string& datafile, const CmdOptions& co,
-                  const morph::TransformMatrix<float>& M, int number)
+                  const morph::TransformMatrix<float>& M, int number,
+                  morph::Vector<float, 3> offset = {0,0,0})
 {
     std::cout << __FUNCTION__ << " called\n";
+    std::cout << "addLandmarks. AT START offset is " << offset << std::endl;
     int rtn = 0;
 
     bool align_lm = co.use_autoalign > 0 ? false : true;
 
     try {
-        morph::Vector<float> offset = { 0.0, 0.0, 0.0 };
-
         morph::Scale<float> scale;
         scale.setParams (1.0, 0.0);
         float xx = 0.0f;
@@ -452,7 +452,7 @@ int addLandmarks (SFVisual& v, const string& datafile, const CmdOptions& co,
 
             unsigned int visId = 0;
 
-            offset[0]=0.0;
+            std::cout << "offset is " << offset << std::endl;
 
             // Show landmark aligned for preference:
             if (lmalignComputed == true && align_lm == true) {
@@ -512,9 +512,10 @@ int addLandmarks (SFVisual& v, const string& datafile, const CmdOptions& co,
 
 //! Add a 3D visual model for an expression surface, created from the file datafile, to the scene v
 int addVisMod (SFVisual& v, const string& datafile, const CmdOptions& co, const float hue,
-               morph::TransformMatrix<float>& M)
+               morph::TransformMatrix<float>& M,
+               morph::Vector<float> offset = { 0.0f, 0.0f, 0.0f })
 {
-    std::cout << __FUNCTION__ << " called with M=\n" << M << std::endl;
+    std::cout << __FUNCTION__ << " called with M=\n" << M << "\n and offset: " << offset << std::endl;
     int rtn = 0;
 
     bool autoscale_per_slice = co.scale_perslice > 0 ? true : false;
@@ -528,8 +529,6 @@ int addVisMod (SFVisual& v, const string& datafile, const CmdOptions& co, const 
     if (showcolour == false) { cmt = morph::ColourMapType::Fixed; }
 
     try {
-        morph::Vector<float> offset = { 0.0, 0.0, 0.0 };
-
         morph::Scale<float> scale;
         scale.setParams (1.0, 0.0);
 
@@ -805,8 +804,6 @@ int addVisMod (SFVisual& v, const string& datafile, const CmdOptions& co, const 
             }
             unsigned int visId = 0;
 
-            offset[0]=0.0;
-
             // Show landmark aligned for preference:
             if (lmalignComputed == true && align_lm == true) {
                 std::cout << "Landmark aligned.\n";
@@ -851,9 +848,12 @@ int addVisMod (SFVisual& v, const string& datafile, const CmdOptions& co, const 
                                                                            morph::ColourMapType::Jet));
                 v.angle_centres.push_back (visId);
 
+                std::cout << "About to add RodVisual...\n";
                 if (!AM_origins_lmaligned.empty()) {
+                    std::cout << "Definitely about to add RodVisual...\n";
                     size_t amo_last = AM_origins_lmaligned.size()-1;
                     std::array<float, 3> rcol = {1.0f,1.0f,1.0f};
+                    std::cout << "before add RodVisual, offset = " << offset << std::endl;
                     visId = v.addVisualModel (new morph::RodVisual (v.shaderprog, offset,
                                                                     AM_origins_lmaligned[0], AM_origins_lmaligned[amo_last],
                                                                     0.05f, rcol));
@@ -1518,7 +1518,7 @@ int addFlattened (SFVisual& v, const string& datafile, const CmdOptions& co,
             visId = v.addVisualModel (new morph::QuadsVisual<float> (v.shaderprog,
                                                                      &fquads_re, offset,
                                                                      &fmeans_resampled, scale,
-                                                                     morph::ColourMapType::Viridis));
+                                                                     morph::ColourMapType::Greyscale)); // Was Viridis
             v.surfaces_2d.push_back (visId);
             offset[1]-=7.5f;
 
@@ -1721,26 +1721,31 @@ int main (int argc, char** argv)
         computeTransforms (cmdOptions.datafiles, M, cmdOptions);
     }
 
-    // For each file in cmdOptions.datafiles:
+    // For each file in cmdOptions.datafiles, add a visual model for the 3D surface:
+    float offset_inc = 4.0f; // Vertical (y) distance between 3D models
+    morph::Vector<float,3> vm_offset = {0, 0, 0};
     for (unsigned int ii = 0; ii < cmdOptions.datafiles.size(); ++ii) {
         float hue = get_sfview_hue (ii);
         // Pass M into addVisMod and apply to the coords therein.
         std::cout << "Calling addVisMod (...,M["<<ii<<"] with hue " << hue << "\n";
-        rtn += addVisMod (v, cmdOptions.datafiles[ii], cmdOptions, hue, M[ii]);
+        rtn += addVisMod (v, cmdOptions.datafiles[ii], cmdOptions, hue, M[ii], vm_offset);
+        vm_offset[1] += offset_inc;
     }
 
     // And landmarks
     std::cout << "show_landmarks: " << cmdOptions.show_landmarks << "\n";
+    vm_offset = {0, 0, 0};
     if (cmdOptions.show_landmarks_all) {
         for (unsigned int ii = 0; ii < cmdOptions.datafiles.size(); ++ii) {
             //std::cout << "Add landmarks, multiplying positions by\n" << M[ii] << std::endl;
-            rtn += addLandmarks (v, cmdOptions.datafiles[ii], cmdOptions, M[ii], 1+ii);
+            rtn += addLandmarks (v, cmdOptions.datafiles[ii], cmdOptions, M[ii], 1+ii, vm_offset);
+            vm_offset[1] += offset_inc;
         }
     } else {
         if (cmdOptions.show_landmarks > 0 && static_cast<int>(cmdOptions.datafiles.size()) >= cmdOptions.show_landmarks) {
             unsigned int ii = cmdOptions.show_landmarks-1;
             //std::cout << "Add landmarks (one-off), multiplying positions by\n" << M[ii] << std::endl;
-            rtn += addLandmarks (v, cmdOptions.datafiles[ii], cmdOptions, M[ii], 1);
+            rtn += addLandmarks (v, cmdOptions.datafiles[ii], cmdOptions, M[ii], 1, vm_offset);
         }
     }
 
