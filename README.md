@@ -2,11 +2,35 @@
 
 ## Dependencies
 
+### morphologica dependencies
+
 This program compiles with
 [morphologica](https://github.com/ABRG-Models/morphologica) and thus
 needs to link to the associated libraries armadillo, opencv, glfw, hdf5 and freetype). So head over
 to that page and follow the instructions to install the dependencies for
-morphologica.
+morphologica (you don't need to *build* morphologica though).
+
+### libpopt
+
+Stalefish also uses libpopt in the sfview tool, so build libpopt-1.18:
+```
+CPPFLAGS="-mmacosx-version-min=10.14" LDFLAGS="-mmacosx-version-min=10.14" ./configure --prefix=/usr/local
+make
+sudo make install
+```
+(Note I used -mmacosx-version-min=10.14 to build for a minimum Mac OS of Mojave. You don't need to do that; it's completely optional)
+
+### libomp
+
+I used some OpenMP pragmas in sfview, so on a Mac, you need to make sure you have libomp. This is compiled from the llvm compiler source code.
+
+```
+git clone https://github.com/llvm/llvm-project.git
+cd llvm-project/openmp
+mkdir build && cd build
+cmake -DCMAKE_INSTALL_PREFIX=/usr/local -DCMAKE_OSX_DEPLOYMENT_TARGET=10.14 ..
+make omp
+```
 
 ## Compile Stalefish using cmake
 
