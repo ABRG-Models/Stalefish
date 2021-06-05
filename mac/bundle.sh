@@ -67,7 +67,7 @@ cat > Stalefish.app/Contents/Info.plist <<EOF
 	<key>CFBundleIconFile</key>
 	<string>sf_icons.icns</string>
 	<key>CFBundleIdentifier</key>
-	<string>com.academic.sebjames</string>
+	<string>com.sebjames.stalefish</string>
 	<key>NSHighResolutionCapable</key>
 	<true/>
 </dict>
