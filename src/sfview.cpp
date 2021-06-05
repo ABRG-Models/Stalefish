@@ -26,6 +26,10 @@
 
 using namespace std;
 
+#ifdef __OSX__
+namespace sfview { std::string working_directory = ""; }
+#endif
+
 // Derive Visual to add the extra sfview-specific keyhandling callback
 class SFVisual : public morph::Visual
 {
@@ -1601,6 +1605,12 @@ int main (int argc, char** argv)
 {
     int rtn = -1;
 
+#ifdef __OSX__
+    // On Mac, in case we are being run from a 'bundle', save the working directory for later.
+    sfview::working_directory = morph::Tools::getPwd();
+    std::cout << "Program working dir: '" << sfview::working_directory << "'" << std::endl;
+#endif
+
     // popt command line argument processing setup
     zeroCmdOptions (&cmdOptions);
 
@@ -1710,6 +1720,15 @@ int main (int argc, char** argv)
     morph::Vector<float, 2> coordArrowLocn = {-0.75,-0.7};
     morph::Vector<float> coordArrowLengths = {0.14f, 0.07f, 0.07f};
     SFVisual v(2000, 1400, cmdOptions.datafiles[0], coordArrowLocn, coordArrowLengths, 1.0f, 0.01f);
+#ifdef __OSX__
+    // If this is a Mac OS app in a 'bundle', then instatiating SFVisual will have caused the
+    // working directory to have been set to 'Package/Contents/Resources' (at the moment that
+    // the morph::Visual::init function attempted to open /tmp/Visual.json). Here, I switch it
+    // back to the working directory that was set when the program started (i.e. the working
+    // directory of the command line from which sfview was called). This is annoying Mac OS
+    // behaviour. A thousand and twenty four curses on Apple Inc!
+    morph::Tools::setPwd (sfview::working_directory);
+#endif
     v.zNear = 0.0001;
     v.zFar = 1000.0;
     v.showTitle = false;
