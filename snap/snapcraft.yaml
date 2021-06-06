@@ -1,4 +1,5 @@
 name: stalefish
+title: Stalefish
 version: git
 summary: Neuroscience tool
 description: |
@@ -7,6 +8,7 @@ description: |
   expression surfaces and then convert these into
   2D expression maps. For more details see...
 
+grade: stable
 confinement: devmode
 base: core20
 
@@ -50,9 +52,11 @@ parts:
       - libfreetype6
       - libpopt0
       - libopengl0
+      - libblas3
+      - libopenblas0-pthread
 
 apps:
   stalefish:
-    command: stalefish
+    command: usr/bin/stalefish
   sfview:
-    command: sfview
+    command: usr/bin/sfview
