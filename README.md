@@ -5,10 +5,9 @@
 ### morphologica dependencies
 
 This program compiles with
-[morphologica](https://github.com/ABRG-Models/morphologica) and thus
-needs to link to the associated libraries armadillo, opencv, glfw, hdf5 and freetype). So head over
-to that page and follow the instructions to install the dependencies for
-morphologica (you don't need to *build* morphologica though).
+[morphologica](https://github.com/ABRG-Models/morphologica), which is included as a git submodule. This means that Stalefish
+needs to link to the morphologica-associated libraries armadillo, opencv, glfw, hdf5 and freetype. So head over
+to the [morphologica Linux installation readme](https://github.com/ABRG-Models/morphologica/blob/main/README.install.linux.md) or the [Mac installation readme](https://github.com/ABRG-Models/morphologica/blob/main/README.install.mac.md) and follow the instructions to install the *dependencies* on your OS (you *don't* need to *build* morphologica).
 
 ### libpopt
 
@@ -38,10 +37,9 @@ make omp
 # clone Stalefish and change into Stalefish dir:
 git clone https://github.com/ABRG-Models/Stalefish.git
 cd Stalefish
-# Inside Stalefish dir, clone morphologica:
-git clone https://github.com/ABRG-Models/morphologica.git
-# Still in the Stalefish dir, create a build dir:
+# Inside Stalefish dir, create a build dir:
 mkdir build
+# Change directory to build and do a standard cmake build
 cd build
 cmake ..
 make
@@ -50,9 +48,7 @@ make
 ## Updating Stalefish
 
 ```
-cd /path/to/Stalefish/morphologica
-git pull -p
-cd .. # So that you are now in the Stalefish dir
+cd /path/to/Stalefish
 git pull -p
 cd build
 make
