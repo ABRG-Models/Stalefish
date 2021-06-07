@@ -8,7 +8,7 @@ description: |
   expression surfaces and then convert these into
   2D expression maps. For more details see...
 grade: stable
-confinement: devmode
+confinement: strict
 base: core20
 
 parts:
@@ -60,6 +60,13 @@ environment:
 apps:
   stalefish:
     command: usr/bin/stalefish
+    plugs:
+      - home
+      - x11
   sfview:
     command: usr/bin/sfview
     extensions: [gnome-3-38]
+    plugs:
+      - home
+      - x11
+      - opengl
