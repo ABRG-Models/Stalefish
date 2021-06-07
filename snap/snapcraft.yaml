@@ -60,6 +60,7 @@ environment:
 apps:
   stalefish:
     command: usr/bin/stalefish
+    extensions: [gnome-3-38]
     plugs:
       - home
       - x11

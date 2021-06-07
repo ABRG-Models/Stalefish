@@ -1,0 +1,9 @@
+[Desktop Entry]
+Name=Stalefish
+Comment=Stalefish
+GenericName=Neuroscience tool for ISH slices
+Exec=stalefish %U
+Terminal=true
+Icon=${SNAP}/meta/gui/stalefish.png
+Type=Application
+Categories=Science

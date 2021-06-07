@@ -1,0 +1,9 @@
+[Desktop Entry]
+Name=Sfview
+Comment=Stalefish 3D viewer
+GenericName=Neuroscience tool for ISH slices
+Exec=stalefish.sfview %U
+Terminal=true
+Icon=${SNAP}/meta/gui/sfview.png
+Type=Application
+Categories=Science
