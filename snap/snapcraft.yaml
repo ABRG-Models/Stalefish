@@ -7,7 +7,6 @@ description: |
   From your brain slice images you can build 3D
   expression surfaces and then convert these into
   2D expression maps. For more details see...
-
 grade: stable
 confinement: devmode
 base: core20
@@ -55,8 +54,12 @@ parts:
       - libblas3
       - libopenblas0-pthread
 
+environment:
+  "LD_LIBRARY_PATH": "$SNAP/usr/lib/$SNAPCRAFT_ARCH_TRIPLET/blas:$SNAP/usr/lib/$SNAPCRAFT_ARCH_TRIPLET/lapack"
+
 apps:
   stalefish:
     command: usr/bin/stalefish
   sfview:
     command: usr/bin/sfview
+    extensions: [gnome-3-38]
