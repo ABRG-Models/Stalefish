@@ -76,6 +76,7 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DMORPH_FONTS_DIR=\"\\\"${PROJECT_SOURCE
 # be compiled static if needed)
 add_subdirectory(src)
 add_subdirectory(allen)
+add_subdirectory(data)
 
 # Unit testing using the ctest framework
 # enable_testing()
