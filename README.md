@@ -4,16 +4,28 @@ Stalefish is a tool for the analysis of 2D brain slice images, allowing the neur
 
 Stalefish is written in C++ and will compile on Mac OS or Linux. Released versions are available as .dmg images or on the snapcraft.io store.
 
-## Dependencies
+## Build dependencies
 
-### morphologica dependencies
+### Ubuntu 20.04+ Quick-start
+
+Ubuntu 20.04 has apt-installable packages for all of Stalefish's dependencies! This should be a complete recipe:
+
+```
+sudo apt install build-essential cmake git wget  \
+                 freeglut3-dev libglu1-mesa-dev libxmu-dev libxi-dev liblapack-dev \
+                 libopencv-dev libarmadillo-dev libjsoncpp-dev libglfw3-dev libhdf5-dev libfreetype-dev libpopt-dev
+```
+
+### Dependencies on Mac OS or older Linux systems
+
+#### morphologica dependencies
 
 This program compiles with
 [morphologica](https://github.com/ABRG-Models/morphologica), which is included as a git submodule. This means that Stalefish
 needs to link to the morphologica-associated libraries armadillo, opencv, glfw, hdf5 and freetype. So head over
 to the [morphologica Linux installation readme](https://github.com/ABRG-Models/morphologica/blob/main/README.install.linux.md) or the [Mac installation readme](https://github.com/ABRG-Models/morphologica/blob/main/README.install.mac.md) and follow the instructions to install the *dependencies* on your OS (you *don't* need to *build* morphologica).
 
-### libpopt
+#### libpopt
 
 Stalefish also uses libpopt in the sfview tool, so build libpopt-1.18:
 ```
@@ -21,9 +33,9 @@ CPPFLAGS="-mmacosx-version-min=10.14" LDFLAGS="-mmacosx-version-min=10.14" ./con
 make
 sudo make install
 ```
-(Note I used -mmacosx-version-min=10.14 to build for a minimum Mac OS of Mojave. You don't need to do that; it's completely optional)
+(Note I used -mmacosx-version-min=10.14 to build for a minimum Mac OS of Mojave. You don't need to do that; it's completely optional on a Mac and definitly leave it out on Linux!)
 
-### libomp
+#### libomp on Mac
 
 I used some OpenMP pragmas in sfview, so on a Mac, you need to make sure you have libomp. This is compiled from the llvm compiler source code.
 
@@ -34,6 +46,7 @@ mkdir build && cd build
 cmake -DCMAKE_INSTALL_PREFIX=/usr/local -DCMAKE_OSX_DEPLOYMENT_TARGET=10.14 ..
 make omp
 ```
+(An equivalent installation is not necessary on Linux)
 
 ## Compile Stalefish using cmake
 
