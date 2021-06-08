@@ -13,7 +13,8 @@ Ubuntu 20.04 has apt-installable packages for all of Stalefish's dependencies! T
 ```
 sudo apt install build-essential cmake git wget  \
                  freeglut3-dev libglu1-mesa-dev libxmu-dev libxi-dev liblapack-dev \
-                 libopencv-dev libarmadillo-dev libjsoncpp-dev libglfw3-dev libhdf5-dev libfreetype-dev libpopt-dev
+                 libopencv-dev libarmadillo-dev libjsoncpp-dev libglfw3-dev \
+                 libhdf5-dev libfreetype-dev libpopt-dev
 ```
 
 ### Dependencies on Mac OS or older Linux systems
