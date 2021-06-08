@@ -1786,7 +1786,15 @@ int main (int argc, char** argv)
         exmsg << "This is the example project data\n"
               << "(Vole, P0, Id2, superficial cortical layers)\n"
               << "See `" << argv[0] << " -?` for command options";
+#ifdef __OSX__
+        v.addLabel (exmsg.str(), {-0.05f, -0.2f, 0.0f},
+                    morph::colour::white,
+                    morph::VisualFont::Vera,
+                    0.01 ,
+                    24);
+#else
         v.addLabel (exmsg.str(), {-0.05f, 0.005f, 0.0f});
+#endif
     }
     v.diffuse_position = {-1, 2, -3};
 
