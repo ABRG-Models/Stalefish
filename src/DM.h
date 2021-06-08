@@ -874,7 +874,7 @@ public:
             putText (*pImg, std::string("Example project"),
                      cv::Point(xh,yh), cv::FONT_HERSHEY_SIMPLEX, titlefz, SF_BLACK, 2, cv::LINE_AA);
             yh += 60;
-            putText (*pImg, std::string("You try a read-only example project by pressing 'e', now!"),
+            putText (*pImg, std::string("You can try a read-only example project by pressing 'e', now!"),
                      cv::Point(xh,yh), cv::FONT_HERSHEY_SIMPLEX, fontsz, SF_BLACK, 1, cv::LINE_AA);
         }
 
