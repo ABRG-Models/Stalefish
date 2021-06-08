@@ -15,12 +15,9 @@ int main (int argc, char** argv)
     std::string paramsfile = "";
     if (argc < 2) {
         // If Mac, then show a window with this message saying 'using this as a cmd line app'
-        std::cout << "Please supply path to the json conf file" << std::endl;
-#ifdef __OSX__
-        DM::i()->noFiles = true;
-#else
-        return 1;
-#endif
+        std::cout << "Please supply path to the json conf file. Showing help/example screen." << std::endl;
+        DM::i()->appmode = AppMode::NoFile;
+        DM::i()->argv0 = std::string(argv[0]);
     } else {
         std::string pfile(argv[1]);
         paramsfile = pfile;
@@ -231,9 +228,14 @@ int main (int argc, char** argv)
             DM::i()->toggleBlurWindow();
             break;
         }
-        case ('e'):
+        case ('E'):
         {
             DM::i()->toggleOffsWindow();
+            break;
+        }
+        case ('e'):
+        {
+            DM::i()->showExampleProject();
             break;
         }
         case ('x'):

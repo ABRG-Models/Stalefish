@@ -42,6 +42,12 @@ enum AppFlag {
     AppShowHelp
 };
 
+enum AppMode {
+    Normal,     // Program was started with a cmd line as usual
+    NoFile,     // Program started without cmd line; currently showing help message screen
+    ExampleFile // User requested the example file, so now we're showing it (but won't allow write out)
+};
+
 //! Singleton pattern data manager class to hold framedata
 class DM
 {
@@ -485,7 +491,7 @@ public:
     //! Write frames to HdfData
     void writeFrames()
     {
-        if (this->noFiles == true) { return; }
+        if (this->appmode == AppMode::NoFile || this->appmode == AppMode::ExampleFile) { return; }
 
         this->writePrep();
 
@@ -576,7 +582,7 @@ public:
 
     void exportLandmarks()
     {
-        if (this->noFiles == true) { return; }
+        if (this->appmode == AppMode::NoFile || this->appmode == AppMode::ExampleFile) { return; }
         this->refreshAllBoxes();
         for (auto& f : this->vFrameData) { f.updateAlignments(); }
         int nf = this->vFrameData.size();
@@ -590,7 +596,7 @@ public:
 
     void exportFreehand()
     {
-        if (this->noFiles == true) { return; }
+        if (this->appmode == AppMode::NoFile || this->appmode == AppMode::ExampleFile) { return; }
         this->refreshAllBoxes();
         for (auto& f : this->vFrameData) { f.updateAlignments(); }
         int nf = this->vFrameData.size();
@@ -602,7 +608,7 @@ public:
 
     void exportCurves()
     {
-        if (this->noFiles == true) { return; }
+        if (this->appmode == AppMode::NoFile || this->appmode == AppMode::ExampleFile) { return; }
         this->refreshAllBoxes();
         for (auto& f : this->vFrameData) { f.updateAlignments(); }
         int nf = this->vFrameData.size();
@@ -615,7 +621,7 @@ public:
     //! Export all user-supplied point information to files
     void exportUserpoints()
     {
-        if (this->noFiles == true) { return; }
+        if (this->appmode == AppMode::NoFile || this->appmode == AppMode::ExampleFile) { return; }
         this->refreshAllBoxes();
         for (auto& f : this->vFrameData) { f.updateAlignments(); }
         int nf = this->vFrameData.size();
@@ -642,7 +648,7 @@ public:
     //! Import landmark information from a file
     void importLandmarks()
     {
-        if (this->noFiles == true) { return; }
+        if (this->appmode == AppMode::NoFile) { return; }
         try {
             morph::HdfData d(lm_exportfile, true);
             for (auto& f : this->vFrameData) { f.importLandmarks (d); }
@@ -655,6 +661,7 @@ public:
     //! Import "curve points" from a file
     void importCurves()
     {
+        if (this->appmode == AppMode::NoFile) { return; }
         try {
             morph::HdfData d(cp_exportfile, true);
             for (auto& f : this->vFrameData) { f.importCurves (d); }
@@ -666,7 +673,7 @@ public:
     //! Import freehand loops from a file
     void importFreehand()
     {
-        if (this->noFiles == true) { return; }
+        if (this->appmode == AppMode::NoFile) { return; }
         try {
             morph::HdfData d(fh_exportfile, true);
             for (auto& f : this->vFrameData) { f.importFreehand (d); }
@@ -722,8 +729,13 @@ public:
     //! What is the scaling factor to scale the images before saving them in FrameData objects?
     float scaleFactor = 1.0f;
 
-    //! Set true if program was invoked with no .json or .h5 file to open.
-    bool noFiles = false;
+    //! Set AppMode::NoFile if program was invoked with no .json or .h5 file to open. In
+    //! that case, present a helpful screen along with the option to open a bundled
+    //! example file (if it is found).
+    AppMode appmode = AppMode::Normal;
+
+    //! Used when showing the help screen
+    std::string argv0 = "";
 
     //! Set true to read in old data format, to be written out in new format.
     bool readOldFormat = false;
@@ -779,7 +791,29 @@ public:
         return rtn;
     }
 
-    //! Special, minimal setup to show a message to the user when they try to open the app on Mac with no filename
+    //! Try the possible example project paths and return the one found
+    std::string exampleProjectPath()
+    {
+        std::string ex_project_path("data/vole_65_7E_id2_L23.h5");
+        if (morph::Tools::fileExists (ex_project_path)) { return ex_project_path; }
+        // Add others - the bundled ones (this will be one path on Mac and another on the snap)
+        return std::string("");
+    }
+
+    //! When user presses the 'e' key, this function is called
+    void showExampleProject()
+    {
+        std::string pth = this->exampleProjectPath();
+        if (pth.empty()) { return; }
+        this->appmode = AppMode::ExampleFile;
+        // REMOVE initial frame and close initial window
+        this->vFrameData.clear();
+        cv::destroyWindow (this->winName);
+        this->setupWithFile (pth);
+    }
+
+    //! Special, minimal setup to show a message to the user when they try to open the
+    //! app with no filename
     void noFileSetup()
     {
         std::cout << __FUNCTION__ << " called\n";
@@ -792,36 +826,56 @@ public:
         cv::setMouseCallback (this->winName, DM::onmouse, this->getImg());
         int xh = 30;
         int yh = 90;
-        int yinc = 40;
-        float fontsz = 0.9f;
+        float fontsz = 0.8f;
+        float titlefz = 0.9f;
+
         cv::Mat* pImg = this->getImg();
         putText (*pImg, std::string("Welcome to Stalefish!"),
-                 cv::Point(xh,yh), cv::FONT_HERSHEY_SIMPLEX, fontsz, SF_BLACK, 1, cv::LINE_AA);
-        fontsz = 0.8f * fontsz;
+                 cv::Point(xh,yh), cv::FONT_HERSHEY_SIMPLEX, titlefz, SF_BLACK, 2, cv::LINE_AA);
         yh += 60;
-        putText (*pImg, std::string("This application has a very simple user interface and has to be run"),
+        putText (*pImg, std::string("This application has a *very* simple user interface and has to be run"),
                  cv::Point(xh,yh), cv::FONT_HERSHEY_SIMPLEX, fontsz, SF_BLACK, 1, cv::LINE_AA);
-        yh += yinc;
-        putText (*pImg, std::string("from the command line. You must specify the JSON or HDF5 file that"),
+        yh += 40;
+        putText (*pImg, std::string("from the command line. You must specify the JSON or HDF5 project file"),
                  cv::Point(xh,yh), cv::FONT_HERSHEY_SIMPLEX, fontsz, SF_BLACK, 1, cv::LINE_AA);
-        yh += yinc;
-        putText (*pImg, std::string("the program will read. Typically, you'll open a terminal and run:"),
+        yh += 40;
+        putText (*pImg, std::string("that the program will read. Typically, you'll open a terminal and run:"),
                  cv::Point(xh,yh), cv::FONT_HERSHEY_SIMPLEX, fontsz, SF_BLACK, 1, cv::LINE_AA);
         yh += 50;
-        putText (*pImg, std::string("  /path/to/stalefish myfile.json"),
+        putText (*pImg, std::string("  ") + this->argv0 + std::string(" myfile.json"),
                  cv::Point(xh,yh), cv::FONT_HERSHEY_SIMPLEX, fontsz, SF_BLACK, 1, cv::LINE_AA);
         yh += 50;
         putText (*pImg, std::string("where myfile.json has been set up as described in the documentation."),
                  cv::Point(xh,yh), cv::FONT_HERSHEY_SIMPLEX, fontsz, SF_BLACK, 1, cv::LINE_AA);
         yh += 50;
-        putText (*pImg, std::string("On a Mac, after a standard install, the command should be:"),
+        putText (*pImg, std::string("Find the documentation at:"),
                  cv::Point(xh,yh), cv::FONT_HERSHEY_SIMPLEX, fontsz, SF_BLACK, 1, cv::LINE_AA);
         yh += 50;
-        putText (*pImg, std::string("  /Applications/Stalefish.app/Contents/MacOS/stalefish myfile.json"),
-                 cv::Point(xh,yh), cv::FONT_HERSHEY_SIMPLEX, fontsz, SF_BLACK, 1, cv::LINE_AA);
+        putText (*pImg, std::string("  https://github.com/ABRG-Models/Stalefish"),
+                 cv::Point(xh,yh), cv::FONT_HERSHEY_SIMPLEX, fontsz, SF_BLACK, 1.4, cv::LINE_AA);
+
+        if (!this->exampleProjectPath().empty()) {
+            yh += 60;
+            putText (*pImg, std::string("Example project"),
+                     cv::Point(xh,yh), cv::FONT_HERSHEY_SIMPLEX, titlefz, SF_BLACK, 2, cv::LINE_AA);
+            yh += 60;
+            putText (*pImg, std::string("You try a read-only example project by pressing 'e', now!"),
+                     cv::Point(xh,yh), cv::FONT_HERSHEY_SIMPLEX, fontsz, SF_BLACK, 1, cv::LINE_AA);
+        }
+
         yh += 60;
-        putText (*pImg, std::string("Please press 'x' to exit"),
+        putText (*pImg, std::string("Exit and try again"),
+                 cv::Point(xh,yh), cv::FONT_HERSHEY_SIMPLEX, titlefz, SF_BLACK, 2, cv::LINE_AA);
+        yh += 60;
+        putText (*pImg, std::string("Please press 'x' to exit so you can re-start with a json or h5 path."),
                  cv::Point(xh,yh), cv::FONT_HERSHEY_SIMPLEX, fontsz, SF_BLACK, 1, cv::LINE_AA);
+    }
+
+    //! Entry point to application setup. Select method to call based on this->noFiles
+    void setup (const std::string& paramsfile)
+    {
+        if (this->appmode == AppMode::NoFile) { return this->noFileSetup(); }
+        return this->setupWithFile (paramsfile);
     }
 
     /*!
@@ -831,10 +885,8 @@ public:
      * file. If HDF5, then the saved JSON config is searched for within the HDF as
      * '/config'
      */
-    void setup (const std::string& paramsfile)
+    void setupWithFile (const std::string& paramsfile)
     {
-        if (this->noFiles == true) { return this->noFileSetup(); }
-
         std::string jsonfile (paramsfile);
         bool hdf_for_reading = false;
         // Set the HDF5 data file path based on the .json file path
@@ -1338,7 +1390,7 @@ public:
         FrameData* cf = _this->gcf();
 
         // If we're in no file mode, don't respond to the mouse
-        if (_this->noFiles == true) {
+        if (_this->appmode == AppMode::NoFile) {
             imshow (_this->winName, *pImg);
             return;
         }
