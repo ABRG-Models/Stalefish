@@ -2,6 +2,7 @@
 
 # Script to create a Mac OS bundle of stalefish, sfview and a couple of the
 # utilities along with all the libraries we should need.
+echo "Remember to build and *install* Stalefish locally first from the build/ directory!"
 
 # Update the icons
 iconutil -c icns -o sf_icons.icns sf_icons.iconset
@@ -75,3 +76,5 @@ cat > Stalefish.app/Contents/Info.plist <<EOF
 </dict>
 </plist>
 EOF
+
+echo "Done."
