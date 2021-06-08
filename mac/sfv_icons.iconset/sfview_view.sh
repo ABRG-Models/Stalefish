@@ -12,3 +12,6 @@ convert sfview_view.png -resize 64x64 icon_32x32@2x.png
 convert sfview_view.png -resize 256x256 icon_128x128@2x.png
 convert sfview_view.png -resize 512x512 icon_256x256@2x.png
 cp sfview_view.png icon_512x512@2x.png
+
+# one for snap packaging:
+cp icon_512x512.png sfview.png
