@@ -60,35 +60,19 @@
          stdDeviation="0.33927041"
          id="feGaussianBlur1198" />
     </filter>
-    <meshgradient
+    <filter
        inkscape:collect="always"
-       id="meshgradient2662"
-       gradientUnits="userSpaceOnUse"
-       x="32.37254"
-       y="28.204393">
-      <meshrow
-         id="meshrow2772">
-        <meshpatch
-           id="meshpatch2774">
-          <stop
-             path="c 29.2089,-0.751676  88.1397,-1.12749  135.552,0"
-             style="stop-color:#f32727;stop-opacity:1"
-             id="stop2776" />
-          <stop
-             path="c 0,45.2871  2.22908,91.3258  0,135.861"
-             style="stop-color:#ff1010;stop-opacity:1"
-             id="stop2778" />
-          <stop
-             path="c -45.1841,0  -90.3683,0  -135.552,0"
-             style="stop-color:#c00019;stop-opacity:1"
-             id="stop2780" />
-          <stop
-             path="c 0,-45.2871  -5.57274,-86.4399  0,-135.861"
-             style="stop-color:#e80014;stop-opacity:1"
-             id="stop2782" />
-        </meshpatch>
-      </meshrow>
-    </meshgradient>
+       style="color-interpolation-filters:sRGB"
+       id="filter1650"
+       x="-0.0060000001"
+       width="1.012"
+       y="-0.0060000001"
+       height="1.012">
+      <feGaussianBlur
+         inkscape:collect="always"
+         stdDeviation="0.35404335"
+         id="feGaussianBlur1652" />
+    </filter>
   </defs>
   <sodipodi:namedview
      id="base"
@@ -97,17 +81,17 @@
      borderopacity="1.0"
      inkscape:pageopacity="0.0"
      inkscape:pageshadow="2"
-     inkscape:zoom="0.70710678"
-     inkscape:cx="2.6314633"
-     inkscape:cy="285.57427"
+     inkscape:zoom="0.5"
+     inkscape:cx="64.118097"
+     inkscape:cy="365.53159"
      inkscape:document-units="mm"
      inkscape:current-layer="layer1"
      showgrid="false"
-     inkscape:window-width="3768"
-     inkscape:window-height="2096"
-     inkscape:window-x="72"
-     inkscape:window-y="27"
-     inkscape:window-maximized="1"
+     inkscape:window-width="1502"
+     inkscape:window-height="1177"
+     inkscape:window-x="0"
+     inkscape:window-y="77"
+     inkscape:window-maximized="0"
      fit-margin-top="0"
      fit-margin-left="0"
      fit-margin-right="0"
@@ -132,17 +116,25 @@
      id="layer1"
      transform="translate(-18.898811,-11.412039)">
     <rect
-       style="fill:url(#meshgradient2662);fill-opacity:1;stroke:#ababab;stroke-width:0;stroke-miterlimit:4;stroke-dasharray:none;stroke-dashoffset:0;stroke-opacity:1;filter:url(#filter1196)"
+       style="fill:#d1a4b4;fill-opacity:1;stroke:none;stroke-width:0;stroke-miterlimit:4;stroke-dasharray:none;stroke-dashoffset:0;stroke-opacity:0.99607843;filter:url(#filter1196)"
        id="rect828-8"
        width="135.55241"
        height="135.86116"
        x="32.37254"
        y="28.204393"
        ry="23.087191"
-       transform="matrix(1.007162,0,0,0.99558118,6.7573502,6.3047311)" />
+       transform="matrix(1.2795656,0,0,1.2648526,-20.095493,-21.443569)" />
+    <rect
+       style="fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.41734472;stroke-miterlimit:4;stroke-dasharray:none;stroke-dashoffset:0;stroke-opacity:1;filter:url(#filter1650)"
+       id="rect1566"
+       width="141.61734"
+       height="141.61734"
+       x="37.242729"
+       y="29.344336"
+       ry="23.553898" />
     <g
        id="g1202"
-       transform="translate(1.3229167,-0.75595238)">
+       transform="matrix(1.3125667,0,0,1.3125667,-30.573566,-34.988657)">
       <rect
          transform="matrix(0.76718712,0,0,0.77082651,28.780828,28.856459)"
          ry="15.645976"
@@ -164,11 +156,11 @@
          y="6.4536052" />
     </g>
     <rect
-       style="fill:#000000;fill-opacity:1;stroke:#040404;stroke-width:0.82536405;stroke-miterlimit:4;stroke-dasharray:none;stroke-dashoffset:0;stroke-opacity:1"
+       style="fill:#000000;fill-opacity:1;stroke:#040404;stroke-width:1.03595281;stroke-miterlimit:4;stroke-dasharray:none;stroke-dashoffset:0;stroke-opacity:1"
        id="rect830"
        width="0"
        height="0"
-       x="172.06955"
-       y="163.24615" />
+       x="188.94081"
+       y="177.01703" />
   </g>
 </svg>
