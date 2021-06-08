@@ -801,8 +801,13 @@ public:
         // Try Mac path, if this is a bundled Mac app. Use argv0 as starting point.
         ex_project_path = this->argv0;
         morph::Tools::stripUnixFile(ex_project_path);
-        std::cout << "ex_project_path is now: " << ex_project_path << std::endl;
         ex_project_path += std::string("/../Resources/vole_65_7E_id2_L23.h5");
+        if (morph::Tools::fileExists (ex_project_path)) { return ex_project_path; }
+
+        // For the snap, we also use the argv0 to start from
+        ex_project_path = this->argv0;
+        morph::Tools::stripUnixFile(ex_project_path);
+        ex_project_path += std::string("/../share/vole_65_7E_id2_L23.h5");
         if (morph::Tools::fileExists (ex_project_path)) { return ex_project_path; }
 
         return std::string("");

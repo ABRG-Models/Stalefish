@@ -13,6 +13,7 @@ base: core20
 
 parts:
   stalefish:
+    source-branch: features/example_prog
     plugin: cmake
     cmake-parameters:
     - -DCMAKE_INSTALL_PREFIX=/usr
