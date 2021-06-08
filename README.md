@@ -1,5 +1,9 @@
 # Stalefish
 
+Stalefish is a tool for the analysis of 2D brain slice images, allowing the neurobiologist to reconstruct three dimensional gene expression surfaces from ISH slices. The 3D surfaces can then be digitally unwrapped to make 2D expression maps. A paper describing the process is under submission for publication.
+
+Stalefish is written in C++ and will compile on Mac OS or Linux. Released versions are available as .dmg images or on the snapcraft.io store.
+
 ## Dependencies
 
 ### morphologica dependencies
@@ -76,6 +80,8 @@ Press "h" to see help text.
 See the reading/ subdirectory and its README.md file.
 
 ## JSON parameters
+
+Stalefish projects are created with a hand-written .json file which lists the images in your brain slice set, along with some additional information, such as the position of each slice in the stack, the slice thickness and so on. The parameters are listed here. Example json files can be found in the data/ directory - see testimg.json and vole_65_7E_id2_L23.json for templates.
 
 * **pixels_per_mm** Set to the number of pixels per mm in the original image files.
 * **thickness** The thickness of a brain slice (in mm), assuming they'll all be the same.
