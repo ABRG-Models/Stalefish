@@ -13,7 +13,7 @@
 	"pixels_per_mm" : 233,
 	"save_auto_align_data" : true,
 	"save_landmark_align_data" : true,
-	"save_per_pixel_data" : true,
+	"save_per_pixel_data" : false,
 	"scaleFactor" : 0.5,
 	"slices" :
 	[
