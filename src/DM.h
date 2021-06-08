@@ -794,21 +794,31 @@ public:
     //! Try the possible example project paths and return the one found
     std::string exampleProjectPath()
     {
+        // First try relative path, if this is being run from the git repository root
         std::string ex_project_path("data/vole_65_7E_id2_L23.h5");
         if (morph::Tools::fileExists (ex_project_path)) { return ex_project_path; }
-        // Add others - the bundled ones (this will be one path on Mac and another on the snap)
+
+        // Try Mac path, if this is a bundled Mac app. Use argv0 as starting point.
+        ex_project_path = this->argv0;
+        morph::Tools::stripUnixFile(ex_project_path);
+        std::cout << "ex_project_path is now: " << ex_project_path << std::endl;
+        ex_project_path += std::string("/../Resources/vole_65_7E_id2_L23.h5");
+        if (morph::Tools::fileExists (ex_project_path)) { return ex_project_path; }
+
         return std::string("");
     }
 
     //! When user presses the 'e' key, this function is called
     void showExampleProject()
     {
+        // Find the example file and set the appmode
         std::string pth = this->exampleProjectPath();
         if (pth.empty()) { return; }
         this->appmode = AppMode::ExampleFile;
-        // REMOVE initial frame and close initial window
+        // Remove initial frame and close initial window
         this->vFrameData.clear();
         cv::destroyWindow (this->winName);
+        // Proceed with setup (almost) as if user had provided .h5 path on cmd line
         this->setupWithFile (pth);
     }
 
@@ -852,7 +862,7 @@ public:
                  cv::Point(xh,yh), cv::FONT_HERSHEY_SIMPLEX, fontsz, SF_BLACK, 1, cv::LINE_AA);
         yh += 50;
         putText (*pImg, std::string("  https://github.com/ABRG-Models/Stalefish"),
-                 cv::Point(xh,yh), cv::FONT_HERSHEY_SIMPLEX, fontsz, SF_BLACK, 1.4, cv::LINE_AA);
+                 cv::Point(xh,yh), cv::FONT_HERSHEY_SIMPLEX, fontsz, SF_BLACK, 1, cv::LINE_AA);
 
         if (!this->exampleProjectPath().empty()) {
             yh += 60;
