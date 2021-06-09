@@ -7,7 +7,7 @@ Stalefish is a tool for the analysis of 2D brain slice images, allowing the neur
 Stalefish is written in C++ and will compile on Mac OS or Linux. Released versions are available as .dmg images or on the snapcraft.io store.
 
 ## Download Stalefish
-The quickest way to try Stalefish is to install a pre-built image. For help building Stalefish (which is not difficult), see below in 'Building Stalefish'.
+The quickest way to try Stalefish is to install a pre-built image. (For build instructions see [Building Stalefish](https://github.com/ABRG-Models/Stalefish#building-stalefish).)
 ### Mac
 To install on Mac OS, download the **Stalefish.dmg** file from https://github.com/ABRG-Models/Stalefish/releases/
 ### Linux
