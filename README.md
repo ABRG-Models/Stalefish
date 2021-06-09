@@ -9,7 +9,7 @@ Stalefish is written in C++ and will compile on Mac OS or Linux. Released versio
 ## Download Stalefish
 The quickest way to try Stalefish is to install a pre-built image. For help building Stalefish (which is not difficult), see below in 'Building Stalefish'.
 ### Mac
-To install on Mac OS, download the **Stalefish.dmg** file from one of our releases on https://github.com/ABRG-Models/Stalefish
+To install on Mac OS, download the **Stalefish.dmg** file from https://github.com/ABRG-Models/Stalefish/releases/
 ### Linux
 We've packaged Stalefish for Linux using 'snap'. This is a way to make apps available to many different distributions of Linux. If you have snapd installed on your system (it comes pre-installed in Ubuntu), you can install Stalefish with
 ```
