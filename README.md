@@ -2,9 +2,17 @@
 
 ![A banner image of a set of sample boxes laid out on a ISH brain slice image](https://github.com/ABRG-Models/Stalefish/blob/master/misc/screenshots/sfbanner_widenarrow.png?raw=true)
 
-Stalefish is a tool for the analysis of 2D brain slice images, allowing the neurobiologist to reconstruct three dimensional gene expression surfaces from ISH slices. The 3D surfaces can then be digitally unwrapped to make 2D expression maps. A paper describing the process is under submission for publication.
+Stalefish is a tool for the analysis of 2D brain slice images, allowing the neurobiologist to reconstruct three dimensional gene expression surfaces from ISH slices. The 3D surfaces can then be digitally unwrapped to make 2D expression maps. A paper giving a detailed description of the process is currently under submission for publication.
 
-Stalefish is written in C++ and will compile on Mac OS or Linux. Released versions are available as .dmg images or on the snapcraft.io store.
+You start with a standard set of brain slice images. These are configured as a project and opened with **stalefish**. Sample collection curves are added to the images as a manual process using a (computer!) mouse (Fig 1A). When the curves are arranged in a stack, a three dimensional surface can be created, as shown in Fig. 1B.  
+
+![Left panel shows curves/sample bins on a slice, right panel shows a 3D mesh constructed from the curves.](https://github.com/ABRG-Models/Stalefish/blob/master/misc/screenshots/curves_to_3D.png?raw=true)
+_**Figure 1**: **A** User provided points (red and blue) define a curve from which yellow sampling bins are derived. The mean luminance in the sample bins gives data points for, in this case, the level of expression of a gene called 'Id2' at evenly spaced locations along the curve. **B** By arranging adjacent curves, the gene expression data forms a 3D surface, show here as a mesh of spheres (at the data points) with **sfview**._
+
+The surface can now be digitally unwrapped and resampled to produce a two dimensional image of the gene expression. Fig. 2 shows the sequence in which this is carried out. Once the map has been unwrapped, the patterns of gene expression can be analysed with standard image analysis tools.
+
+![A series of images showing a 3D surface being unwrapped to give a 2D map](https://github.com/ABRG-Models/Stalefish/blob/master/misc/screenshots/3D_2D_unwrap.png?raw=true)
+_**Figure 2**: Three dimensions to two dimensions. **A** A filled render of the mesh in Fig. 1B. **B** Unwrapping the surface **C** Unwrapped surface shown as 2D map **D** The 2D map resampled so that it can be manipulated as a digital image._
 
 ## Download Stalefish
 The quickest way to try Stalefish is to install a pre-built image. (For build instructions see [Building Stalefish](https://github.com/ABRG-Models/Stalefish#building-stalefish).)
@@ -62,6 +70,8 @@ You can press 'h' to see help text detailing the key-press commands that are ava
 ## Analysing the data from the program
 
 See the reading/ subdirectory and its README.md file for a full description of the format in which data is saved from Stalefish into an HDF5 file. There is example Python and Octave code to get you started. 
+
+### sfview
 
 You can also view the data using the **sfview** program (which is written in C++ - see its code to help you reading HDF5 Stalefish projects in that language).
 
