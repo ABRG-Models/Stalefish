@@ -1,5 +1,7 @@
 # Stalefish
 
+![A banner image of a set of sample boxes laid out on a ISH brain slice image](https://github.com/ABRG-Models/Stalefish/blob/master/misc/screenshots/sfbanner_widenarrow.png?raw=true)
+
 Stalefish is a tool for the analysis of 2D brain slice images, allowing the neurobiologist to reconstruct three dimensional gene expression surfaces from ISH slices. The 3D surfaces can then be digitally unwrapped to make 2D expression maps. A paper describing the process is under submission for publication.
 
 Stalefish is written in C++ and will compile on Mac OS or Linux. Released versions are available as .dmg images or on the snapcraft.io store.
