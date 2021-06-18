@@ -27,7 +27,7 @@ For help installing, see https://snapcraft.io/stalefish
 
 ## Running the program
 
-Stalefish has a _very_ simple user interface. In order to keep the code as small as possible, we haven't linked to any of the 'desktop widget' libraries such as Qt, Cocoa or GTK. That means we don't have access to common interfaces such as file-chooser widget. We control the setup of the program using a text based configuration file written in a very friendly format called JSON. This means that the path to the JSON file has to be provided on the command line when launching Stalefish like this:
+Stalefish has a _very_ simple user interface. In order to keep the code as small as possible, we haven't linked to any of the 'desktop widget' libraries such as Qt, Cocoa or GTK. That means we don't have access to common interfaces such as a file-chooser widget or application menus. We control the setup of the program using a text based configuration file written in a very friendly format called JSON. This means that the path to the JSON file has to be provided on the command line when launching Stalefish like this:
 ```
 ./build/src/stalefish ./data/testimg.json
 ```
@@ -44,7 +44,7 @@ In Curve mode, a mouse click will create green points to which a curve should be
 
 ### JSON parameters
 
-Stalefish projects are created with a hand-written .json file which lists the images in your brain slice set, along with some additional information, such as the position of each slice in the stack, the slice thickness and so on. The parameters are listed here. Example json files can be found in the data/ directory - see **testimg.json** and **vole_65_7E_id2_L23.json**.
+Stalefish projects are created with a hand-written .json file which lists the images in your brain slice set, along with some additional information, such as the position of each slice in the stack, the slice thickness and so on. The parameters are listed here. Example json files can be found in the data/ directory - see [testimg.json](https://github.com/ABRG-Models/Stalefish/blob/master/data/testimg.json) and [vole_65_7E_id2_L23.json](https://github.com/ABRG-Models/Stalefish/blob/master/data/vole_65_7E_id2_L23.json).
 
 * **pixels_per_mm** Set to the number of pixels per mm in the original image files.
 * **thickness** The thickness of a brain slice (in mm), assuming they'll all be the same.
@@ -107,11 +107,11 @@ CPPFLAGS="-mmacosx-version-min=10.14" LDFLAGS="-mmacosx-version-min=10.14" ./con
 make
 sudo make install
 ```
-(Note I used -mmacosx-version-min=10.14 to build for a minimum Mac OS of Mojave. You don't need to do that; it's completely optional on a Mac and definitly leave it out on Linux!)
+(Note I used -mmacosx-version-min=10.14 to build for a minimum Mac OS of Mojave. You don't need to do that; it's completely optional on a Mac and definitely leave it out on Linux!)
 
 ##### libomp on Mac
 
-I used some OpenMP pragmas in sfview, so on a Mac, you need to make sure you have libomp. This is compiled from the llvm compiler source code.
+I used some OpenMP pragmas in sfview to speed up some of the processing, so on a Mac, you need to make sure you have libomp. This is compiled from the llvm compiler source code.
 
 ```
 git clone https://github.com/llvm/llvm-project.git
