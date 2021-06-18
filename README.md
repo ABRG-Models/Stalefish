@@ -4,7 +4,7 @@
 
 Stalefish is a tool for the analysis of 2D brain slice images, allowing the neurobiologist to reconstruct three dimensional gene expression surfaces from ISH slices. The 3D surfaces can then be digitally unwrapped to make 2D expression maps. A paper giving a detailed description of the process is currently under submission for publication.
 
-You start with a standard set of brain slice images. These are configured as a project and opened with **stalefish**. Sample collection curves are added to the images as a manual process using a mouse (Fig 1A). When the curves are arranged in a stack, a three dimensional surface can be created, as shown in Fig. 1B.  
+You start with a standard set of brain slice images. These are configured as a project and opened with **stalefish**. Sample collection curves are added to the images as a manual process using keyboard & mouse (Fig 1A). When the curves are arranged in a stack, a three dimensional surface can be created, as shown in Fig. 1B.  
 
 ![Left panel shows curves/sample bins on a slice, right panel shows a 3D mesh constructed from the curves.](https://github.com/ABRG-Models/Stalefish/blob/master/misc/screenshots/curves_to_3D.png?raw=true)
 _**Figure 1**: **A** User provided points (red and blue) define a curve from which yellow sampling bins are derived. The mean luminance in the sample bins gives data points for, in this case, the level of expression of a gene called 'Id2' at evenly spaced locations along the curve. **B** By arranging adjacent curves, the gene expression data forms a 3D surface, shown here as a mesh of spheres (at the data points) with **sfview**.w The line of pink spheres give the position of alignment marks used to help align adjacent brain slices._
