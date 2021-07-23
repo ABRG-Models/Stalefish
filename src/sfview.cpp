@@ -621,7 +621,7 @@ int addVisMod (SFVisual& v, const string& datafile, const CmdOptions& co, const 
 
                 cp[1] = fitted_autoaligned[caa_idx].x;
                 cp[2] = fitted_autoaligned[caa_idx].y;
-                std::cout << "Applying M to centre location\n";
+                //std::cout << "Applying M to centre location\n";
                 _cp = M * cp;
                 centres_autoaligned.push_back ({_cp[0], _cp[1], _cp[2]});
                 centres_id.push_back (0.1f*(float)i);
@@ -633,7 +633,7 @@ int addVisMod (SFVisual& v, const string& datafile, const CmdOptions& co, const 
                     d.read_contained_vals (str.c_str(), AM_lmaligned);
                     cp[1] = AM_lmaligned[0].x;
                     cp[2] = AM_lmaligned[0].y;
-                    std::cout << "Applying M to alignment mark location (lmaligned)\n";
+                    //std::cout << "Applying M to alignment mark location (lmaligned)\n";
                     _cp = M * cp;
                     //std::cout << "Got LM alignmark at " << _cp[0] << "," << _cp[1] << "," << _cp[2] << ".\n";
                     AM_origins_lmaligned.push_back ({_cp[0], _cp[1], _cp[2]});
@@ -649,7 +649,7 @@ int addVisMod (SFVisual& v, const string& datafile, const CmdOptions& co, const 
                     d.read_contained_vals (str.c_str(), AM_autoaligned);
                     cp[1] = AM_autoaligned[0].x;
                     cp[2] = AM_autoaligned[0].y;
-                    std::cout << "Applying M to alignment mark location (autoaligned)\n";
+                    //std::cout << "Applying M to alignment mark location (autoaligned)\n";
                     _cp = M * cp;
                     //std::cout << "Got Auto alignmark at " << _cp[0] << "," << _cp[1] << "," << _cp[2] << ".\n";
                     AM_origins_autoaligned.push_back ({_cp[0], _cp[1], _cp[2]});
