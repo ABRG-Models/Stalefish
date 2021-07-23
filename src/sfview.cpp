@@ -1736,7 +1736,7 @@ int main (int argc, char** argv)
         cmdOptions.datafiles.push_back (string(argg));
     }
 
-    if (cmdOptions.show_example) {
+    if (cmdOptions.show_example && cmdOptions.datafiles.empty()) {
         std::cout << "Attempting to open the example project file...\n";
         std::string ex_file =  exampleProjectPath(std::string(argv[0]));
         if (!ex_file.empty()) {
@@ -1744,6 +1744,9 @@ int main (int argc, char** argv)
         } else {
             std::cout << "Failed to find the example project data\n";
         }
+    } else if (cmdOptions.show_example && cmdOptions.datafiles.empty() == false) {
+        // Prevent 'it's an example' text showing up, as user provided a file.
+        cmdOptions.show_example = 0;
     }
 
     try {
