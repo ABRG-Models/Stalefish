@@ -128,7 +128,7 @@ Once the dependencies have been installed, it's a very standard git clone/cmake 
 
 ```bash
 # clone Stalefish and change into Stalefish dir:
-git clone https://github.com/ABRG-Models/Stalefish.git
+git clone --recurse-submodules https://github.com/ABRG-Models/Stalefish.git
 cd Stalefish
 # Inside Stalefish dir, create a build dir:
 mkdir build
