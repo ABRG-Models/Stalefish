@@ -13,6 +13,7 @@
 #include <morph/Visual.h>
 #include <morph/HdfData.h>
 #include <morph/Vector.h>
+#include <morph/tools.h>
 #include <iostream>
 #include <fstream>
 #include <cmath>
@@ -41,7 +42,11 @@ public:
     SFVisual (int width, int height, const std::string& title,
               const morph::Vector<float, 2> caOffset, const morph::Vector<float> caLength,
               const float caThickness, const float caEm)
-        : morph::Visual (width, height, title, caOffset, caLength, caThickness, caEm) {}
+        : morph::Visual (width, height, title, caOffset, caLength, caThickness, caEm)
+    {
+        this->wintitle = title;
+        this->backgroundBlack();
+    }
 
     //! Vector of VisualModel IDs for the landmarks. To hide landmarks, hide these.
     std::vector<unsigned int> landmarks;
@@ -53,6 +58,8 @@ public:
     std::vector<unsigned int> surfaces_3d;
     //! 2D surfaces
     std::vector<unsigned int> surfaces_2d;
+    //! A copy of the window title
+    std::string wintitle;
 
 protected:
     //! Act on keys and toggle 'hidden' for the relevant VisualModels
@@ -78,6 +85,14 @@ protected:
         if (key == GLFW_KEY_K && action == GLFW_PRESS) {
             for (auto id : this->surfaces_3d) { this->vm[id]->toggleHide(); }
         }
+        // Save gltf 3D file
+        if (key == GLFW_KEY_M && action == GLFW_PRESS) {
+            std::string gltffile = this->wintitle;
+            morph::Tools::stripFileSuffix (gltffile);
+            gltffile += ".gltf";
+            this->savegltf (gltffile);
+            std::cout << "Saved 3D file " << gltffile << std::endl;
+        }
 
         // Additional help
         if (key == GLFW_KEY_H && action == GLFW_PRESS) {
@@ -87,6 +102,7 @@ protected:
             std::cout << "d: toggle user-defined brain axis\n";
             std::cout << "j: toggle 2D brain map\n";
             std::cout << "k: toggle 3D brain surface\n";
+            std::cout << "m: Save 3D models in .gltf format (open in e.g. blender)\n";
         }
     }
 };
@@ -1890,6 +1906,7 @@ int main (int argc, char** argv)
             glfwWaitEventsTimeout (0.018);
             v.render();
         }
+
     } catch (const exception& e) {
         cerr << "Caught exception: " << e.what() << endl;
         rtn = -1;
