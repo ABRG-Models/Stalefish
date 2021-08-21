@@ -143,7 +143,7 @@ make
 Perhaps we fixed a bug in the code and you want to update your compiled Stalefish. That means 'pulling' the changes with git, then re-building with the make command:
 ```
 cd /path/to/Stalefish
-git pull -p
+git pull --recurse-submodules
 cd build
 make
 ```
