@@ -486,10 +486,12 @@ int addLandmarks (SFVisual& v, const string& datafile, const CmdOptions& co,
                 std::cout << "glm_id:\n";
                 for (auto ii : glm_id) { std::cout << ii << std::endl; }
 #endif
-                visId = v.addVisualModel (new morph::ScatterVisual<float> (v.shaderprog,
-                                                                           &globlm_lmaligned, offset,
-                                                                           &glm_id, 0.1f, scale,
-                                                                           morph::ColourMapType::Jet));
+                if (!globlm_lmaligned.empty()) {
+                    visId = v.addVisualModel (new morph::ScatterVisual<float> (v.shaderprog,
+                                                                               &globlm_lmaligned, offset,
+                                                                               &glm_id, 0.1f, scale,
+                                                                               morph::ColourMapType::Jet));
+                }
                 v.landmarks.push_back (visId);
             } else {
                 morph::ScatterVisual<float>* lmv = new morph::ScatterVisual<float> (v.shaderprog, offset);
