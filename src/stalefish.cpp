@@ -74,7 +74,7 @@ DM* DM::pInstance = 0;
 void onmouse (int event, int x, int y, int flags, void* param) {
 
     Point pt = Point(x,y);
-    if (event == CV_EVENT_LBUTTONDOWN) {
+    if (event == cv::EVENT_LBUTTONDOWN) {
         DM::i()->gcf()->P.push_back(pt);
     }
     DM::i()->cloneFrame();
@@ -110,7 +110,7 @@ void onmouse (int event, int x, int y, int flags, void* param) {
     ss << "Frame: " << DM::i()->getFrameNum() << "/" << DM::i()->getNumFrames()
        << ", Poly order: " << cf->polyOrder
        << ", Bins: " << cf->nBins;
-    putText (*pImg, ss.str(), Point(30,30), FONT_HERSHEY_SIMPLEX, 0.8, Scalar(0,0,0), 1, CV_AA);
+    putText (*pImg, ss.str(), Point(30,30), FONT_HERSHEY_SIMPLEX, 0.8, Scalar(0,0,0), 1, cv::LINE_AA);
 
     imshow ("StaleFish", *pImg);
 }
@@ -141,7 +141,7 @@ int main(int argc, char** argv){
 
     // *** MAIN LOOP ***
     while (1) {
-        onmouse(CV_EVENT_MOUSEMOVE,0,0,0,NULL);
+        onmouse(cv::EVENT_MOUSEMOVE,0,0,0,NULL);
         char k = waitKey(0);
         switch(k) {
         case('x'):
