@@ -13,7 +13,7 @@ import matplotlib as mpl
 filename = '../../ucr/V_Id2_1.h5'
 
 with h5py.File (filename, 'r') as f:
-    #print("Keys: {0}".format(list(f.keys())))
+    print("Keys: {0}".format(list(f.keys())))
 
     # It's a bit ugly, the way you get the value of the nframes
     # object; you have to convert the hdf5 object into a list, then
@@ -27,13 +27,13 @@ with h5py.File (filename, 'r') as f:
     means = []
     thicks = []
 
-    for i in range(0,nf):
+    for i in range(1,nf+1):
 
         # Create the 'frame tag' (e.g. 'Frame000')
         frame = 'Frame{0:03}'.format(i)
 
         # The means of the sampled boxes are in means or means_autoscaled
-        key = '{0}/means_autoscaled'.format(frame)
+        key = '{0}/signal/postproc/boxes/means'.format(frame)
         means_ = list(f[key])
 
         # The position on the 3D x-axis is in class/layer_x:
@@ -44,7 +44,7 @@ with h5py.File (filename, 'r') as f:
         x_ = list(f[key]) * len(means_)
 
         # For y values, use sbox_linear_distance
-        key = '{0}/sbox_linear_distance'.format(frame)
+        key = '{0}/autoalign/flattened/sbox_linear_distance'.format(frame)
         y_ = list(f[key])
 
         # Use the per-frame slice thickness when plotting rectangular polygons
@@ -62,7 +62,7 @@ with h5py.File (filename, 'r') as f:
     # (in dimension x) of all the boxes. A regular scatter graph gives
     # awful results. Instead, plot each x/y as a rectangle with colour
     # given by means.
-    plt.title('Flattened heat plot')
+    plt.title('Flattened heat plot for {0}'.format(filename))
     for ii in range(0,len(x)): # len(x) is the number of frames.
         # Within each frame, make polygons
         x_l = np.array(x[ii])
