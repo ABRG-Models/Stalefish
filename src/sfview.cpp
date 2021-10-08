@@ -491,8 +491,8 @@ int addLandmarks (SFVisual& v, const string& datafile, const CmdOptions& co,
                                                                                &globlm_lmaligned, offset,
                                                                                &glm_id, 0.1f, scale,
                                                                                morph::ColourMapType::Jet));
+                    v.landmarks.push_back (visId);
                 }
-                v.landmarks.push_back (visId);
             } else {
                 morph::ScatterVisual<float>* lmv = new morph::ScatterVisual<float> (v.shaderprog, offset);
                 lmv->dataCoords = &landmarks_autoaligned;
