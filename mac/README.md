@@ -4,8 +4,9 @@ Recompile **and install** Stalefish after git-pulling Stalefish and, if necessar
 
 ```
 cd models/Stalefish
-git pull
+git pull --recurse-submodules
 cd build
+# If necessary: cmake -DCMAKE_INSTALL_PREFIX=/usr/local -DCMAKE_OSX_DEPLOYMENT_TARGET=10.14 ..
 make
 sudo make install
 cd ..
