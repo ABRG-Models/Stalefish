@@ -107,7 +107,9 @@ int main (int argc, char** argv)
         // Perform a fit
         case ('f'):
         {
+            DM::i()->setShowFits (true);
             DM::i()->gcf()->setShowFits (true);
+            DM::i()->setShowBoxes (true);
             DM::i()->gcf()->setShowBoxes (true);
             DM::i()->gcf()->updateFit();
             DM::i()->gcf()->refreshBoxes (-DM::i()->gcf()->binA, DM::i()->gcf()->binB);

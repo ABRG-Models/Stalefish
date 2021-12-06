@@ -1230,16 +1230,18 @@ public:
             circle (*pImg, pt, 3, SF_BLUE, 1);
         }
 
-        // Draw the existing regions
-        for (size_t j=0; j<cf->FLE.size(); j++) {
-            if (!cf->FLB[j].empty()) {
-                draw_boundary (cf->FLB[j], pImg, SF_BLUE);
-            }
-            if (!cf->FLE[j].empty()) {
-                float themean = cf->FL_signal_means.size() > j ? cf->FL_signal_means[j] : 0.0f;
-                float thepixelmean = cf->FL_pixel_means.size() > j ? cf->FL_pixel_means[j] : 0;
-                draw_region (cf->FLE[j], pImg, thepixelmean, SF_BLUE);
-                draw_region (cf->FLE[j], sImg, themean, SF_BLACK);
+        if (cf->flags.test(ShowBoxes) == true) {
+            // Draw the existing regions
+            for (size_t j=0; j<cf->FLE.size(); j++) {
+                if (!cf->FLB[j].empty()) {
+                    draw_boundary (cf->FLB[j], pImg, SF_BLUE);
+                }
+                if (!cf->FLE[j].empty()) {
+                    float themean = cf->FL_signal_means.size() > j ? cf->FL_signal_means[j] : 0.0f;
+                    float thepixelmean = cf->FL_pixel_means.size() > j ? cf->FL_pixel_means[j] : 0;
+                    draw_region (cf->FLE[j], pImg, thepixelmean, SF_BLUE);
+                    draw_region (cf->FLE[j], sImg, themean, SF_BLACK);
+                }
             }
         }
 
@@ -1423,14 +1425,19 @@ public:
         if (event == cv::EVENT_LBUTTONDOWN) {
             if (cf->ct == InputMode::Bezier) {
                 cf->P.push_back (pt);
+                _this->setShowUsers(true);
                 cf->setShowUsers(true);
             } else if (cf->ct == InputMode::ReverseBezier) {
                 // If we have some already-registered curves in PP, and sP is empty, we
                 // have to add *2* points.
                 if (!cf->PP.empty() && cf->sP.empty()) { cf->sP.push_front (cf->PP.front().front()); }
                 cf->sP.push_front (pt);
+                _this->setShowUsers(true);
                 cf->setShowUsers(true);
             } else if (cf->ct == InputMode::Freehand) {
+                // Make sure we're showing the freehand regions, in case user has hidden them with '4'
+                _this->setShowBoxes(true);
+                cf->setShowBoxes (true);
                 cf->addToFL (pt);
             } else if (cf->ct == InputMode::Landmark) {
                 cf->LM.push_back (pt);
