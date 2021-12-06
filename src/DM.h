@@ -629,6 +629,7 @@ public:
         {
             morph::HdfData d(lm_exportfile);
             for (auto f : this->vFrameData) { f.exportLandmarks (d); }
+            d.add_contained_vals ("/global_landmarks", this->globalLandmarks);
             d.add_val("/nframes", nf);
             std::cout << "Exported landmarks to " << lm_exportfile << std::endl;
         }
