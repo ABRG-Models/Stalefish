@@ -10,6 +10,7 @@
 #include <utility>
 #include <opencv2/opencv.hpp>
 #include <opencv2/imgproc.hpp>
+#define BUILD_HDFDATA_WITH_OPENCV 1
 #include <morph/HdfData.h>
 #include <morph/Config.h>
 #include <morph/Random.h>

@@ -14,6 +14,7 @@
 #include <morph/BezCurvePath.h>
 #include <morph/BezCurve.h>
 #include <morph/BezCoord.h>
+#define BUILD_HDFDATA_WITH_OPENCV 1
 #include <morph/HdfData.h>
 #include <morph/MathAlgo.h>
 #include <morph/NM_Simplex.h>
@@ -3000,7 +3001,7 @@ private:
         cv::Point2d l1_offset = alignment_coords[0] - target_aligned_alignment_coords[0];
         double d = 0.3 * std::sqrt (l1_offset.x * l1_offset.x + l1_offset.y * l1_offset.y);
         //std::cout << "distance used for initial vertices in xytheta space: " << d << std::endl;
-        std::vector<std::vector<double>> initial_vertices;
+        morph::vVector<morph::vVector<double>> initial_vertices;
         initial_vertices.push_back ({0.0, 0.0, 0.0});
         initial_vertices.push_back ({d, 0.0, 0.0});
         initial_vertices.push_back ({d, d, 0.0});
@@ -3106,7 +3107,7 @@ private:
         cv::Point2d l1_offset = alignment_coords[0] - target_aligned_alignment_coords[0];
         double d = 0.3 * std::sqrt (l1_offset.x * l1_offset.x + l1_offset.y * l1_offset.y);
         std::cout << "distance used for initial vertices in xytheta space: " << d << std::endl;
-        std::vector<std::vector<double>> initial_vertices;
+        morph::vVector<morph::vVector<double>> initial_vertices;
         initial_vertices.push_back ({0.0, 0.0, 0.0});
         initial_vertices.push_back ({d, 0.0, 0.0});
         initial_vertices.push_back ({d, d, 0.0});

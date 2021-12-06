@@ -9,6 +9,7 @@
  * processing of data from *multiple* stalefish projects.
  */
 #include <morph/Visual.h>
+#define BUILD_HDFDATA_WITH_OPENCV 1
 #include <morph/HdfData.h>
 #include <morph/Vector.h>
 #include <iostream>
@@ -459,10 +460,14 @@ int addLandmarks (SFVisual& v, const string& datafile, const CmdOptions& co,
             // Show landmark aligned for preference:
             if (lmalignComputed == true && align_lm == true) {
                 // Show the landmarks with a ScatterVisual
-                visId = v.addVisualModel (new morph::ScatterVisual<float> (v.shaderprog,
-                                                                           &landmarks_lmaligned, offset,
-                                                                           &landmarks_id, 0.07f, scale,
-                                                                           morph::ColourMapType::Plasma));
+                auto sv1 = new morph::ScatterVisual<float> (v.shaderprog, offset);
+                sv1->setDataCoords (&landmarks_lmaligned);
+                sv1->setScalarData (&landmarks_id);
+                sv1->radiusFixed = 0.07f;
+                sv1->colourScale = scale;
+                sv1->cm.setType (morph::ColourMapType::Plasma);
+                sv1->finalize();
+                visId = v.addVisualModel (sv1);
                 v.landmarks.push_back (visId);
 #ifdef __DEBUG
                 std::cout << "Showing LM aligned global landmarks...\n";
@@ -470,10 +475,14 @@ int addLandmarks (SFVisual& v, const string& datafile, const CmdOptions& co,
                 std::cout << "glm_id:\n";
                 for (auto ii : glm_id) { std::cout << ii << std::endl; }
 #endif
-                visId = v.addVisualModel (new morph::ScatterVisual<float> (v.shaderprog,
-                                                                           &globlm_lmaligned, offset,
-                                                                           &glm_id, 0.1f, scale,
-                                                                           morph::ColourMapType::Jet));
+                auto sv2 = new morph::ScatterVisual<float> (v.shaderprog, offset);
+                sv2->setDataCoords (&globlm_lmaligned);
+                sv2->setScalarData (&glm_id);
+                sv2->radiusFixed = 0.1f;
+                sv2->colourScale = scale;
+                sv2->cm.setType (morph::ColourMapType::Jet);
+                sv2->finalize();
+                visId = v.addVisualModel (sv2);
                 v.landmarks.push_back (visId);
             } else {
                 morph::ScatterVisual<float>* lmv = new morph::ScatterVisual<float> (v.shaderprog, offset);
@@ -853,10 +862,14 @@ int addVisMod (SFVisual& v, const string& datafile, const CmdOptions& co, const 
                 }
                 v.surfaces_3d.push_back (visId);
 
-                visId = v.addVisualModel (new morph::ScatterVisual<float> (v.shaderprog,
-                                                                           &centres_lmaligned, offset,
-                                                                           &centres_id, 0.03f, scale,
-                                                                           morph::ColourMapType::Jet));
+                auto sv1 = new morph::ScatterVisual<float> (v.shaderprog, offset);
+                sv1->setDataCoords (&centres_lmaligned);
+                sv1->setScalarData (&centres_id);
+                sv1->radiusFixed = 0.03f;
+                sv1->colourScale = scale;
+                sv1->cm.setType (morph::ColourMapType::Jet);
+                sv1->finalize();
+                visId = v.addVisualModel (sv1);
                 v.angle_centres.push_back (visId);
 
                 if (!AM_origins_lmaligned.empty()) {
@@ -907,10 +920,15 @@ int addVisMod (SFVisual& v, const string& datafile, const CmdOptions& co, const 
                 v.surfaces_3d.push_back (visId);
 
                 std::cout << "ScatterVisual of centres_autoaligned\n";
-                visId = v.addVisualModel (new morph::ScatterVisual<float> (v.shaderprog,
-                                                                           &centres_autoaligned, offset,
-                                                                           &centres_id, 0.03f, scale,
-                                                                           morph::ColourMapType::Jet));
+
+                auto sv1 = new morph::ScatterVisual<float> (v.shaderprog, offset);
+                sv1->setDataCoords (&centres_autoaligned);
+                sv1->setScalarData (&centres_id);
+                sv1->radiusFixed = 0.03f;
+                sv1->colourScale = scale;
+                sv1->cm.setType (morph::ColourMapType::Jet);
+                sv1->finalize();
+                visId = v.addVisualModel (sv1);
                 v.angle_centres.push_back (visId);
 
                 if (!AM_origins_autoaligned.empty()) {
@@ -1564,10 +1582,15 @@ int addFlattened (SFVisual& v, const string& datafile, const CmdOptions& co,
                 centres_id.push_back (0.1f*(float)i);
             }
 
-            visId = v.addVisualModel (new morph::ScatterVisual<float> (v.shaderprog,
-                                                                       &centres_, offset,
-                                                                       &centres_id, 0.03f, scale,
-                                                                       morph::ColourMapType::Jet));
+            auto sv1 = new morph::ScatterVisual<float> (v.shaderprog, offset);
+            sv1->setDataCoords (&centres_);
+            sv1->setScalarData (&centres_id);
+            sv1->radiusFixed = 0.03f;
+            sv1->colourScale = scale;
+            sv1->cm.setType (morph::ColourMapType::Jet);
+            sv1->finalize();
+            visId = v.addVisualModel (sv1);
+
             v.angle_centres.push_back (visId);
 
             // Plot A (the landmarks) if necessary.
@@ -1581,10 +1604,16 @@ int addFlattened (SFVisual& v, const string& datafile, const CmdOptions& co,
                 sc_coords[j] = M * sc_coords[j];
                 sc_coords[j][2] = 0.0f;
             }
-            visId = v.addVisualModel (new morph::ScatterVisual<float> (v.shaderprog,
-                                                                       &sc_coords, offset,
-                                                                       &sc_data, scale,
-                                                                       morph::ColourMapType::Jet));
+
+            auto sv2 = new morph::ScatterVisual<float> (v.shaderprog, offset);
+            sv2->setDataCoords (&sc_coords);
+            sv2->setScalarData (&sc_data);
+            //sv2->radiusFixed = 0.03f;
+            sv2->colourScale = scale;
+            sv2->cm.setType (morph::ColourMapType::Jet);
+            sv2->finalize();
+            visId = v.addVisualModel (sv2);
+
             v.surfaces_2d.push_back (visId);
 
             // Save the resampled stuff to file
