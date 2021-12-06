@@ -1569,12 +1569,13 @@ int addFlattened (SFVisual& v, const string& datafile, const CmdOptions& co,
             v.surfaces_2d.push_back (visId);
 
             // Add a plain VisualModel whose reason for inclusion is just for text
+            offset[1]+=5.0f;
             auto jtvm = new morph::VisualModel (v.shaderprog, v.tshaderprog, offset);
-            jtvm->addLabel (datafile, {1.0f, -0.5f, 0.0f},
+            jtvm->addLabel (datafile, {1.0f, 0.0f, 0.0f},
                             (cmdOptions.whitebg > 0 ? morph::colour::black : morph::colour::white),
                             morph::VisualFont::Vera, 0.2, 24);
             v.addVisualModel (jtvm);
-
+            offset[1]-=5.0f;
             offset[1]-=7.5f;
 
             d2.add_contained_vals ("/output_map/twod/M", M.mat);

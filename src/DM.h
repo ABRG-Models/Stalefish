@@ -654,6 +654,8 @@ public:
             morph::HdfData d(lm_exportfile, true);
             for (auto& f : this->vFrameData) { f.importLandmarks (d); }
             // Now load, if possible, the index data about the global landmarks.
+            d.read_contained_vals ("/global_landmarks", this->globalLandmarks);
+
         } catch (...) {
             std::cout << "Failed to read " << lm_exportfile << std::endl;
         }
@@ -1312,7 +1314,7 @@ public:
             start_gl += this->vFrameData[glm_fidx].GLM.size();
         }
 
-        // Draw circles for the axismarks, with a number next to each one.
+        // Draw circles for the global landmarks, with a number next to each one.
         cv::Point toffset(8,5); // a text offset
         for (size_t ii=0; ii<cf->GLM.size(); ii++) {
             circle (*pImg, cf->GLM[ii], 5, SF_BLUEISH, -1);
