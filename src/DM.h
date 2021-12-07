@@ -595,7 +595,7 @@ public:
         this->globalLandmarks.clear();
         for (auto f : this->vFrameData) {
             for (unsigned int glidx = 0; glidx < f.GLM.size(); ++glidx) {
-                this->globalLandmarks.push_back (std::make_pair(1+f.idx, glidx));
+                this->globalLandmarks.push_back (std::make_pair(static_cast<unsigned int>(1+f.idx), glidx));
             }
         }
     }
@@ -613,7 +613,7 @@ public:
         }
         if (this->globalLandmarks.size() != counted_glms) { this->rebuildGlobalLandmarks(); }
         d.add_contained_vals ("/global_landmarks", this->globalLandmarks);
-        d.add_val("/nframes", this->vFrameData.size());
+        d.add_val("/nframes", static_cast<int>(this->vFrameData.size()));
         std::cout << "Exported landmarks to " << lm_exportfile << std::endl;
     }
 
