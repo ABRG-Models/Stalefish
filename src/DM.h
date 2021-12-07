@@ -505,6 +505,11 @@ public:
         // /globallandmarks is an index. See this->globalLandmarks. This gives the index
         // of the frame and within that frame the element of FrameData::GLM for each
         // global landmark. Order is that in which user added them.
+        // First count up the global landmarks in the frames
+        unsigned int counted_glms = 0;
+        for (auto f : this->vFrameData) { counted_glms += f.GLM.size(); }
+        // Check that DM::globalLandmarks has the same size, if not rebuild it (will fix Mac's old-format files)
+        if (this->globalLandmarks.size() != counted_glms) { this->rebuildGlobalLandmarks(); }
         d.add_contained_vals ("/global_landmarks", this->globalLandmarks);
 
         // For each frame also collect 2d Map data. That's /class/layer_x, /signal/postproc/boxes/means, lmalign/flattened/sbox_linear_distance
@@ -581,17 +586,34 @@ public:
         }
     }
 
+    //! If DM::globalLandmarks gets out of sync with the number of landmarks in the frames, rebuild it.
+    void rebuildGlobalLandmarks()
+    {
+        std::cerr << "WARNING: DM::globalLandmarks is out of sync with the number of global landmarks\n"
+                  << "in the frames; REGENERATING globalLandmarks in *slice order*, but that's not\n"
+                  << "necessarily the same as your user-supplied order!\n";
+        this->globalLandmarks.clear();
+        for (auto f : this->vFrameData) {
+            for (unsigned int glidx = 0; glidx < f.GLM.size(); ++glidx) {
+                this->globalLandmarks.push_back (std::make_pair(1+f.idx, glidx));
+            }
+        }
+    }
+
     void exportLandmarks()
     {
         if (this->appmode == AppMode::NoFile || this->appmode == AppMode::ExampleFile) { return; }
         this->refreshAllBoxes();
         for (auto& f : this->vFrameData) { f.updateAlignments(); }
-        int nf = this->vFrameData.size();
         morph::HdfData d(lm_exportfile);
-        for (auto f : this->vFrameData) { f.exportLandmarks (d); }
-        std::cout << "Exporting globallandmarks... which has size " << this->globalLandmarks.size() << std::endl;
+        unsigned int counted_glms = 0;
+        for (auto f : this->vFrameData) {
+            counted_glms += f.GLM.size();
+            f.exportLandmarks (d);
+        }
+        if (this->globalLandmarks.size() != counted_glms) { this->rebuildGlobalLandmarks(); }
         d.add_contained_vals ("/global_landmarks", this->globalLandmarks);
-        d.add_val("/nframes", nf);
+        d.add_val("/nframes", this->vFrameData.size());
         std::cout << "Exported landmarks to " << lm_exportfile << std::endl;
     }
 
@@ -623,16 +645,14 @@ public:
     void exportUserpoints()
     {
         if (this->appmode == AppMode::NoFile || this->appmode == AppMode::ExampleFile) { return; }
-        this->refreshAllBoxes();
-        for (auto& f : this->vFrameData) { f.updateAlignments(); }
+
+        this->exportLandmarks();
+
+        // We must do this, but it will have been done in this->exportLandmarks:
+        // this->refreshAllBoxes();
+        // for (auto& f : this->vFrameData) { f.updateAlignments(); }
+
         int nf = this->vFrameData.size();
-        {
-            morph::HdfData d(lm_exportfile);
-            for (auto f : this->vFrameData) { f.exportLandmarks (d); }
-            d.add_contained_vals ("/global_landmarks", this->globalLandmarks);
-            d.add_val("/nframes", nf);
-            std::cout << "Exported landmarks to " << lm_exportfile << std::endl;
-        }
         {
             morph::HdfData d(cp_exportfile);
             for (auto f : this->vFrameData) { f.exportCurves (d); }
