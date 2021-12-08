@@ -46,6 +46,12 @@ public:
         : morph::Visual (width, height, title, caOffset, caLength, caThickness, caEm)
     {
         this->backgroundBlack();
+        this->coordArrows->clear();
+        this->coordArrows->x_label = "X (Caud)";
+        this->coordArrows->y_label = "Y (Lat)";
+        this->coordArrows->z_label = "Z (Vent)";
+        this->coordArrows->initAxisLabels();
+        this->coordArrows->reinit();
     }
 
     //! Vector of VisualModel IDs for the landmarks. To hide landmarks, hide these.
