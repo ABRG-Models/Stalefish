@@ -1207,6 +1207,8 @@ void computeFlatTransforms (const CmdOptions& co,
  * \param sigma (input) vector of sigmas as (x, y, theta)
  *
  * \param l (input) The output pixel dimensions
+ *
+ * \return A pair containing width (first) and height (second)
  */
 std::pair<unsigned int, unsigned int>
 resample_twod (const vector<morph::Vector<float, 2>>& coords, // input coords

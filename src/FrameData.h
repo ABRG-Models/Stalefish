@@ -41,8 +41,9 @@ enum class InputMode
 //! What sort of colour model is in use?
 enum class ColourModel
 {
-    Greyscale,
-    AllenDevMouse
+    Greyscale,     // Regular greyscale image
+    AllenDevMouse, // Coloured images as found on the Allen Developing Mouse Brain Atlas
+    Sfview         // Signal data loaded from a sfview-generated 'unwrapped 2D map'
 };
 
 enum FrameFlag
@@ -374,7 +375,15 @@ public:
         this->ellip_axes = acparams.ellip_axes;
         this->luminosity_factor = acparams.luminosity_factor;
         this->luminosity_cutoff = acparams.luminosity_cutoff;
-        this->frame = fr.clone();
+
+        if (this->cmodel == ColourModel::Sfview) {
+            // In this case, we should have been passed in a CV_32FC3 image to write
+            // into BOTH frame_signal and to convert into frame.
+            this->frame_signal = fr.clone();
+            fr.convertTo (this->frame, CV_8UC3, 255.0);
+        } else {
+            this->frame = fr.clone();
+        }
         this->bgBlurScreenProportion = _bgBlurScreenProportion;
         if (_bgBlurSubtractionOffset < 0.0f || _bgBlurSubtractionOffset > 255.0f) {
             throw std::runtime_error ("The bg blur subtraction offset should be in range [0,255]");
@@ -434,6 +443,9 @@ public:
             // data, but we assume that the Allen process did not have any significant
             // spatial heterogeneity in the illumination.
             this->allenColourConversion (this->frame, this->frame_signal);
+        } else if (this->cmodel == ColourModel::Sfview) {
+            // In this case, we have data read from a sfview .h5 file (.TF.*.h5) format
+            // frame_signal and frame will have been set up in the constructor
         } else {
             // Assume it's grayscale: Invert frame_bgoff to create the signal frame.
             std::cout << "Treating image as greyscale\n";

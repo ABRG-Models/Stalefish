@@ -151,7 +151,7 @@ public:
 
         // Read, opportunistically
         try {
-            morph::HdfData d(this->datafile, true); // true for read
+            morph::HdfData d(this->datafile, morph::FileAccess::ReadOnly);
             fd.read (d, this->readOldFormat);
             if (fd.flags.test (Mirrored)) {
                 fd.mirror_image_only();
@@ -467,7 +467,7 @@ public:
         std::string mapfile = "map.h5";
         {
             // Get these things from the datafile: For each layer: Layer001/class/layer_x
-            morph::HdfData d_in(datafile, true);
+            morph::HdfData d_in(datafile, morph::FileAccess::ReadOnly);
             morph::HdfData d_out(mapfile);
 
             std::vector<float> map_x;
@@ -672,7 +672,7 @@ public:
     {
         if (this->appmode == AppMode::NoFile) { return; }
         try {
-            morph::HdfData d(lm_exportfile, true);
+            morph::HdfData d(lm_exportfile, morph::FileAccess::ReadOnly);
             for (auto& f : this->vFrameData) { f.importLandmarks (d); }
             // Now load, if possible, the index data about the global landmarks.
             d.read_contained_vals ("/global_landmarks", this->globalLandmarks);
@@ -687,7 +687,7 @@ public:
     {
         if (this->appmode == AppMode::NoFile) { return; }
         try {
-            morph::HdfData d(cp_exportfile, true);
+            morph::HdfData d(cp_exportfile, morph::FileAccess::ReadOnly);
             for (auto& f : this->vFrameData) { f.importCurves (d); }
         } catch (...) {
             std::cout << "Failed to read " << cp_exportfile << std::endl;
@@ -699,7 +699,7 @@ public:
     {
         if (this->appmode == AppMode::NoFile) { return; }
         try {
-            morph::HdfData d(fh_exportfile, true);
+            morph::HdfData d(fh_exportfile, morph::FileAccess::ReadOnly);
             for (auto& f : this->vFrameData) { f.importFreehand (d); }
         } catch (...) {
             std::cout << "Failed to read " << fh_exportfile << std::endl;
@@ -945,7 +945,7 @@ public:
                 std::string jsoncontent("");
                 try {
                     hdf_for_reading = true;
-                    morph::HdfData d(this->datafile, true); // true for read
+                    morph::HdfData d(this->datafile, morph::FileAccess::ReadOnly);
                     d.read_string ("/config", jsoncontent);
                     // What about on Apple. Tmp location there?
                     // Strip directories off paramsfile for tmp file
@@ -1041,8 +1041,28 @@ public:
             std::string fn = slice.get ("filename", "unknown").asString();
             float slice_x = slice.get ("x", 0.0).asFloat();
 
-            std::cout << "imread " << fn << std::endl;
-            cv::Mat frame = cv::imread (fn.c_str(), cv::IMREAD_COLOR);
+            // This section needs updating to be able to read sfview's .TF.*.h5 data-based format
+            cv::Mat frame;
+            std::string::size_type h5pos = fn.find(".h5");
+            if (h5pos != std::string::npos) {
+                // any .h5 files are assumed to be in sfview's .TF.*.h5 data-based format
+                morph::HdfData d (fn, morph::FileAccess::ReadOnly);
+                // Image data is found in /output_map/twod/expression_resampled with
+                // coordinates in /output_map/twod/coordinates_resampled. Shape is in
+                // /output_map/twod/widthheight_resampled.
+                std::pair<unsigned int, unsigned int> wh;
+                d.read_contained_vals ("/output_map/twod/widthheight_resampled", wh);
+                std::vector<float> fmeans_resampled; // retain name used in sfview
+                d.read_contained_vals ("/output_map/twod/expression_resampled", fmeans_resampled);
+                // Now set frame up with width and height and write fmeans_resampled into it.
+                cv::Mat fr (wh.second, wh.first, CV_32F, fmeans_resampled.data());
+                frame = fr.clone();
+
+            } else {
+                // Other files assumed to be in some standard image format readable by OpenCV
+                std::cout << "imread " << fn << std::endl;
+                frame = cv::imread (fn.c_str(), cv::IMREAD_COLOR);
+            }
             if (frame.empty()) {
                 std::cout << "Could not open or find the image '"
                           << fn << "'. Will attempt fall-back to image data stored in the h5 file." << std::endl;
@@ -1077,7 +1097,7 @@ public:
 
         // Having read frames, read in any global information, which is currently just globalLandmarks
         if (hdf_for_reading == true) {
-            morph::HdfData d(this->datafile, true); // true for read
+            morph::HdfData d(this->datafile, morph::FileAccess::ReadOnly);
             d.read_contained_vals ("/global_landmarks", this->globalLandmarks);
         }
 
