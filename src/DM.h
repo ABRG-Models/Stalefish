@@ -1247,7 +1247,7 @@ public:
             ymean += cur.y;
             // Create a colour
             cv::Mat color(roi.size(), CV_8UC3, colour);
-            cv::addWeighted (color, alpha, roi, 1.0 - alpha , 0.0, roi, CV_8UC3);
+            cv::addWeighted (color, alpha, roi, 1.0 - alpha , 0.0, roi, roi.type());
         }
         xmean /= vp.size();
         ymean /= vp.size();
