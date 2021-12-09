@@ -73,6 +73,11 @@ int main (int argc, char** argv)
             DM::i()->gcf()->setShowBoxes (DM::i()->flags.test(AppShowBoxes));
             break;
         }
+        case ('5'):
+        {
+            DM::i()->toggleShowText();
+            break;
+        }
         // Apply bin values across all frames
         case ('B'):
         {
@@ -206,6 +211,9 @@ int main (int argc, char** argv)
         case ('h'):
         {
             DM::i()->toggleShowHelp();
+            if (!DM::i()->flags.test(AppShowText)) {
+                for (auto ht : DM::i()->helptxt) { std::cout << ht << std::endl; }
+            }
             DM::onmouse (cv::EVENT_MOUSEMOVE, -1, -1, 0, NULL);
             break;
         }
