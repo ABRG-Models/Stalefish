@@ -379,8 +379,16 @@ public:
         if (this->cmodel == ColourModel::Sfview) {
             // In this case, we should have been passed in a CV_32FC3 image to write
             // into BOTH frame_signal and to convert into frame.
-            this->frame_signal = fr.clone();
-            fr.convertTo (this->frame, CV_8UC3, 255.0);
+            this->frame_signal = fr.clone(); // fr should be 3 channels to start with.
+            cv::Mat temp;
+            // Copy frame into temp, multiplying by 255:
+            fr.convertTo (temp, CV_8UC3, 255.0);
+            // Check number of channels and format of this->frame
+            if (temp.channels() == 3) {
+                this->frame = temp.clone();
+            } else {
+                throw std::runtime_error ("Expecting 3 channels");
+            }
         } else {
             this->frame = fr.clone();
         }
@@ -445,7 +453,7 @@ public:
             this->allenColourConversion (this->frame, this->frame_signal);
         } else if (this->cmodel == ColourModel::Sfview) {
             // In this case, we have data read from a sfview .h5 file (.TF.*.h5) format
-            // frame_signal and frame will have been set up in the constructor
+            // frame_signal and frame will have been set up in the constructor.
         } else {
             // Assume it's grayscale: Invert frame_bgoff to create the signal frame.
             std::cout << "Treating image as greyscale\n";

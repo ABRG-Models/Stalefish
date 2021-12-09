@@ -161,7 +161,7 @@ public:
 
         } catch (const std::exception& e) {
             // No problem, just carry on
-            std::cout << "Caught: " << e.what() << std::endl;
+            std::cout << "Couldn't read additional frame data: " << e.what() << ". Not fatal; proceeding." << std::endl;
         }
 
         // So that freehand loops show up their pixel/signal values in the UI:
@@ -193,9 +193,14 @@ public:
     void addFrame (cv::Mat& frameImg, const std::string& frameImgFilename, const float& slice_x)
     {
         std::cout << __FUNCTION__ << "(2) called\n";
+        ColourModel cm = ColourModel::Greyscale;
+        if (this->colourmodel == "allen") {
+            cm = ColourModel::AllenDevMouse;
+        } else if (this->colourmodel == "sfview") {
+            cm = ColourModel::Sfview;
+        }
         FrameData fd(frameImg, this->bgBlurScreenProportion, this->bgBlurSubtractionOffset,
-                     (this->colourmodel == "allen" ? ColourModel::AllenDevMouse : ColourModel::Greyscale),
-                     this->acparams);
+                     cm, this->acparams);
         this->addFrame (fd, frameImgFilename, slice_x);
     }
 
@@ -1045,6 +1050,7 @@ public:
             cv::Mat frame;
             std::string::size_type h5pos = fn.find(".h5");
             if (h5pos != std::string::npos) {
+                this->colourmodel = "sfview";
                 // any .h5 files are assumed to be in sfview's .TF.*.h5 data-based format
                 morph::HdfData d (fn, morph::FileAccess::ReadOnly);
                 // Image data is found in /output_map/twod/expression_resampled with
@@ -1055,8 +1061,10 @@ public:
                 std::vector<float> fmeans_resampled; // retain name used in sfview
                 d.read_contained_vals ("/output_map/twod/expression_resampled", fmeans_resampled);
                 // Now set frame up with width and height and write fmeans_resampled into it.
-                cv::Mat fr (wh.second, wh.first, CV_32F, fmeans_resampled.data());
-                frame = fr.clone();
+                cv::Mat fr1 (wh.second, wh.first, CV_32F, fmeans_resampled.data());
+                // That produced a single channel frame, so triple up the channels:
+                cv::Mat in[] = {fr1, fr1, fr1};
+                cv::merge (in, 3, frame);
 
             } else {
                 // Other files assumed to be in some standard image format readable by OpenCV
@@ -1630,7 +1638,7 @@ public:
             putText (*pImg, std::string("r:   Toggle blur window"),
                      cv::Point(xh,yh), cv::FONT_HERSHEY_SIMPLEX, fontsz, SF_BLACK, 1, cv::LINE_AA);
             yh += yinc;
-            putText (*pImg, std::string("e:   Toggle signal window"),
+            putText (*pImg, std::string("E:   Toggle signal window"),
                      cv::Point(xh,yh), cv::FONT_HERSHEY_SIMPLEX, fontsz, SF_BLACK, 1, cv::LINE_AA);
             yh += yinc;
             putText (*pImg, std::string("x:   Exit the program"),
@@ -1658,12 +1666,11 @@ public:
 
         // ...and the offset window
         if (_this->showOffsWin == true) {
-            //if (_this->offsWin == "") { // Always re-draw offset window, as it has items on itx
+            // Always re-draw offset window, as it has items on itx
             _this->offsWin = "offsWin";
             cv::namedWindow (_this->offsWin, cv::WINDOW_NORMAL|cv::WINDOW_FREERATIO);
-            cv::setWindowTitle (_this->offsWin, "mRNA signal");
+            cv::setWindowTitle (_this->offsWin, "Signal");
             imshow (_this->offsWin, *sImg);
-            //}
         } else {
             if (_this->offsWin == "offsWin") {
                 cv::destroyWindow (_this->offsWin);
