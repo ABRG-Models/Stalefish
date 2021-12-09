@@ -1299,8 +1299,8 @@ public:
                 }
                 if (!cf->FLE[j].empty()) {
                     float themean = cf->FL_signal_means.size() > j ? cf->FL_signal_means[j] : 0.0f;
-                    float thepixelmean = cf->FL_pixel_means.size() > j ? cf->FL_pixel_means[j] : 0;
-                    draw_region (cf->FLE[j], pImg, thepixelmean, SF_BLUE);
+                    //float thepixelmean = cf->FL_pixel_means.size() > j ? cf->FL_pixel_means[j] : 0;
+                    draw_region (cf->FLE[j], pImg, themean, SF_BLUE);
                     draw_region (cf->FLE[j], sImg, themean, SF_BLACK);
                 }
             }

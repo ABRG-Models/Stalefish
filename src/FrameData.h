@@ -842,6 +842,7 @@ public:
             this->FL.clear();
             this->loopFinished = true;
             this->computeFreehandMeans();
+            std::cout << "Loop complete. Mean: " << FL_signal_means.back() << ", Number of pixels: " << FLE.back().size() << "\n";
 
         } else { // The new point pt is NOT in FL already
 
@@ -868,6 +869,7 @@ public:
                 this->loopFinished = true;
                 // Now loop is finished, compute the means, so they can be displayed in UI
                 this->computeFreehandMeans();
+                std::cout << "Loop complete. Mean: " << FL_signal_means.back() << ", Number of pixels: " << FLE.back().size() << "\n";
 
             } else {
                 // Can't close the loop; just add to it
