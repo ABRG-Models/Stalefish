@@ -1607,8 +1607,8 @@ public:
         }
         else if (_this->importPending == true) {
             std::stringstream ss3;
+            ss3 << "IMPORT data? (press key again to confirm, 'Esc' to cancel)";
             if (_this->flags.test(AppShowText)) {
-                ss3 << "IMPORT data? (press key again to confirm, 'Esc' to cancel)";
                 putText (*pImg, ss3.str(), cv::Point(xh,80*_this->scaleFactor), cv::FONT_HERSHEY_SIMPLEX, 1.2*fontsz, SF_BLACK, 1, cv::LINE_AA);
                 putText (*sImg, ss3.str(), cv::Point(xh,80*_this->scaleFactor), cv::FONT_HERSHEY_SIMPLEX, 1.2*fontsz, SF_WHITE, 1, cv::LINE_AA);
             } else {
