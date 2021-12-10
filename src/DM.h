@@ -1072,6 +1072,16 @@ public:
                 // That produced a single channel frame, so triple up the channels:
                 cv::Mat in[] = {fr1, fr1, fr1};
                 cv::merge (in, 3, frame);
+                std::vector<morph::Vector<float, 2>> fmids_resampled;
+                std::cout << "\n111\n\n";
+                d.read_contained_vals ("/output_map/twod/coordinates_resampled", fmids_resampled);
+                // pixels_per_mm for the frame is set from this->pixels_per_mm. If there
+                // are multiple images just keep changing this->pixels_per_mm for each
+                // one.
+                size_t n = wh.first - 1;
+                if (fmids_resampled.size() < wh.first) { throw std::runtime_error ("Image shape?"); }
+                this->pixels_per_mm = static_cast<float>(n)/(fmids_resampled[n] - fmids_resampled[0]).length();
+                std::cout << "pixels per mm = " << this->pixels_per_mm << std::endl;
 
             } else {
                 // Other files assumed to be in some standard image format readable by OpenCV
