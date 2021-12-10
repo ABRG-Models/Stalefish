@@ -1,0 +1,9 @@
+[Desktop Entry]
+Name=sfmakejson
+Comment=Stalefish JSON generator
+GenericName=Create a Stalefish JSON config from a list of image files
+Exec=stalefish.sfmakejson %U
+Terminal=true
+Icon=${SNAP}/meta/gui/stalefish.png
+Type=Application
+Categories=Science

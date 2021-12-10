@@ -1,0 +1,9 @@
+[Desktop Entry]
+Name=sfgetjson
+Comment=Stalefish JSON extracter
+GenericName=Opens a stalefish project file to extract the JSON config
+Exec=stalefish.sfgetjson %U
+Terminal=true
+Icon=${SNAP}/meta/gui/stalefish.png
+Type=Application
+Categories=Science

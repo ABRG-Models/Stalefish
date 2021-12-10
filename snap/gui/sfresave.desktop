@@ -1,0 +1,9 @@
+[Desktop Entry]
+Name=sfresave
+Comment=Stalefish re-saver
+GenericName=Opens and re-saves stalefish project file to update the format
+Exec=stalefish.sfresave %U
+Terminal=true
+Icon=${SNAP}/meta/gui/stalefish.png
+Type=Application
+Categories=Science

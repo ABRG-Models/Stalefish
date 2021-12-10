@@ -39,4 +39,4 @@ else()
   target_link_libraries(sfview_unwrap_fig ${MORPH_LIBS_CORE} ${MORPH_LIBS_GL} -L/usr/local/lib popt)
 endif()
 
-install(TARGETS stalefish sfview sfresave sfgetjson DESTINATION ${CMAKE_INSTALL_PREFIX}/bin)
+install(TARGETS stalefish sfview sfresave sfgetjson sfmakejson DESTINATION ${CMAKE_INSTALL_PREFIX}/bin)
