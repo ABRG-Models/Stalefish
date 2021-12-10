@@ -85,8 +85,8 @@ int main (int argc, char** argv)
     poptContext con;
     con = poptGetContext (argv[0], argc, (const char**)argv, opt, 0);
     while (poptGetNextOpt(con) != -1) {}
-    const char* argg = (char*)0;
-    while ((argg = poptGetArg(con)) != (char*)0) {
+    const char* argg = nullptr;
+    while ((argg = poptGetArg(con)) != nullptr) {
         // Treat any extra args as files.
         cmdOptions.imagefiles.push_back (std::string(argg));
     }
