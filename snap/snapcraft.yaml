@@ -65,6 +65,16 @@ apps:
     plugs:
       - home
       - x11
+  sfresave:
+    command: usr/bin/sfresave
+    extensions: [gnome-3-38]
+    plugs:
+      - home
+  sfgetjson:
+    command: usr/bin/sfgetjson
+    extensions: [gnome-3-38]
+    plugs:
+      - home
   sfview:
     command: usr/bin/sfview -e # -e shows example data
     extensions: [gnome-3-38]
