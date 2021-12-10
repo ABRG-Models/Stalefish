@@ -1676,6 +1676,14 @@ public:
             }
         }
 
+        // Freehand loop areas
+        for (size_t i = 0; i<this->FLE.size(); ++i) {
+            std::string s3 = frameName + "/scaled/freehand/area" + std::to_string(i);
+            // Area is area per pixel * num pixels
+            double area = static_cast<double>(this->FLE[i].size()) / (this->pixels_per_mm * this->pixels_per_mm);
+            df.add_val (s3.c_str(), area);
+        }
+
         // Record the normal vectors
         dname = frameName + "/unit_normals";
         df.add_contained_vals (dname.c_str(), this->normals);
