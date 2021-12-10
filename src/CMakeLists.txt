@@ -21,6 +21,9 @@ target_link_libraries(sfresave ${MORPH_LIBS_CORE} ${OpenCV_LIBS} ${MAC_HEADERPAD
 add_executable(sfgetjson sfgetjson.cpp)
 target_link_libraries(sfgetjson ${MORPH_LIBS_CORE} ${OpenCV_LIBS} ${MAC_HEADERPAD})
 
+add_executable(sfmakejson sfmakejson.cpp)
+target_link_libraries(sfmakejson ${MORPH_LIBS_CORE} -L/usr/local/lib popt ${MAC_HEADERPAD})
+
 add_executable(sfview sfview.cpp)
 # Assume popt is in /usr/local/lib. Can't use target_link_directories without specifying minimum cmake version 3.13
 if(APPLE AND OpenMP_CXX_FOUND)
