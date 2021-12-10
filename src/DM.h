@@ -1145,7 +1145,8 @@ public:
         cv::Mat* sImg = _this->getSImg();
 
         // green circle under the cursor indicates curve mode
-        if (cf->ct == InputMode::Bezier || cf->ct == InputMode::ReverseBezier) {
+        if (_this->flags.test(AppShowText)
+            && (cf->ct == InputMode::Bezier || cf->ct == InputMode::ReverseBezier)) {
             circle (*pImg, pt, 5, SF_GREEN, 1);
         }
 
@@ -1286,8 +1287,8 @@ public:
         cv::Mat* sImg = _this->getSImg();
         FrameData* cf = _this->gcf();
 
-        // blue? circle under the cursor
-        if (cf->ct == InputMode::Freehand) {
+        // blue? circle under the cursor unless hiding text
+        if (cf->ct == InputMode::Freehand && _this->flags.test(AppShowText)) {
             circle (*pImg, pt, 3, SF_BLUE, 1);
         }
 
@@ -1337,7 +1338,7 @@ public:
         FrameData* cf = _this->gcf();
 
         // circle under the cursor
-        if (cf->ct == InputMode::Axismark) {
+        if (cf->ct == InputMode::Axismark && _this->flags.test(AppShowText)) {
             circle (*pImg, pt, 7, SF_ORANGE, 1);
         }
 
@@ -1345,7 +1346,7 @@ public:
         cv::Point toffset(8,5); // a text offset
         for (size_t ii=0; ii<cf->AM.size(); ii++) {
             circle (*pImg, cf->AM[ii], 5, SF_ORANGE, -1);
-            if (flags.test(AppShowText)) {
+            if (_this->flags.test(AppShowText)) {
                 std::stringstream ss;
                 ss << 'a' << (1+ii);
                 cv::Point tpt(cf->AM[ii]);
@@ -1363,7 +1364,9 @@ public:
         FrameData* cf = _this->gcf();
 
         // circle under the cursor
-        if (cf->ct == InputMode::GlobalLandmark) { circle (*pImg, pt, 7, SF_BLUEISH, 1); }
+        if (cf->ct == InputMode::GlobalLandmark && _this->flags.test(AppShowText)) {
+            circle (*pImg, pt, 7, SF_BLUEISH, 1);
+        }
 
         // Iterate through the frames, to find out what starting index is for the global
         // landmarks on this slice
@@ -1378,7 +1381,7 @@ public:
         cv::Point toffset(8,5); // a text offset
         for (size_t ii=0; ii<cf->GLM.size(); ii++) {
             circle (*pImg, cf->GLM[ii], 5, SF_BLUEISH, -1);
-            if (flags.test(AppShowText)) {
+            if (_this->flags.test(AppShowText)) {
                 std::stringstream ss;
                 ss << "gl" << (start_gl+ii);
                 cv::Point tpt(cf->GLM[ii]);
@@ -1395,14 +1398,16 @@ public:
         FrameData* cf = _this->gcf();
 
         // circle under the cursor
-        if (cf->ct == InputMode::Landmark) { circle (*pImg, pt, 7, SF_BLACK, 1); }
+        if (cf->ct == InputMode::Landmark && _this->flags.test(AppShowText)) {
+            circle (*pImg, pt, 7, SF_BLACK, 1);
+        }
 
         // Draw circles for the landmarks, with a number next to each one.
         cv::Point toffset(8,5); // a text offset
         int lm_ok = cf->landmarkCheck(); // True if all landmarks are present and correct
         for (size_t ii=0; ii<cf->LM.size(); ii++) {
             circle (*pImg, cf->LM[ii], 5, (static_cast<int>(ii)<lm_ok ? SF_BLACK : SF_RED), -1);
-            if (flags.test(AppShowText)) {
+            if (_this->flags.test(AppShowText)) {
                 std::stringstream ss;
                 ss << (1+ii);
                 cv::Point tpt(cf->LM[ii]);
@@ -1419,7 +1424,7 @@ public:
         FrameData* cf = _this->gcf();
 
         // circle under the cursor
-        if (cf->ct == InputMode::Circlemark) {
+        if (cf->ct == InputMode::Circlemark && _this->flags.test(AppShowText)) {
             circle (*pImg, pt, 7, SF_PURPLE, 1);
             // Cross hares too
             line (*pImg, pt-cv::Point(0,6), pt+cv::Point(0,6), SF_BLACK, 1);
