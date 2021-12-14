@@ -159,6 +159,8 @@ struct CmdOptions
     morph::Vector<float, 4> extents;
     //! The h5 files to visualize
     std::vector<string> datafiles;
+    //! The output directory for saving *.TF.*.h5 files - the 2D map files.
+    char* output_dir;
 };
 
 //! Initialise a CmdOptions object
@@ -178,10 +180,11 @@ void zeroCmdOptions (CmdOptions* copts)
     copts->flattened_type = 0;
     copts->linear_transforms = 0;
     copts->show_slice_thickness = 0;
-    copts->datafile = (char*)0;
-    copts->extents_str = (char*)0;
+    copts->datafile = nullptr;
+    copts->extents_str = nullptr;
     copts->extents = {0.0f, 0.0f, 0.0f, 0.0f};
     copts->datafiles.clear();
+    copts->output_dir = nullptr;
 }
 
 //! cmdOptions is global, allowing callbacks to access this easily.
@@ -1332,6 +1335,14 @@ int addFlattened (SFVisual& v, const string& datafile, const CmdOptions& co,
 
         {
             string datafile2(datafile);
+            // If output_dir was given on cmd line, then make sure files are saved therein
+            if (co.output_dir != nullptr) {
+                string odir(co.output_dir);
+                if (!odir.empty()) {
+                    morph::Tools::stripUnixPath (datafile2);
+                    datafile2 = odir + std::string("/") + datafile2;
+                }
+            }
             morph::Tools::stripFileSuffix (datafile2);
             datafile2 += ".TF.";
             pair<string, string> dfpaf = morph::Tools::getUnixPathAndFile (co.datafiles[0]);
@@ -1653,7 +1664,7 @@ int addFlattened (SFVisual& v, const string& datafile, const CmdOptions& co,
             d2.add_string ("/output_map/twod/M_comes_from", co.datafiles[0]);
         }
     } catch (const exception& e) {
-        cerr << "Caught exception: " << e.what() << endl;
+        cerr << "Caught exception: " << e.what() << ". Can't generate and write out 2D maps." << endl;
         rtn = -1;
     }
 
@@ -1753,6 +1764,10 @@ int main (int argc, char** argv)
          "If there is more than one model, then transform each model index > 0 to match model index 0, using global "
          "landmarks of which there should be 4 in each model (for 3D transforms) or 3 in each (for 2D transforms)."},
 
+        {"output_dir", 'o',
+         POPT_ARG_STRING, &(cmdOptions.output_dir), 0,
+         "Specify an output directory for saving transformed 2D map files (Hdf5 format)."},
+
         {"show_slice_thickness", 'I',
          POPT_ARG_NONE, &(cmdOptions.show_slice_thickness), 0,
          "If true, then plot slices on 2D maps with the thickness of the slice given in the projects json settings. "
@@ -1782,8 +1797,8 @@ int main (int argc, char** argv)
     poptContext con;
     con = poptGetContext (argv[0], argc, (const char**)argv, opt, 0);
     while (poptGetNextOpt(con) != -1) {}
-    const char* argg = (char*)0;
-    while ((argg = poptGetArg(con)) != (char*)0) {
+    const char* argg = nullptr;
+    while ((argg = poptGetArg(con)) != nullptr) {
         // Treat any extra args as files.
         cmdOptions.datafiles.push_back (string(argg));
     }
