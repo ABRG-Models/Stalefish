@@ -339,7 +339,7 @@ public:
                const AllenColourParams& acparams)
     {
         this->previous = -1;
-        this->parentStack = (std::vector<FrameData>*)0;
+        this->parentStack = nullptr;
         this->cmodel = _cmodel;
         this->colour_rot = acparams.colour_rot;
         this->colour_trans = acparams.colour_trans;
@@ -368,7 +368,7 @@ public:
         std::cout << __FUNCTION__ << " called\n";
         // init previous to null.
         this->previous = -1;
-        this->parentStack = (std::vector<FrameData>*)0;
+        this->parentStack = nullptr;
         this->cmodel = _cmodel;
         this->colour_rot = acparams.colour_rot;
         this->colour_trans = acparams.colour_trans;
@@ -2597,7 +2597,7 @@ private:
     void updateFitBezier()
     {
         if (this->PP.empty()) {
-            std::cout << "Too few points to fit" << std::endl;
+            //std::cout << "Too few points to fit" << std::endl;
             this->bcp.reset();
             this->fitted.clear();
             this->tangents.clear();
@@ -3185,7 +3185,7 @@ private:
         translation.y = vP[1];
         rotation = vP[2];
     }
-
+public:
     //! Common code to generate the frame name
     std::string getFrameName() const
     {

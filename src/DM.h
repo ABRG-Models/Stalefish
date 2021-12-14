@@ -219,6 +219,36 @@ public:
         this->gcf()->refreshBoxes (-this->gcf()->binA, this->gcf()->binB);
     }
 
+    void duplicateFrom(const FrameData* fromframe)
+    {
+        if (this->input_mode == InputMode::Freehand) {
+            FrameData* cf = this->gcf();
+            if (cf == nullptr || fromframe == nullptr) { return; }
+            // Now have valid cf and fromframe. Copy freehand stuff from fromframe to cf:
+            cf->FLE = fromframe->FLE;
+            cf->FLB = fromframe->FLB;
+        } else {
+            std::cout << "The object duplication feature is only implemented for freehand loops\n";
+        }
+    }
+
+    void duplicateFromPrev()
+    {
+        // Get index for prev frame
+        int _I = this->I;
+        _I = --_I < 0 ? this->vFrameData.size()-1 : _I;
+        FrameData* pf = &(this->vFrameData[_I]);
+        this->duplicateFrom (pf);
+    }
+
+    void duplicateFromNext()
+    {
+        int _I = this->I;
+        ++_I %= this->vFrameData.size();
+        FrameData* nf = &(this->vFrameData[_I]);
+        this->duplicateFrom (nf);
+    }
+
     //! Toggle between curve fitting, freehand loop drawing or alignment mark (landmark) input.
     void cycleInputMode()
     {
@@ -313,7 +343,7 @@ public:
         if (!this->vFrameData.empty()) {
             return &(this->vFrameData[this->I]);
         }
-        return (FrameData*)0;
+        return nullptr;
     }
 
     //! Get the current frame number, counting from 1 like a human.
@@ -329,6 +359,9 @@ public:
     {
         ++this->I %= this->vFrameData.size();
         this->refreshFrame();
+        if (this->gcf()) {
+            std::cout << this->gcf()->getFrameName() << ". Image: " << this->gcf()->filename << "\n";
+        }
     }
 
     //! Back up a frame
@@ -336,6 +369,9 @@ public:
     {
         this->I = --this->I < 0 ? this->vFrameData.size()-1 : this->I;
         this->refreshFrame();
+        if (this->gcf()) {
+            std::cout << this->gcf()->getFrameName() << ". Image: " << this->gcf()->filename << "\n";
+        }
     }
 
     //! Clone the current frame into Mat img

@@ -202,6 +202,18 @@ int main (int argc, char** argv)
             DM::i()->cycleInputMode(); // cycle globally
             break;
         }
+        case ('P'):
+        {
+            // Duplicate objects from previous frame (mode dependent)
+            DM::i()->duplicateFromPrev();
+            break;
+        }
+        case ('N'):
+        {
+            // Duplicate objects from next frame (mode dependent)
+            DM::i()->duplicateFromNext();
+            break;
+        }
         case ('s'):
         {
             // Toggle to 's'tart of curve - add/remove points there, instead
