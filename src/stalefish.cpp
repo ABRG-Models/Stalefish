@@ -260,6 +260,12 @@ int main (int argc, char** argv)
             DM::i()->showExampleProject();
             break;
         }
+        case ('.'):
+        {
+            // Output current cursor position
+            DM::i()->coutCursorpos();
+            break;
+        }
         case ('x'):
         {
             return 0;

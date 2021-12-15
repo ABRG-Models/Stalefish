@@ -571,7 +571,6 @@ public:
     //! Set the number of bins and update the size of the various containers
     void setBins (int num)
     {
-        std::cout << __FUNCTION__ << " called\n";
         if (num > 5000) { throw std::runtime_error ("Too many bins..."); }
         this->nBins = num;
         this->nFit = num + 1;

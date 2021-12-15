@@ -15,6 +15,7 @@
 #include <morph/Config.h>
 #include <morph/Random.h>
 #include <morph/tools.h>
+#include <morph/Vector.h>
 #include "FrameData.h"
 
 // OpenCV functions mostly expect colours in Blue-Green-Red order
@@ -1533,11 +1534,11 @@ public:
         std::string("l:   Import landmarks from ") + this->lm_exportfile,
         std::string("i:   Import curve points from ") + this->cp_exportfile,
         std::string("j:   Import freehand loops from ") + this->fh_exportfile,
-        std::string("n:   Next frame"),
-        std::string("b:   Back to previous frame"),
+        std::string("n:   Next frame    b:   Back to previous frame"),
+        std::string("N:   Copy objects from next frame    P: Copy from previous"),
         std::string("m:   Mirror this frame"),
-        std::string("r:   Toggle blur window"),
-        std::string("E:   Toggle signal window"),
+        std::string("r:   Toggle blur window    E:   Toggle signal window"),
+        std::string("'.': Output current cursor position to stdout"),
         std::string("x:   Exit the program")};
 
     //! Actions to take on a mouse user-interface event
@@ -1723,6 +1724,13 @@ public:
         }
     }
 
+    void coutCursorpos()
+    {
+        FrameData* cf = this->gcf();
+        std::cout << "px(y=" << this->x << ", z=" << this->y << ") "
+                  << "mm[x=" << cf->layer_x << ", y=" << (this->x/cf->pixels_per_mm) << ", z=" << (this->y/cf->pixels_per_mm) << "]\n";
+    }
+
     //! On any trackbar changing, refresh the boxes
     static void ontrackbar_boxes (int val, void*)
     {
@@ -1738,7 +1746,6 @@ public:
     //! On trackbar change, refresh the size of the boxes
     static void ontrackbar_nbins (int val, void*)
     {
-        std::cout << __FUNCTION__ << " called\n";
         FrameData* cf = DM::i()->gcf();
         unsigned int nbt = DM::i()->nBinsTarg;
         if (nbt < 2) { nbt = 2; }
