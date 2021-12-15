@@ -220,14 +220,23 @@ public:
         this->gcf()->refreshBoxes (-this->gcf()->binA, this->gcf()->binB);
     }
 
-    void duplicateFrom(const FrameData* fromframe)
+    void duplicateFrom (const FrameData* fromframe)
     {
+        FrameData* cf = this->gcf();
+        if (cf == nullptr || fromframe == nullptr) { return; }
+        // Now have valid cf and fromframe.
+
         if (this->input_mode == InputMode::Freehand) {
-            FrameData* cf = this->gcf();
-            if (cf == nullptr || fromframe == nullptr) { return; }
-            // Now have valid cf and fromframe. Copy freehand stuff from fromframe to cf:
+            // Copy freehand stuff from fromframe to cf:
             cf->FLE = fromframe->FLE;
             cf->FLB = fromframe->FLB;
+        } else if (this->input_mode == InputMode::Bezier || this->input_mode == InputMode::ReverseBezier) {
+            cf->P = fromframe->P;
+            cf->sP = fromframe->sP;
+            cf->PP = fromframe->PP;
+            cf->pp_idx = fromframe->pp_idx;
+            cf->binA = fromframe->binA;
+            cf->binB = fromframe->binB;
         } else {
             std::cout << "The object duplication feature is only implemented for freehand loops\n";
         }
