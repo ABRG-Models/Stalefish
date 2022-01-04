@@ -364,6 +364,98 @@ public:
     //! Signal image
     cv::Mat* getSImg() { return &(this->sImg); }
 
+    //! Update this->conf to contain the same slices information as is recorded in vFrameData
+    void recreateConfSlices()
+    {
+        Json::Value slices = conf.getArray ("slices");
+        slices.clear();
+        slices.resize(this->vFrameData.size());
+        for (unsigned int i = 0; i < this->vFrameData.size(); ++i) {
+            // Create a Json::Value containing "filename" and "x" and copy into slices.
+            Json::Value slice;
+            slice["filename"] = this->vFrameData[i].filename;
+            slice["x"] = this->vFrameData[i].layer_x;
+            slices[i] = slice;
+        }
+        conf.root["slices"] = slices;
+    }
+
+    //! Move the current frame forwards one, re-ordering the stack.
+    void moveFrameNext()
+    {
+        // gcf returns &this->vFrameData[I]
+        FrameData* cf = this->gcf();
+        // Determine the next frame and previous index
+        int I_next = this->I;
+        ++I_next %= this->vFrameData.size();
+        FrameData* nf = &this->vFrameData[I_next];
+        int I_previous = this->I;
+        I_previous = --I_previous < 0 ? this->vFrameData.size()-1 : I_previous;
+
+        int cur_idx = cf->idx;
+        float cur_x = cf->layer_x;
+        int nxt_idx = nf->idx;
+        float nxt_x = nf->layer_x;
+        std::cout << "Moving Frame " << (1+cur_idx) << " forward to become Frame " << (1+nxt_idx) << std::endl;
+
+        // 1. swap I and position I+1 (or stack start) in vFrameData
+        FrameData cf_obj = this->vFrameData[this->I];
+        this->vFrameData[this->I] = *nf;
+        cf = &this->vFrameData[this->I];
+        this->vFrameData[I_next] = cf_obj;
+        nf = &this->vFrameData[I_next];
+
+        // 2. update idx and previous in the swapped frames
+        cf->idx = cur_idx;
+        nf->idx = nxt_idx;
+        cf->setPrevious (I_previous);
+        nf->setPrevious (cf->idx);
+        cf->layer_x = cur_x;
+        nf->layer_x = nxt_x;
+
+        // 3. Update current frame
+        this->refreshFrame();
+
+        // 4. Last, note that the frame order has changed. Or possibly, create a new
+        // json config, rather than using the copy of the opriginal?
+        this->conf.set ("slices_reordered_in_stalefish", true);
+        this->recreateConfSlices();
+    }
+
+    //! Move the current frame back one, re-ordering the stack.
+    void moveFrameBack()
+    {
+        FrameData* cf = this->gcf();
+
+        int I_previous = this->I;
+        I_previous = --I_previous < 0 ? this->vFrameData.size()-1 : I_previous;
+        FrameData* pf = &this->vFrameData[I_previous];
+
+        int cur_idx = cf->idx;
+        float cur_x = cf->layer_x;
+        int prv_idx = pf->idx;
+        float prv_x = pf->layer_x;
+        std::cout << "Moving Frame " << (1+cur_idx) << " back to become Frame " << (1+prv_idx) << std::endl;
+
+        FrameData cf_obj = this->vFrameData[this->I];
+        this->vFrameData[this->I] = *pf;
+        cf = &this->vFrameData[this->I];
+        this->vFrameData[I_previous] = cf_obj;
+        pf = &this->vFrameData[I_previous];
+
+        cf->idx = cur_idx;
+        pf->idx = prv_idx;
+        cf->setPrevious (prv_idx);
+        pf->setPrevious (cur_idx);
+        cf->layer_x = cur_x;
+        pf->layer_x = prv_x;
+
+        this->refreshFrame();
+
+        this->conf.set ("slices_reordered_in_stalefish", true);
+        this->recreateConfSlices();
+    }
+
     //! Make the next frame current (or cycle back to the first)
     void nextFrame()
     {
@@ -1543,7 +1635,7 @@ public:
         std::string("l:   Import landmarks from ") + this->lm_exportfile,
         std::string("i:   Import curve points from ") + this->cp_exportfile,
         std::string("j:   Import freehand loops from ") + this->fh_exportfile,
-        std::string("n:   Next frame    b:   Back to previous frame"),
+        std::string("n:   Next frame   b:   Back a frame   8:  Move back   9:  Move to next"),
         std::string("N:   Copy objects from next frame    P: Copy from previous"),
         std::string("m:   Mirror this frame"),
         std::string("r:   Toggle blur window    E:   Toggle signal window"),

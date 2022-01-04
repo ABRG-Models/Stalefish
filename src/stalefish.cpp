@@ -78,6 +78,16 @@ int main (int argc, char** argv)
             DM::i()->toggleShowText();
             break;
         }
+        case ('8'):
+        {
+            DM::i()->moveFrameBack();
+            break;
+        }
+        case ('9'):
+        {
+            DM::i()->moveFrameNext();
+            break;
+        }
         // Apply bin values across all frames
         case ('B'):
         {
