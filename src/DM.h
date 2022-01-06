@@ -22,6 +22,7 @@
 #define SF_BLUE     cv::Scalar(255,0,0,10)
 #define SF_BLUEISH  cv::Scalar(238,110,67)
 #define SF_GREEN    cv::Scalar(0,255,0,10)
+#define SF_GREEN2   cv::Scalar(213,186,7,10)
 #define SF_RED      cv::Scalar(0,0,255,10)
 #define SF_YELLOW   cv::Scalar(0,255,255,10)
 #define SF_ORANGE   cv::Scalar(25,136,249,10)
@@ -109,6 +110,8 @@ public:
     //! Set true if we're in 'export pending' mode
     bool exportPending = false;
     bool importPending = false;
+    //! Set true if user said they want to exit
+    bool exitPending = false;
 
     //! The instance public function. Uses the very short name 'i' to keep code tidy.
     static DM* i()
@@ -1293,9 +1296,12 @@ public:
         cv::Mat* sImg = _this->getSImg();
 
         // green circle under the cursor indicates curve mode
-        if (_this->flags.test(AppShowText)
-            && (cf->ct == InputMode::Bezier || cf->ct == InputMode::ReverseBezier)) {
-            circle (*pImg, pt, 5, SF_GREEN, 1);
+        if (_this->flags.test(AppShowText)) {
+            if (cf->ct == InputMode::Bezier) {
+                circle (*pImg, pt, 5, SF_GREEN, 1);
+            } else if (cf->ct == InputMode::ReverseBezier) {
+                circle (*pImg, pt, 5, SF_GREEN2, 1);
+            }
         }
 
         if (cf->flags.test(ShowUsers) == true) {
@@ -1344,8 +1350,8 @@ public:
             // draw the "candidate" point set (for adding to the *start* of the curve):
             if (cf->PP.empty() || (!cf->PP.empty() && cf->sP.size() > 1)) {
                 for (size_t ii=0; ii<cf->sP.size(); ii++) {
-                    circle (*pImg, cf->sP[ii], 5, SF_GREEN, -1);
-                    if (ii) { line (*pImg, cf->sP[ii-1], cf->sP[ii], SF_GREEN, 1, cv::LINE_AA); }
+                    circle (*pImg, cf->sP[ii], 5, SF_GREEN2, -1);
+                    if (ii) { line (*pImg, cf->sP[ii-1], cf->sP[ii], SF_GREEN2, 1, cv::LINE_AA); }
                 }
             }
             // also draw a thin line to the cursor position
@@ -1357,7 +1363,7 @@ public:
             } else if (cf->ct == InputMode::ReverseBezier) {
                 if ((cf->PP.empty() && cf->sP.size() > 0)
                     || (!cf->PP.empty() && cf->sP.size() > 1)) {
-                    line (*pImg, cf->sP[0], pt, SF_GREEN, 1, cv::LINE_AA);
+                    line (*pImg, cf->sP[0], pt, SF_GREEN2, 1, cv::LINE_AA);
                 }
             }
         }
@@ -1768,7 +1774,16 @@ public:
                 std::cout << ss3.str() << std::endl;
             }
         }
-
+        else if (_this->exitPending == true) {
+            std::stringstream ss3;
+            ss3 << "EXIT? (press key again to confirm, 'Esc' to cancel)";
+            if (_this->flags.test(AppShowText)) {
+                putText (*pImg, ss3.str(), cv::Point(xh,80*_this->scaleFactor), cv::FONT_HERSHEY_SIMPLEX, 1.2*fontsz, SF_BLACK, 1, cv::LINE_AA);
+                putText (*sImg, ss3.str(), cv::Point(xh,80*_this->scaleFactor), cv::FONT_HERSHEY_SIMPLEX, 1.2*fontsz, SF_WHITE, 1, cv::LINE_AA);
+            } else {
+                std::cout << ss3.str() << std::endl;
+            }
+        }
         // h for help
         if (_this->flags.test(AppShowText)) {
             std::string hs("Press 'h' for help");

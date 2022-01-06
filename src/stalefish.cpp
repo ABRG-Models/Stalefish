@@ -111,6 +111,7 @@ int main (int argc, char** argv)
             DM::i()->clearAllPending = false;
             DM::i()->exportPending = false;
             DM::i()->importPending = false;
+            DM::i()->exitPending = false;
             break;
         }
         // Perform all fits
@@ -278,7 +279,13 @@ int main (int argc, char** argv)
         }
         case ('x'):
         {
-            return 0;
+            // Warn user, to avoid inadvertent data loss.
+            if (DM::i()->exitPending == true) {
+                DM::i()->exitPending = false;
+                return 0;
+            } else {
+                DM::i()->exitPending = true;
+            }
             break;
         }
         default:
