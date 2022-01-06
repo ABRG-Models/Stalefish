@@ -462,7 +462,7 @@ int addLandmarks (SFVisual& v, const string& datafile, const CmdOptions& co,
                 }
                 frameName = ss.str();
                 vector<array<float, 3>> GLM;
-                //std::cout << "Reading global landmark in " << frameName << std::endl;
+                //std::cout << "A Reading global landmark in " << frameName << " (file: " << datafile << ")" << std::endl;
                 d.read_contained_vals (frameName.c_str(), GLM);
                 //std::cout << "GLM size: " << GLM.size() << std::endl;
                 for (auto glm : GLM) {
@@ -1002,7 +1002,7 @@ morph::Matrix33<float> readGlobalPositions (const std::string& datafile,
         }
         frameName = ss.str();
         vector<array<float, 3>> GLM;
-        std::cout << "Reading global landmark in " << frameName << std::endl;
+        std::cout << "Reading global landmark in " << frameName << " (file: " << datafile << ")" << std::endl;
         d.read_contained_vals(frameName.c_str(), GLM);
         allGLM.push_back (GLM[glmt.second]);
     }
