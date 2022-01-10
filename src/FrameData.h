@@ -420,26 +420,28 @@ public:
 
         // Make a blurred copy of the floating point format frame, for estimating lighting background
         this->blurred = cv::Mat::zeros (frameF.rows, frameF.cols, CV_32FC3);
-        cv::Size ksz;
-        ksz.width = frameF.cols * 2.0 * this->bgBlurScreenProportion;
-        ksz.width += (ksz.width%2 == 1) ? 0 : 1; // ensure ksz.width is odd
-        ksz.height = frameF.rows/3;
-        ksz.height += (ksz.height%2 == 1) ? 0 : 1;
-        double sigma = (double)frameF.cols * this->bgBlurScreenProportion;
-        cv::GaussianBlur (frameF, this->blurred, ksz, sigma);
-        std::cout << "Blur mean = " << cv::mean (this->blurred) << std::endl;
-
-        // Now subtract the blur from the original
-        cv::Mat suboffset_minus_blurred;
-        cv::subtract (this->bgBlurSubtractionOffset/255.0f, this->blurred,
-                      suboffset_minus_blurred, cv::noArray(), CV_32FC3);
-        // show max mins (For debugging)
-        this->showMaxMin (this->blurred, "this->blurred");
-        this->showMaxMin (suboffset_minus_blurred, "suboffset_minus_blurred (const-blurred)");
-        // Add suboffset_minus_blurred to frameF to get frame_bgoff.
         cv::Mat frame_bgoff;
-        cv::add (frameF, suboffset_minus_blurred, frame_bgoff, cv::noArray(), CV_32FC3);
-        this->showMaxMin (frame_bgoff, "frame_bgoff");
+        if (this->cmodel != ColourModel::Sfview) {
+            cv::Size ksz;
+            ksz.width = frameF.cols * 2.0 * this->bgBlurScreenProportion;
+            ksz.width += (ksz.width%2 == 1) ? 0 : 1; // ensure ksz.width is odd
+            ksz.height = frameF.rows/3;
+            ksz.height += (ksz.height%2 == 1) ? 0 : 1;
+            double sigma = (double)frameF.cols * this->bgBlurScreenProportion;
+            cv::GaussianBlur (frameF, this->blurred, ksz, sigma);
+            std::cout << "Blur mean = " << cv::mean (this->blurred) << std::endl;
+
+            // Now subtract the blur from the original
+            cv::Mat suboffset_minus_blurred;
+            cv::subtract (this->bgBlurSubtractionOffset/255.0f, this->blurred,
+                          suboffset_minus_blurred, cv::noArray(), CV_32FC3);
+            // show max mins (For debugging)
+            this->showMaxMin (this->blurred, "this->blurred");
+            this->showMaxMin (suboffset_minus_blurred, "suboffset_minus_blurred (const-blurred)");
+            // Add suboffset_minus_blurred to frameF to get frame_bgoff.
+            cv::add (frameF, suboffset_minus_blurred, frame_bgoff, cv::noArray(), CV_32FC3);
+            this->showMaxMin (frame_bgoff, "frame_bgoff");
+        } // else ColourModel::Sfview, so frame_bgoff won't be used.
 
         // This is where we distinguish between possible different ColourModels. Apply
         // some conversion to go from the input (frame/frame_bgoff) to the signal:
