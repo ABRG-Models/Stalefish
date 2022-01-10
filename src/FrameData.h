@@ -34,8 +34,10 @@ enum class InputMode
     ReverseBezier, // Curve drawing mode but adding/deleting points at the start of the curve
     Circlemark, // Circular landmarks that are large and require 3 points to estimate
                 // their centre. Developed to handle needle alignment holes.
-    Axismark   // Allows user to define two locations that mark a linear axis through
-               // the brain. To help construct nice 2D maps from 3D reconstructions.
+    Axismark,   // Allows user to define two locations that mark a linear axis through
+                // the brain. To help construct nice 2D maps from 3D reconstructions.
+    Minmax      // Manually place two points. First gives minimum signal for the frame,
+                // second gives max.
 };
 
 //! What sort of colour model is in use?
@@ -166,6 +168,13 @@ public:
     // May need:
     //std::vector<cv::Point2d> GLM_origins_lmaligned;
     //std::vector<cv::Point2d> GLM_origins_autoaligned;
+
+    // Min-max marks. Vector size will be 2. First is min, second is max. No need to
+    // store auto/global aligned values here, because from these we simply write out the
+    // min/max signal values into the H5.
+    // Min signal: this->signal.at<float> (MMM[0]);
+    // Max signal: this->signal.at<float> (MMM[1]);
+    std::vector<cv::Point> MMM;
 
     //! The means computed for the boxes. This is "mean_signal".
     std::vector<float> box_signal_means;
@@ -624,6 +633,8 @@ public:
             ss << ". Circlemark mode";
         } else if (this->ct == InputMode::Axismark) {
             ss << ". Axismark mode";
+        } else if (this->ct == InputMode::Minmax) {
+            ss << ". Min/max mode";
         } else {
             ss << ". unknown mode";
         }
@@ -896,6 +907,8 @@ public:
             this->removeLastCirclepoint();
         } else if (this->ct == InputMode::Axismark) {
             this->removeLastAxismark();
+        } else if (this->ct == InputMode::Minmax) {
+            this->removeLastMinmax();
         } else {
             this->removeLastPoint();
             this->updateFit();
@@ -1018,6 +1031,9 @@ public:
             while (this->AM_origins_autoaligned.size() > AM_sz) { this->AM_origins_autoaligned.pop_back(); }
         }
     }
+
+    void addMinmax (const cv::Point& pt) { if (this->MMM.size() < 2) { this->MMM.push_back (pt); } }
+    void removeLastMinmax() { if (!this->MMM.empty()) { this->MMM.pop_back(); } }
 
     //! Add a global landmark
     void addGlobalLandmark (const cv::Point& pt) { this->GLM.push_back (pt); }
@@ -1210,6 +1226,16 @@ public:
         } catch (...) {
             // Do nothing on exception. Move on to next.
             std::cout << "No global landmarks to read for this frame" << std::endl;
+        }
+
+        // Min/max landmark points
+        dname = frameName + "/class/MMM";
+        this->MMM.clear();
+        try {
+            df.read_contained_vals (dname.c_str(), this->MMM);
+        } catch (...) {
+            // Do nothing on exception. Move on to next.
+            std::cout << "No min/max landmarks to read for this frame" << std::endl;
         }
     }
 
@@ -1429,6 +1455,10 @@ public:
         df.add_contained_vals (dname.c_str(), this->GLM);
         dname = frameName + "/class/GLM_scaled";
         df.add_contained_vals (dname.c_str(), this->GLM_scaled);
+
+        // The min-max marks
+        dname = frameName + "/class/MMM";
+        df.add_contained_vals (dname.c_str(), this->MMM);
     }
 
     //! A subroutine of FrameData::write.
@@ -1703,6 +1733,21 @@ public:
         df.add_contained_vals (dname.c_str(), this->FL_signal_means);
         dname = frameName + "/signal/bits8/freehand/means";
         df.add_contained_vals (dname.c_str(), this->FL_pixel_means);
+
+        // Min/max if present HERE
+        if (this->MMM.size() > 1) {
+            dname = frameName + "/signal/postproc/manual_min_signal";
+            cv::Vec<float, 3> val = this->frame_signal.at<cv::Vec<float, 3>>(this->MMM[0]);
+            df.add_val (dname.c_str(), static_cast<float>(val[0]));
+            val = this->frame_signal.at<cv::Vec<float, 3>>(this->MMM[1]);
+            dname = frameName + "/signal/postproc/manual_max_signal";
+            df.add_val (dname.c_str(), static_cast<float>(val[0]));
+        }
+        // Absolute min/max of frame signal
+        dname = frameName + "/signal/postproc/min_signal";
+        df.add_val (dname.c_str(), this->frame_signal_maxmin.second);
+        dname = frameName + "/signal/postproc/max_signal";
+        df.add_val (dname.c_str(), this->frame_signal_maxmin.first);
 
         // Here, compute centroid of freehand regions, and then save this in autoalign
         // coordinate system and in the lmalign coord system.
