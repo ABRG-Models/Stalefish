@@ -276,6 +276,8 @@ public:
         } else if (this->input_mode == InputMode::Circlemark) {
             this->input_mode = InputMode::Axismark;
         } else if (this->input_mode == InputMode::Axismark) {
+            this->input_mode = InputMode::Minmax;
+        } else if (this->input_mode == InputMode::Minmax) {
             this->input_mode = InputMode::Bezier;
         } else {
             // Shouldn't get here...
@@ -1570,6 +1572,26 @@ public:
         }
     }
 
+    void draw_minmax (const cv::Point& pt)
+    {
+        DM* _this = DM::i();
+        cv::Mat* pImg = _this->getImg();
+        FrameData* cf = _this->gcf();
+        if (cf->ct == InputMode::Minmax && _this->flags.test(AppShowText)) {
+            circle (*pImg, pt, 2, SF_C2, 1);
+        }
+        cv::Point toffset(8,5); // a text offset
+        for (size_t ii=0; ii<cf->MMM.size(); ii++) {
+            circle (*pImg, cf->MMM[ii], 2, SF_C2, -1);
+            if (_this->flags.test(AppShowText)) {
+                std::stringstream ss;
+                ss << (ii == 0 ? "min" : "max");
+                cv::Point tpt(cf->MMM[ii]);
+                putText (*pImg, ss.str(), tpt+toffset, cv::FONT_HERSHEY_SIMPLEX, 0.8, SF_C2, 1, cv::LINE_AA);
+            }
+        }
+    }
+
     //! Input mode for entering landmarks by defining 3 points on a circle.
     void draw_circlemarks (const cv::Point& pt)
     {
@@ -1697,6 +1719,8 @@ public:
                 _this->globalLandmarks.push_back (std::make_pair (_this->getFrameNum(), cf->GLM.size()-1));
             } else if (cf->ct == InputMode::Circlemark) {
                 cf->addCirclepoint (pt);
+            } else if (cf->ct == InputMode::Minmax) {
+                cf->addMinmax (pt);
             } else if (cf->ct == InputMode::Axismark) {
                 cf->addAxismark (pt);
             }
@@ -1722,6 +1746,7 @@ public:
         _this->draw_global_landmarks (pt);
         _this->draw_axismarks (pt);
         _this->draw_circlemarks (pt);
+        _this->draw_minmax (pt);
 
         std::stringstream ss;
         int xh = 30;
