@@ -390,8 +390,10 @@ public:
             // into BOTH frame_signal and to convert into frame.
             this->frame_signal = fr.clone(); // fr should be 3 channels to start with.
             cv::Mat temp;
-            // Copy frame into temp, multiplying by 255:
-            fr.convertTo (temp, CV_8UC3, 255.0);
+            std::pair<float, float> mm = this->showMaxMin (fr, "fr");
+            // Copy frame into temp, forcing range to be 0-255. This affects the image, not the signal frame:
+            fr.convertTo (temp, CV_8UC3, 255.0*(1.0/mm.first));
+            mm = this->showMaxMin (temp, "temp");
             // Check number of channels and format of this->frame
             if (temp.channels() == 3) {
                 this->frame = temp.clone();
@@ -539,20 +541,31 @@ public:
         }
     }
 
-    //! Show the max and the min of a
+    //! Show the max and the min of a cv::Mat. I think there's a built-in function in cv for this too.
     std::pair<float, float> showMaxMin (const cv::Mat& m, const std::string& matlabel = "(unknown)")
     {
         float minm = 100.0f;
         float maxm = -100.0f;
-        for (int r = 0; r < m.rows; ++r) {
-            for (int c = 0; c < m.cols; ++c) {
-                //std::cout << "Frame("<<r<<","<<c<<") = " << m.at< cv::Vec<float, 3> >(r,c) << "\n";
-                float val = (float)m.at< cv::Vec<float, 3> >(r,c)[0];
-                minm = val < minm ? val : minm;
-                maxm = val > maxm ? val : maxm;
+        if (m.type() == CV_8UC3) {
+            for (int r = 0; r < m.rows; ++r) {
+                for (int c = 0; c < m.cols; ++c) {
+                    float val = static_cast<float>(m.at< cv::Vec<unsigned char, 3> >(r,c)[0]);
+                    minm = val < minm ? val : minm;
+                    maxm = val > maxm ? val : maxm;
+                }
             }
+        } else if (m.type() == CV_32FC3) {
+            for (int r = 0; r < m.rows; ++r) {
+                for (int c = 0; c < m.cols; ++c) {
+                    float val = (float)m.at< cv::Vec<float, 3> >(r,c)[0];
+                    minm = val < minm ? val : minm;
+                    maxm = val > maxm ? val : maxm;
+                }
+            }
+        } else {
+            std::cout << "Unhandled Mat type.\n";
         }
-        std::cout << "The matrix " << matlabel << "  has min/max: " << minm << "/" << maxm << std::endl;
+        std::cout << "The matrix " << matlabel << " (type " << m.type() << ")  has min/max: " << minm << "/" << maxm << std::endl;
         return std::make_pair(maxm, minm);
     }
     //! Show the max and the min of a, which should be in U8 format
@@ -1734,7 +1747,7 @@ public:
         dname = frameName + "/signal/bits8/freehand/means";
         df.add_contained_vals (dname.c_str(), this->FL_pixel_means);
 
-        // Min/max if present HERE
+        // Min/max if present
         if (this->MMM.size() > 1) {
             dname = frameName + "/signal/postproc/manual_min_signal";
             cv::Vec<float, 3> val = this->frame_signal.at<cv::Vec<float, 3>>(this->MMM[0]);
