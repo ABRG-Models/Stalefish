@@ -1216,7 +1216,6 @@ public:
                 cv::Mat in[] = {fr1, fr1, fr1};
                 cv::merge (in, 3, frame);
                 std::vector<morph::Vector<float, 2>> fmids_resampled;
-                std::cout << "\n111\n\n";
                 d.read_contained_vals ("/output_map/twod/coordinates_resampled", fmids_resampled);
                 // pixels_per_mm for the frame is set from this->pixels_per_mm. If there
                 // are multiple images just keep changing this->pixels_per_mm for each
