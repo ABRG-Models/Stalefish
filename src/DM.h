@@ -1396,7 +1396,8 @@ public:
 
     //! On \a _pImg, draw the region specified in \a vp, using \a colour. Also add text
     //! showing the mean signal/luminance (\a themean)
-    void draw_region (const std::vector<cv::Point>& vp, cv::Mat* _pImg, const float& themean, const cv::Scalar& colour)
+    void draw_region (const std::vector<cv::Point>& vp, cv::Mat* _pImg, const float& themean, const cv::Scalar& colour,
+                      const int regnum = -1)
     {
         double alpha = 0.3;
         int xmean = 0;
@@ -1417,6 +1418,7 @@ public:
             xmean /= vp.size();
             ymean /= vp.size();
             std::stringstream flm;
+            if (regnum > -1) { flm << regnum << ": "; }
             flm << themean;
             cv::Point tpt(xmean, ymean); // Could use extents_FL here.
             putText (*_pImg, flm.str(), tpt, cv::FONT_HERSHEY_SIMPLEX, 0.5, SF_BLACK, 1, cv::LINE_AA);
@@ -1456,8 +1458,8 @@ public:
                 if (!cf->FLE[j].empty()) {
                     float themean = cf->FL_signal_means.size() > j ? cf->FL_signal_means[j] : 0.0f;
                     //float thepixelmean = cf->FL_pixel_means.size() > j ? cf->FL_pixel_means[j] : 0;
-                    draw_region (cf->FLE[j], pImg, themean, SF_BLUE);
-                    draw_region (cf->FLE[j], sImg, themean, SF_BLACK);
+                    draw_region (cf->FLE[j], pImg, themean, SF_BLUE, (int)j);
+                    draw_region (cf->FLE[j], sImg, themean, SF_BLACK, (int)j);
                 }
             }
         }
