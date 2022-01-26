@@ -1432,7 +1432,7 @@ public:
 
     void draw_boundary (const std::vector<cv::Point>& vp, cv::Mat* _pImg, const cv::Scalar& colour)
     {
-        double alpha = 0.8;
+        double alpha = 0.1;
         for (size_t ii=0; ii<vp.size(); ii++) {
             cv::Point cur = vp[ii];
             cv::Mat roi = (*_pImg)(cv::Rect(cur.x, cur.y, 1, 1));
