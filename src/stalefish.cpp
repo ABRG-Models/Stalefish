@@ -200,6 +200,12 @@ int main (int argc, char** argv)
             }
             break;
         }
+        case ('q'):
+        {
+            // Toggle hiding of the image
+            DM::i()->hideImage = DM::i()->hideImage ? false : true;
+            break;
+        }
         case ('m'):
         {
             // Mirror

@@ -481,9 +481,14 @@ public:
         }
     }
 
+    bool hideImage = false;
     //! Clone the current frame into Mat img
     void cloneFrame() {
-        this->img = this->vFrameData[this->I].frame.clone();
+        if (hideImage) {//Mat M(cols,rows, CV_8UC3, Scalar::all(255));
+            this->img = cv::Mat(this->vFrameData[this->I].frame.size(), CV_8UC3, cv::Scalar::all(255));
+        } else {
+            this->img = this->vFrameData[this->I].frame.clone();
+        }
         FrameData* cf = this->gcf();
         if (cf) {
             this->sImg = cf->frame_signal.clone(); // Don't get an alpha channel with frame_signal
@@ -1666,7 +1671,7 @@ public:
         std::string("j:   Import freehand loops from ") + this->fh_exportfile,
         std::string("n:   Next frame   b:   Back a frame   8:  Move back   9:  Move to next"),
         std::string("N:   Copy objects from next frame    P: Copy from previous"),
-        std::string("m:   Mirror this frame"),
+        std::string("m:   Mirror this frame       q: Hide the image"),
         std::string("r:   Toggle blur window    E:   Toggle signal window"),
         std::string("'.': Output current cursor position to stdout"),
         std::string("x:   Exit the program")};
