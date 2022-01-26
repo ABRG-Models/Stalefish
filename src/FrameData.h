@@ -836,8 +836,8 @@ public:
             }
         }
 
-        // push the boundary onto FLB and return the enclosed pixels
-        this->FLB.push_back (bdry);
+        // If not empty, push the boundary onto FLB and return the enclosed pixels
+        if (!rtn.empty()) { this->FLB.push_back (bdry); }
         return rtn;
     }
 
@@ -893,12 +893,16 @@ public:
                 this->fillFL (fp, pt);
                 // Get the enclosed points and add:
                 std::vector<cv::Point> inside = this->getEnclosedByFL();
-                this->FLE.push_back (inside);
+                if (!inside.empty()) { this->FLE.push_back (inside); }
                 this->FL.clear();
                 this->loopFinished = true;
                 // Now loop is finished, compute the means, so they can be displayed in UI
                 this->computeFreehandMeans();
-                std::cout << "Loop complete. Mean: " << FL_signal_means.back() << ", Number of pixels: " << FLE.back().size() << "\n";
+                if (!inside.empty()) {
+                    std::cout << "Loop complete. Mean: " << FL_signal_means.back() << ", Number of pixels: " << FLE.back().size() << "\n";
+                } else {
+                    std::cout << "Loop was complete but empty.\n";
+                }
 
             } else {
                 // Can't close the loop; just add to it
