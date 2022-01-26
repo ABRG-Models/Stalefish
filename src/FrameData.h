@@ -863,11 +863,15 @@ public:
             this->fillFL (fp, pt);
             // Get enclosed and add to FLE:
             std::vector<cv::Point> inside = this->getEnclosedByFL();
-            this->FLE.push_back (inside);
+            if (!inside.empty()) { this->FLE.push_back (inside); }
             this->FL.clear();
             this->loopFinished = true;
             this->computeFreehandMeans();
-            std::cout << "Loop complete. Mean: " << FL_signal_means.back() << ", Number of pixels: " << FLE.back().size() << "\n";
+            if (!inside.empty()) {
+                std::cout << "Loop complete. Mean: " << FL_signal_means.back() << ", Number of pixels: " << FLE.back().size() << "\n";
+            } else {
+                std::cout << "Loop was complete but empty.\n";
+            }
 
         } else { // The new point pt is NOT in FL already
 
@@ -1768,6 +1772,7 @@ public:
         // Add the centroid of the freehand regions (in the y-z or 'in-slice' plane)
         unsigned int fle_size = this->FLE.size();
         for (size_t i = 0; i<fle_size; ++i) {
+            if (this->FLE[i].empty()) { std::cout << "Warning: FLE["<<i<<" is empty!\n"; }
             cv::Point cntroid = morph::MathAlgo::centroid (this->FLE[i]);
 
             std::cout << "centroid in screen pix: " << cntroid << std::endl;
