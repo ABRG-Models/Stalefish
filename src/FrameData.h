@@ -822,16 +822,10 @@ public:
                     // Compute winding number
                     int winding_number = w.wind (px);
                     //std::cout << "Winding number of pixel " << px << " = " << winding_number << std::endl;
-                    if (winding_number != 0) {
-                        rtn.push_back (px);
-                    }
+                    if (winding_number != 0) { rtn.push_back (px); } // else pixel is outside loop
                 } else {
                     // else current pixel is a member of the loop itself.
-                    int winding_number = w.wind (px);
-                    //std::cout << "Winding number of BOUNDARY pixel " << px << " = " << winding_number << std::endl;
-                    if (winding_number != 0) {
-                        bdry.push_back (px);
-                    }
+                    bdry.push_back (px);
                 }
             }
         }
