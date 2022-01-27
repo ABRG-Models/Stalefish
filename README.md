@@ -31,20 +31,38 @@ Stalefish has a _very_ simple user interface. In order to keep the code as small
 ```
 ./build/src/stalefish ./data/testimg.json
 ```
-The JSON file contains a list of the images to fit curves to, and some
-other parameters.
+The JSON file contains a list of the images to fit curves to, and some other parameters. If you already have a Stalefish project file (these are HDF5 files), then the program call is:
+```
+./build/src/stalefish ./data/testimg.h5
+```
 
 If you launch Stalefish without the path, or from its program icon, you'll see a help screen and the option to open an example project by pressing the 'e' key.
 
 ### A short introduction to the user interface
 
-You should now see a brain slice image in a window, with three sliders at the top of the window. The first task is to add or modify the points that will define the sampling curves that you'll build your 3D expression maps from. Stalefish has a concept of 'input modes' and the default mode is 'Curve mode'.
+Launch Stalefish with no path and press the 'e' key. You should now see a brain slice image in a window, with three sliders at the top of the window (Fig. 1A). The first task is to add or modify the points that will define the sampling curves that you'll build your 3D expression maps from. Stalefish has a concept of 'input modes' and the default mode is 'Curve mode'.
 
 In Curve mode, a mouse click will create green points to which a curve should be fit. Create 3, 4 or 5 points then press 'space'. The points should turn blue (or red). Pressing space 'locks in' a section of the curve. Repeat to create a complete, smooth curve along an anatomical feature of interest. When you are satisfied, press 'f' to fit the curve. A green fit line and yellow sample bins should appear. Sliders give control over the size and shape of the sample bins. Now move on to the next slice in the set with 'n' and draw a curve on the same anatomical feature (assuming it spans several slices).
 
+You can press 'h' to see help text detailing the key-press commands that are available. A more detailed description of the Stalefish application is available here: https://github.com/ABRG-Models/Stalefish/blob/master/docs/Supplement.pdf.
+
 ### JSON parameters
 
-Stalefish projects are created with a hand-written .json file which lists the images in your brain slice set, along with some additional information, such as the position of each slice in the stack, the slice thickness and so on. The parameters are listed here. Example json files can be found in the data/ directory - see [testimg.json](https://github.com/ABRG-Models/Stalefish/blob/master/data/testimg.json) and [vole_65_7E_id2_L23.json](https://github.com/ABRG-Models/Stalefish/blob/master/data/vole_65_7E_id2_L23.json).
+Stalefish projects are created with a hand-written .json file which lists the images in your brain slice set, along with some additional information, such as the position of each slice in the stack, the slice thickness and so on.
+
+Example json files can be found in the data/ directory - see [testimg.json](https://github.com/ABRG-Models/Stalefish/blob/master/data/testimg.json) and [vole_65_7E_id2_L23.json](https://github.com/ABRG-Models/Stalefish/blob/master/data/vole_65_7E_id2_L23.json). 
+
+There is also a program called **sfmakejson** which will generate a .json config file from a set of brain slice images. Here is an example call in which the slice thickness and the slice-to-slice distance are set to 0.1 mm and the scale of the slice images is 200 pixels per mm:
+
+```bash
+sfmakejson -d 0.1 -t 0.1 -p 200 ./brainslices/*.png > newproject.json
+```
+
+Note that the standard digital output of **sfmakejson** is redirected into a new file called newproject.json.
+
+The utility **sfgetjson** extracts the .json config file from a Stalefish .h5 project file. Note that these utilities are called **stalefish.sfmakejson** and **stalefish.sfgetjson** if you installed Stalefish using Snap (https://snapcraft.io/stalefish).
+
+#### JSON parameter list
 
 * **pixels_per_mm** Set to the number of pixels per mm in the original image files.
 * **thickness** The thickness of a brain slice (in mm), assuming they'll all be the same.
@@ -65,15 +83,19 @@ Stalefish projects are created with a hand-written .json file which lists the im
 * **rotate_align_landmarks**: Boolean. If true, in "rotate about landmark 1 mode" align the other landmarks, instead of the curves.
 * **slices**: Array of JSON objects specifying slice images **filename** and the slice's **x** position.
 
-You can press 'h' to see help text detailing the key-press commands that are available. A more detailed description of the Stalefish application will be available soon as part of the Stalefish paper (as a supplementary document).
-
 ## Analysing the data from the program
 
 See the reading/ subdirectory and its README.md file for a full description of the format in which data is saved from Stalefish into an HDF5 file. There is example Python and Octave code to get you started. 
 
 ### sfview
 
-You can also view the data using the **sfview** program (which is written in C++ - see its code to help you reading HDF5 Stalefish projects in that language).
+You can also view the data using the **sfview** program (which is written in C++ - see its code to help you reading HDF5 Stalefish projects in that language). **sfview** (or **stalefish.sfview** if you installed Stalefish with Snap) has a command line interface whose help can be accessed with **sfview -?**.
+
+An example **sfview** call which displays the 3D expression from the example Vole data, along with a 2D 'unwrapped' expression map is:
+
+```bash
+sfview -m1 data/vole_65_7E_id2_L23.h5
+```
 
 ## Building Stalefish
 
