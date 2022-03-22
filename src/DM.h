@@ -21,8 +21,10 @@
 // OpenCV functions mostly expect colours in Blue-Green-Red order
 #define SF_BLUE     cv::Scalar(255,0,0,10)
 #define SF_BLUEISH  cv::Scalar(238,110,67)
-#define SF_GREEN    cv::Scalar(0,255,0,10)
+#define SF_GREEN    cv::Scalar(0,  255,0,10)
 #define SF_GREEN2   cv::Scalar(213,186,7,10)
+#define SF_GREEN3   cv::Scalar(65, 190,0,10)
+#define SF_GREEN4   cv::Scalar(140,170,7,10)
 #define SF_RED      cv::Scalar(0,0,255,10)
 #define SF_YELLOW   cv::Scalar(0,255,255,10)
 #define SF_ORANGE   cv::Scalar(25,136,249,10)
@@ -278,6 +280,8 @@ public:
         } else if (this->input_mode == InputMode::Axismark) {
             this->input_mode = InputMode::Minmax;
         } else if (this->input_mode == InputMode::Minmax) {
+            this->input_mode = InputMode::Bezier2;
+        } else if (this->input_mode == InputMode::Bezier2 || this->input_mode == InputMode::ReverseBezier2) {
             this->input_mode = InputMode::Bezier;
         } else {
             // Shouldn't get here...
@@ -1292,7 +1296,7 @@ public:
         this->gcf()->refreshBoxes (-(this->binA-BIN_A_OFFSET), this->binB);
     }
 
-    //! In Bezier or Polynomial modes, draw curves and users points
+    //! In Bezier(2) or Polynomial modes, draw curves and users points
     void draw_curves (const cv::Point& pt)
     {
         DM* _this = DM::i();
@@ -1307,6 +1311,10 @@ public:
                 circle (*pImg, pt, 5, SF_GREEN, 1);
             } else if (cf->ct == InputMode::ReverseBezier) {
                 circle (*pImg, pt, 5, SF_GREEN2, 1);
+            } else if (cf->ct == InputMode::Bezier2) {
+                circle (*pImg, pt, 5, SF_GREEN3, 1);
+            } else if (cf->ct == InputMode::ReverseBezier2) {
+                circle (*pImg, pt, 5, SF_GREEN4, 1);
             }
         }
 
@@ -1317,6 +1325,14 @@ public:
                 for (size_t ii=0; ii<cf->PP[j].size(); ii++) {
                     circle (*pImg, cf->PP[j][ii], 5, linecol, -1);
                     if (ii) { line (*pImg, cf->PP[j][ii-1], cf->PP[j][ii], linecol, 2, cv::LINE_AA); }
+                }
+            }
+            // Second curve, if necessary
+            for (size_t j=0; j<cf->PP2.size(); j++) {
+                cv::Scalar linecol = j%2 ? SF_RED : SF_BLUE;
+                for (size_t ii=0; ii<cf->PP2[j].size(); ii++) {
+                    circle (*pImg, cf->PP2[j][ii], 5, linecol, -1);
+                    if (ii) { line (*pImg, cf->PP2[j][ii-1], cf->PP2[j][ii], linecol, 2, cv::LINE_AA); }
                 }
             }
         }
@@ -1338,6 +1354,25 @@ public:
                 cv::Point ps2(ctrls[ctrls.size()-2].first, ctrls[ctrls.size()-2].second);
                 cv::Point pe2(ctrls[ctrls.size()-1].first, ctrls[ctrls.size()-1].second);
                 line (*pImg, ps2, pe2, SF_GREEN, 1, cv::LINE_AA);
+
+                j++;
+            }
+
+            theCurves = cf->bcp2.curves;
+            j = 0;
+            for (auto curv : theCurves) {
+                cv::Scalar linecol = j%2 ? SF_RED : SF_BLUE;
+                std::vector<std::pair<double,double>> ctrls = curv.getControls();
+                for (size_t cc = 0; cc<ctrls.size(); ++cc) {
+                    cv::Point p1(ctrls[cc].first, ctrls[cc].second);
+                    cv::circle (*pImg, p1, 5, linecol, -1);
+                }
+                cv::Point ps(ctrls[0].first, ctrls[0].second);
+                cv::Point pe(ctrls[1].first, ctrls[1].second);
+                line (*pImg, ps, pe, SF_GREEN3, 1, cv::LINE_AA);
+                cv::Point ps2(ctrls[ctrls.size()-2].first, ctrls[ctrls.size()-2].second);
+                cv::Point pe2(ctrls[ctrls.size()-1].first, ctrls[ctrls.size()-1].second);
+                line (*pImg, ps2, pe2, SF_GREEN3, 1, cv::LINE_AA);
 
                 j++;
             }
@@ -1372,13 +1407,53 @@ public:
                     line (*pImg, cf->sP[0], pt, SF_GREEN2, 1, cv::LINE_AA);
                 }
             }
+        } else if ((cf->ct == InputMode::Bezier2 || cf->ct == InputMode::ReverseBezier2)
+                   && cf->flags.test(ShowUsers) == true) {
+            // draw the "candidate" point set (for adding to the end of the curve):
+            if (cf->PP2.empty() || (!cf->PP2.empty() && cf->P2.size() > 1)) {
+                for (size_t ii=0; ii<cf->P.size(); ii++) {
+                    circle (*pImg, cf->P2[ii], 5, SF_GREEN3, -1);
+                    if (ii) { line (*pImg, cf->P2[ii-1], cf->P2[ii], SF_GREEN, 1, cv::LINE_AA); }
+                }
+            }
+            // draw the "candidate" point set (for adding to the *start* of the curve):
+            if (cf->PP2.empty() || (!cf->PP2.empty() && cf->sP2.size() > 1)) {
+                for (size_t ii=0; ii<cf->sP2.size(); ii++) {
+                    circle (*pImg, cf->sP2[ii], 5, SF_GREEN4, -1);
+                    if (ii) { line (*pImg, cf->sP2[ii-1], cf->sP2[ii], SF_GREEN4, 1, cv::LINE_AA); }
+                }
+            }
+            // also draw a thin line to the cursor position
+            if (cf->ct == InputMode::Bezier) {
+                if ((cf->PP.empty() && cf->P.size() > 0)
+                    || (!cf->PP.empty() && cf->P.size() > 1)) {
+                    line (*pImg, cf->P[cf->P.size()-1], pt, SF_GREEN, 1, cv::LINE_AA);
+                }
+            } else if (cf->ct == InputMode::ReverseBezier) {
+                if ((cf->PP.empty() && cf->sP.size() > 0)
+                    || (!cf->PP.empty() && cf->sP.size() > 1)) {
+                    line (*pImg, cf->sP[0], pt, SF_GREEN2, 1, cv::LINE_AA);
+                }
+            } else if (cf->ct == InputMode::Bezier2) {
+                if ((cf->PP2.empty() && cf->P2.size() > 0)
+                    || (!cf->PP2.empty() && cf->P2.size() > 1)) {
+                    line (*pImg, cf->P2[cf->P2.size()-1], pt, SF_GREEN3, 1, cv::LINE_AA);
+                }
+            } else if (cf->ct == InputMode::ReverseBezier2) {
+                if ((cf->PP2.empty() && cf->sP2.size() > 0)
+                    || (!cf->PP2.empty() && cf->sP2.size() > 1)) {
+                    line (*pImg, cf->sP2[0], pt, SF_GREEN4, 1, cv::LINE_AA);
+                }
+            }
         }
 
         // This is the fit line
         if (cf->flags.test(ShowFits) == true) {
             for (size_t ii=1; ii<cf->fitted.size(); ii++) {
                 line (*pImg, cf->fitted[ii-1], cf->fitted[ii], SF_GREEN, 2, cv::LINE_AA);
-                // line (*sImg, cf->fitted[ii-1], cf->fitted[ii], SF_BLACK, 2, cv::LINE_AA);
+            }
+            for (size_t ii=1; ii<cf->fitted2.size(); ii++) {
+                line (*pImg, cf->fitted2[ii-1], cf->fitted2[ii], SF_GREEN3, 2, cv::LINE_AA);
             }
         }
 
@@ -1711,6 +1786,18 @@ public:
                 // have to add *2* points.
                 if (!cf->PP.empty() && cf->sP.empty()) { cf->sP.push_front (cf->PP.front().front()); }
                 cf->sP.push_front (pt);
+                _this->setShowUsers(true);
+                cf->setShowUsers(true);
+            } else if (cf->ct == InputMode::Bezier2) {
+                std::cout << "Push back on P2\n";
+                cf->P2.push_back (pt);
+                _this->setShowUsers(true);
+                cf->setShowUsers(true);
+            } else if (cf->ct == InputMode::ReverseBezier2) {
+                // If we have some already-registered curves in PP2, and sP2 is empty, we
+                // have to add *2* points.
+                if (!cf->PP2.empty() && cf->sP2.empty()) { cf->sP2.push_front (cf->PP2.front().front()); }
+                cf->sP2.push_front (pt);
                 _this->setShowUsers(true);
                 cf->setShowUsers(true);
             } else if (cf->ct == InputMode::Freehand) {

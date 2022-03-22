@@ -36,8 +36,10 @@ enum class InputMode
                 // their centre. Developed to handle needle alignment holes.
     Axismark,   // Allows user to define two locations that mark a linear axis through
                 // the brain. To help construct nice 2D maps from 3D reconstructions.
-    Minmax      // Manually place two points. First gives minimum signal for the frame,
+    Minmax,     // Manually place two points. First gives minimum signal for the frame,
                 // second gives max.
+    Bezier2,    // Draw a second, bounding curve up to which the sample boxes should be drawn
+    ReverseBezier2
 };
 
 //! What sort of colour model is in use?
@@ -101,6 +103,17 @@ public:
     std::deque<std::deque<cv::Point>> PP;
     //! Index into PP
     int pp_idx = 0;
+
+    //! A secondary Bezier curve path
+    morph::BezCurvePath<double> bcp2;
+    //! The user-supplied points from which to make a curve fit. Added to end of PP.
+    std::deque<cv::Point> P2;
+    //! user-supplied points for potential addition to PP at its *start*.
+    std::deque<cv::Point> sP2;
+    //! A deque or deques of points for multi-section Bezier curves
+    std::deque<std::deque<cv::Point>> PP2;
+    //! Index into PP
+    int pp_idx2 = 0;
 
     // Landmark attributes
 
@@ -206,6 +219,11 @@ public:
     std::vector<cv::Point2d> fitted;
     //! Take FrameData::fitted and scale by pixels_per_mm. Units: mm.
     std::vector<cv::Point2d> fitted_scaled;
+
+    //! Second curve - fitted points
+    std::vector<cv::Point2d> fitted2;
+    //! Take FrameData::fitted2 and scale by pixels_per_mm. Units: mm.
+    std::vector<cv::Point2d> fitted_scaled2;
 
     //! The centroid of the curve, after lm_translation or autoalign_translation have
     //! been applied to move the user points This will be 0,0 in the latter case (in
@@ -648,6 +666,10 @@ public:
             ss << ". Axismark mode";
         } else if (this->ct == InputMode::Minmax) {
             ss << ". Min/max mode";
+        } else if (this->ct == InputMode::Bezier2) {
+            ss << ". Curve2 mode (end)";
+        } else if (this->ct == InputMode::ReverseBezier2) {
+            ss << ". Curve2 mode (start)";
         } else {
             ss << ". unknown mode";
         }
@@ -924,6 +946,15 @@ public:
             this->removeLastAxismark();
         } else if (this->ct == InputMode::Minmax) {
             this->removeLastMinmax();
+        } else if (this->ct == InputMode::Bezier2) {
+            std::cout << "removeLastPoint2...\n";
+            this->removeLastPoint2();
+            std::cout << "updateFit2...\n";
+            this->updateFit2();
+            std::cout << "refreshBoxes...\n";
+            this->refreshBoxes (-this->binA, this->binB);
+        } else if (this->ct == InputMode::ReverseBezier2) {
+            this->removeFirstPoint2();
         } else {
             this->removeLastPoint();
             this->updateFit();
@@ -1021,6 +1052,69 @@ public:
                 } else {
                     // Catch pathological case where PP is empty, but pp_idx != 0
                     this->pp_idx = 0;
+                }
+            }
+        }
+    }
+
+    //! Remove the first user point
+    void removeFirstPoint2()
+    {
+        if (this->PP2.empty() && this->sP2.size() == 1) {
+            // Normal behaviour, just remove point from sP
+            this->sP2.pop_back(); // don't need to pop_front.
+
+        } else if (!this->PP2.empty() && this->sP2.size() == 1) {
+            // Remove point from sP and...
+            this->sP2.pop_back();
+            // Because it is the same locn, the first point from PP.front(), too
+            this->removeFirstPoint2();
+
+        } else if (!this->sP2.empty()) {
+            this->sP2.pop_front();
+
+        } else {
+            // sP is empty, go to first curve in PP and remove a point from that
+            if (this->ct == InputMode::ReverseBezier2 && this->pp_idx2>0) {
+                if (!this->PP2.empty()) {
+                    this->sP2 = this->PP2[0];
+                    this->PP2.pop_front();
+                    this->pp_idx2--;
+                    this->sP2.pop_front();
+                } else {
+                    // Catch pathological case where PP is empty, but pp_idx != 0
+                    this->pp_idx2 = 0;
+                }
+            }
+        }
+    }
+
+    //! Remove the last user point
+    void removeLastPoint2()
+    {
+        if (this->PP2.empty() && this->P2.size() == 1) {
+            // Normal behaviour, just remove point from P
+            this->P2.pop_back();
+
+        } else if (!this->PP2.empty() && this->P2.size() == 1) {
+            // Remove point from P and...
+            this->P2.pop_back();
+            // Because it is the same locn, the last point from PP.back(), too
+            this->removeLastPoint2();
+
+        } else if (!this->P2.empty()) {
+            this->P2.pop_back();
+
+        } else {
+            // P is empty, go to previous curve and remove a point from that
+            if (this->ct == InputMode::Bezier2 && this->pp_idx2>0) {
+                if (!this->PP2.empty()) {
+                    this->P2 = this->PP2[--this->pp_idx2];
+                    this->PP2.pop_back();
+                    this->P2.pop_back();
+                } else {
+                    // Catch pathological case where PP is empty, but pp_idx != 0
+                    this->pp_idx2 = 0;
                 }
             }
         }
@@ -1176,6 +1270,20 @@ public:
             this->sP.clear();
             this->sP.push_front (this->PP.front().front());
             this->pp_idx++;
+
+        } else if (this->ct == InputMode::ReverseBezier2) {
+            if (this->sP2.size() < 3) { return; }
+            this->PP2.push_front (this->sP2);
+            this->sP2.clear();
+            this->sP2.push_front (this->PP2.front().front());
+            this->pp_idx2++;
+
+        } else if (this->ct == InputMode::Bezier2) {
+            if (this->P2.size() < 3) { return; }
+            this->PP2.push_back (this->P2);
+            this->P2.clear();
+            this->P2.push_back (this->PP2.back().back());
+            this->pp_idx2++;
 
         } else {
             // Don't add unless at least 3 points to fit:
@@ -2448,6 +2556,7 @@ public:
 
     //! Public wrapper around updateFitBezier()
     void updateFit() { this->updateFitBezier(); }
+    void updateFit2() { this->updateFitBezier2(); }
 
     //! Re-compute the boxes from the curve (taking ints)
     void refreshBoxes (const int lenA, const int lenB) { this->refreshBoxes ((double)lenA, (double)lenB); }
@@ -2654,6 +2763,16 @@ private:
         this->translate (this->fitted_scaled, this->fitted_autoalign_translated, this->autoalign_translation);
         this->rotate (this->fitted_autoalign_translated, this->fitted_autoaligned, _theta);
     }
+#if 0
+    void updateFit2 (double _theta)
+    {
+        this->updateFitBezier2();
+        this->scalePoints (this->fitted2, this->fitted_scaled2);
+        this->autoalign_translation2 = -morph::MathAlgo::centroid (this->fitted_scaled2);
+        this->translate (this->fitted_scaled2, this->fitted_autoalign_translated2, this->autoalign_translation);
+        this->rotate (this->fitted_autoalign_translated2, this->fitted_autoaligned2, _theta);
+    }
+#endif
 
     //! Recompute the Bezier fit
     void updateFitBezier()
@@ -2706,6 +2825,51 @@ private:
             this->fitted[i] = cv::Point2d(coords[i].x(),coords[i].y());
             this->tangents[i] = cv::Point2d(tans[i].x(),tans[i].y());
             this->normals[i] = cv::Point2d(norms[i].x(),norms[i].y());
+        }
+    }
+
+    //! Recompute the Bezier2 fit
+    void updateFitBezier2()
+    {
+        if (this->PP2.empty()) {
+            //std::cout << "Too few points to fit" << std::endl;
+            this->bcp2.reset();
+            this->fitted2.clear();
+            this->clearBoxes();// ?
+            return;
+        }
+
+        this->bcp2.reset();
+
+        // Loop over PP first
+        for (auto _P : this->PP2) {
+            std::vector<std::pair<double,double>> user_points;
+            user_points.clear();
+            for (auto pt : _P) { user_points.push_back (std::make_pair(pt.x, pt.y)); }
+
+            morph::BezCurve<double> bc;
+            if (this->bcp2.isNull()) {
+                // No previous curves; fit just on user_points
+                bc.fit (user_points);
+                this->bcp2.addCurve (bc);
+            } else {
+                // Have previous curve, use last control of previous curve to make
+                // smooth transition.
+                morph::BezCurve<double> last = this->bcp2.curves.back();
+                bc.fit (user_points, last);
+                this->bcp2.removeCurve();
+                this->bcp2.addCurve (last);
+                this->bcp2.addCurve (bc);
+            }
+        }
+
+        // Update this->fitted
+        this->bcp2.computePoints (static_cast<unsigned int>(this->nFit));
+        std::vector<morph::BezCoord<double>> coords = this->bcp2.getPoints();
+        // tangents and normals not required on this curve
+        this->fitted2.resize (this->nFit);
+        for (int i = 0; i < this->nFit; ++i) {
+            this->fitted2[i] = cv::Point2d(coords[i].x(),coords[i].y());
         }
     }
 
