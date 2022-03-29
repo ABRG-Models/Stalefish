@@ -123,7 +123,7 @@ to the [morphologica Linux build readme](https://github.com/ABRG-Models/morpholo
 
 ##### libpopt
 
-Stalefish also uses libpopt in the sfview tool, so build libpopt-1.18:
+Stalefish also uses libpopt in the sfview tool, so build libpopt-1.18 (you'll need to find and unpack a tarball of the source: libpopt-1.18.tar.gz):
 ```
 CPPFLAGS="-mmacosx-version-min=10.14" LDFLAGS="-mmacosx-version-min=10.14" ./configure --prefix=/usr/local
 make
