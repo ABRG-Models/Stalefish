@@ -141,6 +141,7 @@ cd llvm-project/openmp
 mkdir build && cd build
 cmake -DCMAKE_INSTALL_PREFIX=/usr/local -DCMAKE_OSX_DEPLOYMENT_TARGET=10.14 ..
 make omp
+sudo make install
 ```
 (An equivalent installation is not necessary on Linux)
 
