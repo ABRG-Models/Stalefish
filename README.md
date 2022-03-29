@@ -119,7 +119,7 @@ sudo apt install build-essential cmake git wget  \
 This program compiles with
 [morphologica](https://github.com/ABRG-Models/morphologica), which is included as a git submodule. This means that Stalefish
 needs to link to the morphologica-associated libraries armadillo, opencv, glfw, hdf5 and freetype. So head over
-to the [morphologica Linux installation readme](https://github.com/ABRG-Models/morphologica/blob/main/README.install.linux.md) or the [Mac installation readme](https://github.com/ABRG-Models/morphologica/blob/main/README.install.mac.md) and follow the instructions to install the *dependencies* on your OS (you *don't* need to *build* morphologica).
+to the [morphologica Linux build readme](https://github.com/ABRG-Models/morphologica/blob/main/README.build.linux.md) or the [Mac build readme](https://github.com/ABRG-Models/morphologica/blob/main/README.build.mac.md) and follow the instructions to install the *dependencies* on your OS (you *don't* need to *build* morphologica).
 
 ##### libpopt
 
