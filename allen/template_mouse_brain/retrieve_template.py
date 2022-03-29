@@ -253,6 +253,7 @@ def retrieve (atlasstr, downsample=2, do_download_expr=0):
     sliceinfo['slices'] = slices
 
     ##sliceinfo['colourmodel'] = 'allen'
+    sliceinfo['slices_prealigned'] = True
 
     # Remove what we don't want in the JSON (to save it becoming cluttered)
     del sliceinfo['by_slice']
