@@ -168,7 +168,7 @@ Each of **FrameNNN/autoalign** or **FrameNNN/lmalign** may contain:
      giving the location of each loop. For the boundary of each loop,
      see FrameNNN/class/FBE000 etc.
      
- * **global_landmarks**: An n coumns by 3 rows matrix recording the location of n global landmarks on the frame. The 3 rows give the 3D coordinates of the global landmarks (the x location derives from the slice's position along the x axis).
+ * **global_landmarks**: An n columns by 3 rows matrix recording the location of n global landmarks on the frame. The 3 rows give the 3D coordinates of the global landmarks (the x location derives from the slice's position along the x axis).
 
  * **landmarks**: This is a two column matrix containing the 3D locations
       of the user-supplied landmark positions which are the black dots
