@@ -2311,51 +2311,60 @@ public:
         return n;
     }
 
+    // Set true if the slice images are already aligned, such as for Allen template brain
+    bool slices_prealigned = false;
+
 private:
     void updateAutoAlignments()
     {
         std::cout << __FUNCTION__ << " called\n";
-        if (this->previous < 0) {
-            // get centroid of this->fitted_scaled (the 0th slice
-            cv::Point2d slice0centroid = morph::MathAlgo::centroid (this->fitted_scaled);
-            // The translation to record for the first slice is the inverse of the centroid
-            this->autoalign_translation = -slice0centroid;
-            this->autoalign_theta = 0.0;
-
+        if (this->slices_prealigned) {
+            // No transform required
+            this->autoalign_theta = 0;
+            this->autoalign_translation = {0,0};
         } else {
-            // now, if we're aligning partly to the mid slice, shouldn't we centroid it
-            // first? Perhaps that's why the computeSos3d function is heavily weighted
-            // to the neighbouring (i.e. to the previous) slice?
-            size_t alignment_slice = this->parentStack->size()/2; // align to mid slice
-            std::cout << "Alignment slice: " << alignment_slice << std::endl;
+            if (this->previous < 0) {
+                // get centroid of this->fitted_scaled (the 0th slice
+                cv::Point2d slice0centroid = morph::MathAlgo::centroid (this->fitted_scaled);
+                // The translation to record for the first slice is the inverse of the centroid
+                this->autoalign_translation = -slice0centroid;
+                this->autoalign_theta = 0.0;
 
-            // set number of bins in the alignment_slice and in the previous slice to
-            // match the number of bins in this frame.
-            int alignment_slice_bins = (*this->parentStack)[alignment_slice].getBins();
-            int previous_slice_bins = (*this->parentStack)[this->previous].getBins();
-            if (alignment_slice_bins != this->nBins) {
-                (*this->parentStack)[alignment_slice].setBins (this->nBins);
-                (*this->parentStack)[alignment_slice].updateFit();
-            }
-            if (previous_slice_bins != this->nBins) {
-                (*this->parentStack)[this->previous].setBins (this->nBins);
-                (*this->parentStack)[this->previous].updateFit();
-            }
+            } else {
+                // now, if we're aligning partly to the mid slice, shouldn't we centroid it
+                // first? Perhaps that's why the computeSos3d function is heavily weighted
+                // to the neighbouring (i.e. to the previous) slice?
+                size_t alignment_slice = this->parentStack->size()/2; // align to mid slice
+                std::cout << "Alignment slice: " << alignment_slice << std::endl;
 
-            // Call the optimization function
-            this->alignOptimally (this->fitted_scaled,
-                                  (*this->parentStack)[alignment_slice].fitted_autoaligned,
-                                  (*this->parentStack)[this->previous].fitted_autoaligned,
-                                  this->autoalign_translation, this->autoalign_theta);
+                // set number of bins in the alignment_slice and in the previous slice to
+                // match the number of bins in this frame.
+                int alignment_slice_bins = (*this->parentStack)[alignment_slice].getBins();
+                int previous_slice_bins = (*this->parentStack)[this->previous].getBins();
+                if (alignment_slice_bins != this->nBins) {
+                    (*this->parentStack)[alignment_slice].setBins (this->nBins);
+                    (*this->parentStack)[alignment_slice].updateFit();
+                }
+                if (previous_slice_bins != this->nBins) {
+                    (*this->parentStack)[this->previous].setBins (this->nBins);
+                    (*this->parentStack)[this->previous].updateFit();
+                }
 
-            // Restore number of bins.
-            if (alignment_slice_bins != this->nBins) {
-                (*this->parentStack)[alignment_slice].setBins (alignment_slice_bins);
-                (*this->parentStack)[alignment_slice].updateFit();
-            }
-            if (previous_slice_bins != this->nBins) {
-                (*this->parentStack)[this->previous].setBins (previous_slice_bins);
-                (*this->parentStack)[this->previous].updateFit();
+                // Call the optimization function
+                this->alignOptimally (this->fitted_scaled,
+                                      (*this->parentStack)[alignment_slice].fitted_autoaligned,
+                                      (*this->parentStack)[this->previous].fitted_autoaligned,
+                                      this->autoalign_translation, this->autoalign_theta);
+
+                // Restore number of bins.
+                if (alignment_slice_bins != this->nBins) {
+                    (*this->parentStack)[alignment_slice].setBins (alignment_slice_bins);
+                    (*this->parentStack)[alignment_slice].updateFit();
+                }
+                if (previous_slice_bins != this->nBins) {
+                    (*this->parentStack)[this->previous].setBins (previous_slice_bins);
+                    (*this->parentStack)[this->previous].updateFit();
+                }
             }
         }
         this->transform (this->fitted_scaled, this->fitted_autoaligned, this->autoalign_translation, this->autoalign_theta);

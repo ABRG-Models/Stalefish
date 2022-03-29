@@ -85,6 +85,9 @@ private:
     //! Allen Developing Mouse Brain Atlas colour mapping parameters
     AllenColourParams acparams;
 
+    //! Are brain slices prealigned/preregistered?
+    bool slices_prealigned = false;
+
     // Called by next/previousFrame. Take binA, binB from the frame and change the
     // sliders. Update the fit and refresh boxes. Update the view of boxes/fit line/control points
     void refreshFrame()
@@ -173,6 +176,8 @@ public:
 
         fd.rotateLandmarkOne = this->rotateLandmarkOne;
         fd.rotateButAlignLandmarkTwoPlus = this->rotateButAlignLandmarkTwoPlus;
+
+        fd.slices_prealigned = this->slices_prealigned;
 
         // Read, opportunistically
         try {
@@ -1191,6 +1196,9 @@ public:
         for (unsigned int ii = 0; ii < ct.size(); ++ii) {
             this->acparams.colour_trans[ii] = ct[ii].asFloat();
         }
+        // Set true if there is NO NEED to rotate/translate slices to bring them into
+        // register. Coded in to handle Allen template mouse brain images.
+        this->slices_prealigned = conf.getBool ("slices_prealigned", false);
         // ellip_axes array<float, 2>
         const Json::Value ea = conf.getArray ("ellip_axes");
         this->acparams.ellip_axes[0] = ea[0].asFloat();
