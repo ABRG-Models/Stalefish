@@ -100,6 +100,18 @@ private:
         this->gcf()->setShowUsers (this->flags.test(AppShowUsers));
         this->gcf()->setShowFits (this->flags.test(AppShowFits));
         this->gcf()->setShowBoxes (this->flags.test(AppShowBoxes));
+        this->checkTextColour();
+    }
+
+    void checkTextColour()
+    {
+        // Get mean luminance of frame and set text colour accordingly.
+        cv::Scalar mean_ = cv::mean(this->gcf()->frame);
+        if (0.3333f*(mean_[0]+mean_[1]+mean_[2]) < 100.0f) { // Assume frame is in 0-255 range per channel
+            this->textColour = SF_WHITE;
+        } else {
+            this->textColour = SF_BLACK;
+        }
     }
 
 public:
@@ -114,6 +126,9 @@ public:
     bool importPending = false;
     //! Set true if user said they want to exit
     bool exitPending = false;
+
+    //! Default text colour is black, but change to white as necessary
+    cv::Scalar textColour = SF_BLACK;
 
     //! The instance public function. Uses the very short name 'i' to keep code tidy.
     static DM* i()
@@ -178,6 +193,8 @@ public:
         fd.computeFreehandMeans();
 
         this->vFrameData.push_back (fd);
+
+        this->checkTextColour();
     }
 
     /*!
@@ -1034,44 +1051,44 @@ public:
 
         cv::Mat* pImg = this->getImg();
         putText (*pImg, std::string("Welcome to Stalefish!"),
-                 cv::Point(xh,yh), cv::FONT_HERSHEY_SIMPLEX, titlefz, SF_BLACK, 2, cv::LINE_AA);
+                 cv::Point(xh,yh), cv::FONT_HERSHEY_SIMPLEX, titlefz, this->textColour, 2, cv::LINE_AA);
         yh += 60;
         putText (*pImg, std::string("This application has a *very* simple user interface and has to be run"),
-                 cv::Point(xh,yh), cv::FONT_HERSHEY_SIMPLEX, fontsz, SF_BLACK, 1, cv::LINE_AA);
+                 cv::Point(xh,yh), cv::FONT_HERSHEY_SIMPLEX, fontsz, this->textColour, 1, cv::LINE_AA);
         yh += 40;
         putText (*pImg, std::string("from the command line. You must specify the JSON or HDF5 project file"),
-                 cv::Point(xh,yh), cv::FONT_HERSHEY_SIMPLEX, fontsz, SF_BLACK, 1, cv::LINE_AA);
+                 cv::Point(xh,yh), cv::FONT_HERSHEY_SIMPLEX, fontsz, this->textColour, 1, cv::LINE_AA);
         yh += 40;
         putText (*pImg, std::string("that the program will read. Typically, you'll open a terminal and run:"),
-                 cv::Point(xh,yh), cv::FONT_HERSHEY_SIMPLEX, fontsz, SF_BLACK, 1, cv::LINE_AA);
+                 cv::Point(xh,yh), cv::FONT_HERSHEY_SIMPLEX, fontsz, this->textColour, 1, cv::LINE_AA);
         yh += 50;
         putText (*pImg, std::string("  ") + this->argv0 + std::string(" myfile.json"),
-                 cv::Point(xh,yh), cv::FONT_HERSHEY_SIMPLEX, fontsz, SF_BLACK, 1, cv::LINE_AA);
+                 cv::Point(xh,yh), cv::FONT_HERSHEY_SIMPLEX, fontsz, this->textColour, 1, cv::LINE_AA);
         yh += 50;
         putText (*pImg, std::string("where myfile.json has been set up as described in the documentation."),
-                 cv::Point(xh,yh), cv::FONT_HERSHEY_SIMPLEX, fontsz, SF_BLACK, 1, cv::LINE_AA);
+                 cv::Point(xh,yh), cv::FONT_HERSHEY_SIMPLEX, fontsz, this->textColour, 1, cv::LINE_AA);
         yh += 50;
         putText (*pImg, std::string("Find the documentation at:"),
-                 cv::Point(xh,yh), cv::FONT_HERSHEY_SIMPLEX, fontsz, SF_BLACK, 1, cv::LINE_AA);
+                 cv::Point(xh,yh), cv::FONT_HERSHEY_SIMPLEX, fontsz, this->textColour, 1, cv::LINE_AA);
         yh += 50;
         putText (*pImg, std::string("  https://github.com/ABRG-Models/Stalefish"),
-                 cv::Point(xh,yh), cv::FONT_HERSHEY_SIMPLEX, fontsz, SF_BLACK, 1, cv::LINE_AA);
+                 cv::Point(xh,yh), cv::FONT_HERSHEY_SIMPLEX, fontsz, this->textColour, 1, cv::LINE_AA);
 
         if (!this->exampleProjectPath().empty()) {
             yh += 60;
             putText (*pImg, std::string("Example project"),
-                     cv::Point(xh,yh), cv::FONT_HERSHEY_SIMPLEX, titlefz, SF_BLACK, 2, cv::LINE_AA);
+                     cv::Point(xh,yh), cv::FONT_HERSHEY_SIMPLEX, titlefz, this->textColour, 2, cv::LINE_AA);
             yh += 60;
             putText (*pImg, std::string("You can try a read-only example project by pressing 'e', now!"),
-                     cv::Point(xh,yh), cv::FONT_HERSHEY_SIMPLEX, fontsz, SF_BLACK, 1, cv::LINE_AA);
+                     cv::Point(xh,yh), cv::FONT_HERSHEY_SIMPLEX, fontsz, this->textColour, 1, cv::LINE_AA);
         }
 
         yh += 60;
         putText (*pImg, std::string("Exit and try again"),
-                 cv::Point(xh,yh), cv::FONT_HERSHEY_SIMPLEX, titlefz, SF_BLACK, 2, cv::LINE_AA);
+                 cv::Point(xh,yh), cv::FONT_HERSHEY_SIMPLEX, titlefz, this->textColour, 2, cv::LINE_AA);
         yh += 60;
         putText (*pImg, std::string("Please press 'x' to exit so you can re-start with a json or h5 path."),
-                 cv::Point(xh,yh), cv::FONT_HERSHEY_SIMPLEX, fontsz, SF_BLACK, 1, cv::LINE_AA);
+                 cv::Point(xh,yh), cv::FONT_HERSHEY_SIMPLEX, fontsz, this->textColour, 1, cv::LINE_AA);
     }
 
     //! Entry point to application setup. Select method to call based on this->noFiles
@@ -1501,7 +1518,7 @@ public:
             if (regnum > -1) { flm << regnum << ": "; }
             flm << themean;
             cv::Point tpt(xmean, ymean); // Could use extents_FL here.
-            putText (*_pImg, flm.str(), tpt, cv::FONT_HERSHEY_SIMPLEX, 0.5, SF_BLACK, 1, cv::LINE_AA);
+            putText (*_pImg, flm.str(), tpt, cv::FONT_HERSHEY_SIMPLEX, 0.5, this->textColour, 1, cv::LINE_AA);
         }
     }
 
@@ -1587,7 +1604,7 @@ public:
                 std::stringstream ss;
                 ss << 'a' << (1+ii);
                 cv::Point tpt(cf->AM[ii]);
-                putText (*pImg, ss.str(), tpt+toffset, cv::FONT_HERSHEY_SIMPLEX, 0.8, SF_BLACK, 1, cv::LINE_AA);
+                putText (*pImg, ss.str(), tpt+toffset, cv::FONT_HERSHEY_SIMPLEX, 0.8, this->textColour, 1, cv::LINE_AA);
             }
         }
     }
@@ -1622,7 +1639,7 @@ public:
                 std::stringstream ss;
                 ss << "gl" << (start_gl+ii);
                 cv::Point tpt(cf->GLM[ii]);
-                putText (*pImg, ss.str(), tpt+toffset, cv::FONT_HERSHEY_SIMPLEX, 0.8, SF_BLACK, 1, cv::LINE_AA);
+                putText (*pImg, ss.str(), tpt+toffset, cv::FONT_HERSHEY_SIMPLEX, 0.8, this->textColour, 1, cv::LINE_AA);
             }
         }
     }
@@ -1636,19 +1653,19 @@ public:
 
         // circle under the cursor
         if (cf->ct == InputMode::Landmark && _this->flags.test(AppShowText)) {
-            circle (*pImg, pt, 7, SF_BLACK, 1);
+            circle (*pImg, pt, 7, this->textColour, 1);
         }
 
         // Draw circles for the landmarks, with a number next to each one.
         cv::Point toffset(8,5); // a text offset
         int lm_ok = cf->landmarkCheck(); // True if all landmarks are present and correct
         for (size_t ii=0; ii<cf->LM.size(); ii++) {
-            circle (*pImg, cf->LM[ii], 5, (static_cast<int>(ii)<lm_ok ? SF_BLACK : SF_RED), -1);
+            circle (*pImg, cf->LM[ii], 5, (static_cast<int>(ii)<lm_ok ? this->textColour : SF_RED), -1);
             if (_this->flags.test(AppShowText)) {
                 std::stringstream ss;
                 ss << (1+ii);
                 cv::Point tpt(cf->LM[ii]);
-                putText (*pImg, ss.str(), tpt+toffset, cv::FONT_HERSHEY_SIMPLEX, 0.8, SF_BLACK, 1, cv::LINE_AA);
+                putText (*pImg, ss.str(), tpt+toffset, cv::FONT_HERSHEY_SIMPLEX, 0.8, this->textColour, 1, cv::LINE_AA);
             }
         }
     }
@@ -1684,8 +1701,8 @@ public:
         if (cf->ct == InputMode::Circlemark && _this->flags.test(AppShowText)) {
             circle (*pImg, pt, 7, SF_PURPLE, 1);
             // Cross hares too
-            line (*pImg, pt-cv::Point(0,6), pt+cv::Point(0,6), SF_BLACK, 1);
-            line (*pImg, pt-cv::Point(6,0), pt+cv::Point(6,0), SF_BLACK, 1);
+            line (*pImg, pt-cv::Point(0,6), pt+cv::Point(0,6), this->textColour, 1);
+            line (*pImg, pt-cv::Point(6,0), pt+cv::Point(6,0), this->textColour, 1);
         }
 
         // Draw any entries in CM
@@ -1851,7 +1868,7 @@ public:
         float fwidth = (float)cf->frame.cols;
         float fontsz = fwidth / 1727.0f;
         if (_this->flags.test(AppShowText)) {
-            putText (*pImg, ss.str(), cv::Point(xh,30*_this->scaleFactor), cv::FONT_HERSHEY_SIMPLEX, fontsz, SF_BLACK, 1, cv::LINE_AA);
+            putText (*pImg, ss.str(), cv::Point(xh,30*_this->scaleFactor), cv::FONT_HERSHEY_SIMPLEX, fontsz, _this->textColour, 1, cv::LINE_AA);
         }
 
         if (_this->flags.test(AppShowText)) {
@@ -1866,7 +1883,7 @@ public:
             std::stringstream ss3;
             ss3 << "Clear curves on ALL frames? (press 'C' to confirm, 'Esc' to cancel)";
             if (_this->flags.test(AppShowText)) {
-                putText (*pImg, ss3.str(), cv::Point(xh,80*_this->scaleFactor), cv::FONT_HERSHEY_SIMPLEX, 1.2*fontsz, SF_BLACK, 1, cv::LINE_AA);
+                putText (*pImg, ss3.str(), cv::Point(xh,80*_this->scaleFactor), cv::FONT_HERSHEY_SIMPLEX, 1.2*fontsz, _this->textColour, 1, cv::LINE_AA);
                 putText (*sImg, ss3.str(), cv::Point(xh,80*_this->scaleFactor), cv::FONT_HERSHEY_SIMPLEX, 1.2*fontsz, SF_WHITE, 1, cv::LINE_AA);
             } else {
                 std::cout << ss3.str() << std::endl;
@@ -1876,7 +1893,7 @@ public:
             std::stringstream ss3;
             ss3 << "Export data? (press key again to confirm, 'Esc' to cancel)";
             if (_this->flags.test(AppShowText)) {
-                putText (*pImg, ss3.str(), cv::Point(xh,80*_this->scaleFactor), cv::FONT_HERSHEY_SIMPLEX, 1.2*fontsz, SF_BLACK, 1, cv::LINE_AA);
+                putText (*pImg, ss3.str(), cv::Point(xh,80*_this->scaleFactor), cv::FONT_HERSHEY_SIMPLEX, 1.2*fontsz, _this->textColour, 1, cv::LINE_AA);
                 putText (*sImg, ss3.str(), cv::Point(xh,80*_this->scaleFactor), cv::FONT_HERSHEY_SIMPLEX, 1.2*fontsz, SF_WHITE, 1, cv::LINE_AA);
             } else {
                 std::cout << ss3.str() << std::endl;
@@ -1886,7 +1903,7 @@ public:
             std::stringstream ss3;
             ss3 << "IMPORT data? (press key again to confirm, 'Esc' to cancel)";
             if (_this->flags.test(AppShowText)) {
-                putText (*pImg, ss3.str(), cv::Point(xh,80*_this->scaleFactor), cv::FONT_HERSHEY_SIMPLEX, 1.2*fontsz, SF_BLACK, 1, cv::LINE_AA);
+                putText (*pImg, ss3.str(), cv::Point(xh,80*_this->scaleFactor), cv::FONT_HERSHEY_SIMPLEX, 1.2*fontsz, _this->textColour, 1, cv::LINE_AA);
                 putText (*sImg, ss3.str(), cv::Point(xh,80*_this->scaleFactor), cv::FONT_HERSHEY_SIMPLEX, 1.2*fontsz, SF_WHITE, 1, cv::LINE_AA);
             } else {
                 std::cout << ss3.str() << std::endl;
@@ -1896,7 +1913,7 @@ public:
             std::stringstream ss3;
             ss3 << "EXIT? (press key again to confirm, 'Esc' to cancel)";
             if (_this->flags.test(AppShowText)) {
-                putText (*pImg, ss3.str(), cv::Point(xh,80*_this->scaleFactor), cv::FONT_HERSHEY_SIMPLEX, 1.2*fontsz, SF_BLACK, 1, cv::LINE_AA);
+                putText (*pImg, ss3.str(), cv::Point(xh,80*_this->scaleFactor), cv::FONT_HERSHEY_SIMPLEX, 1.2*fontsz, _this->textColour, 1, cv::LINE_AA);
                 putText (*sImg, ss3.str(), cv::Point(xh,80*_this->scaleFactor), cv::FONT_HERSHEY_SIMPLEX, 1.2*fontsz, SF_WHITE, 1, cv::LINE_AA);
             } else {
                 std::cout << ss3.str() << std::endl;
@@ -1905,13 +1922,13 @@ public:
         // h for help
         if (_this->flags.test(AppShowText)) {
             std::string hs("Press 'h' for help");
-            putText (*pImg, hs, cv::Point(cf->frame.cols-300,cf->frame.rows-20), cv::FONT_HERSHEY_SIMPLEX, fontsz, SF_BLACK, 1, cv::LINE_AA);
+            putText (*pImg, hs, cv::Point(cf->frame.cols-300,cf->frame.rows-20), cv::FONT_HERSHEY_SIMPLEX, fontsz, _this->textColour, 1, cv::LINE_AA);
 
             // Draw text with cursor coordinates on bottom left of screen in a small font
             std::stringstream css;
             css << "px(y=" << x << ", z=" << y << ") "
                 << "mm[x=" << cf->layer_x << ", y=" << (x/cf->pixels_per_mm) << ", z=" << (y/cf->pixels_per_mm) << "]";
-            putText (*pImg, css.str(), cv::Point(xh,cf->frame.rows-20), cv::FONT_HERSHEY_SIMPLEX, fontsz/2.0f, SF_BLACK, 1, cv::LINE_AA);
+            putText (*pImg, css.str(), cv::Point(xh,cf->frame.rows-20), cv::FONT_HERSHEY_SIMPLEX, fontsz/2.0f, _this->textColour, 1, cv::LINE_AA);
         }
 
         int yh = 90 * _this->scaleFactor;
@@ -1919,7 +1936,7 @@ public:
 
         if (_this->flags.test(AppShowHelp) && _this->flags.test(AppShowText)) {
             for (auto ht : _this->helptxt) {
-                putText (*pImg, ht, cv::Point(xh,yh), cv::FONT_HERSHEY_SIMPLEX, fontsz, SF_BLACK, 1, cv::LINE_AA);
+                putText (*pImg, ht, cv::Point(xh,yh), cv::FONT_HERSHEY_SIMPLEX, fontsz, _this->textColour, 1, cv::LINE_AA);
                 yh += yinc;
             }
         }
