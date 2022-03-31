@@ -462,19 +462,24 @@ int addLandmarks (SFVisual& v, const string& datafile, const CmdOptions& co,
                 }
                 frameName = ss.str();
                 vector<array<float, 3>> GLM;
-                //std::cout << "A Reading global landmark in " << frameName << " (file: " << datafile << ")" << std::endl;
+                //std::cout << "Reading global landmark in " << frameName << " (file: " << datafile << ")" << std::endl;
                 d.read_contained_vals (frameName.c_str(), GLM);
                 //std::cout << "GLM size: " << GLM.size() << std::endl;
-                for (auto glm : GLM) {
-                    morph::Vector<float, 4> _glm = M * morph::Vector<float, 3>({glm[0],glm[1],glm[2]});
-                    if (lmalignComputed == true && align_lm == true) {
-                        globlm_lmaligned.push_back ({_glm[0], _glm[1], _glm[2]});
-                    } else {
-                        globlm_autoaligned.push_back ({_glm[0], _glm[1], _glm[2]});
+                size_t glm_idx = 0;
+                for (auto glm2 : GLM) {
+                    if (glm_idx == glm.second) {
+                        morph::Vector<float, 4> _glm = M * morph::Vector<float, 3>({glm2[0],glm2[1],glm2[2]});
+                        if (lmalignComputed == true && align_lm == true) {
+                            globlm_lmaligned.push_back ({_glm[0], _glm[1], _glm[2]});
+                        } else {
+                            // Push back only if it matches Frame/Index.
+                            globlm_autoaligned.push_back ({_glm[0], _glm[1], _glm[2]});
+                        }
+                        glm_id.push_back (glmcount);
+                        glmcount -= 0.2f;
+                        std::cout << "Added global landmark sphere, glm_id = " << glm_id.back() << std::endl;
                     }
-                    glm_id.push_back (glmcount);
-                    glmcount -= 0.2f;
-                    std::cout << "Added global landmark sphere, glm_id = " << glm_id.back() << std::endl;
+                    ++glm_idx;
                 }
             }
 
@@ -823,7 +828,7 @@ int addVisMod (SFVisual& v, const string& datafile, const CmdOptions& co, const 
                     }
                 } catch (const exception& ee) {
                     // Perhaps this slice has not curve on it. Handle this by leaving frameMeans empty and continuing
-                    std::cout << "No curve?\n";
+                    // std::cout << "No curve?\n";
                     continue;
                 }
                 // Gah, convert frameMeans to float (there's a better way to do this)
@@ -869,12 +874,12 @@ int addVisMod (SFVisual& v, const string& datafile, const CmdOptions& co, const 
                     // Want to be able to pass colour==off to these. That means ability to pass sat as well as hue.
                     if (showmesh) {
                         std::cout << "Adding pointRowsMeshVisual with hue=" << hue << std::endl;
-                        // hue: 1/6 for yellow. 130/360 for a green. 0 for read
+                        // hue: 1/6 for yellow. 130/360 for a green. 0 for red
                         visId = v.addVisualModel (new morph::PointRowsMeshVisual<float> (v.shaderprog,
                                                                                          &points_lmaligned, offset,
                                                                                          &means, scale,
                                                                                          cmt, hue, colour_sat, 0.9f, 0.005f,
-                                                                                         cmt, (0.0/360.0f), 1.0f, 1.0f, 0.015f));
+                                                                                         cmt, hue/*(0.0/360.0f)*/, 1.0f, 1.0f, 0.015f));
                     } else {
                         std::cout << "Adding PointRowsVisual with hue=" << hue << std::endl;
                         visId = v.addVisualModel (new morph::PointRowsVisual<float> (v.shaderprog,
