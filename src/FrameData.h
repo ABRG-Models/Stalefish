@@ -46,8 +46,10 @@ enum class InputMode
 enum class ColourModel
 {
     Greyscale,     // Regular greyscale image
-    AllenDevMouse, // Coloured images as found on the Allen Developing Mouse Brain Atlas
-    Sfview         // Signal data loaded from a sfview-generated 'unwrapped 2D map'
+    AllenDevMouse, // Coloured expression images as found on the Allen Developing Mouse Brain Atlas
+    Sfview,        // Signal data loaded from a sfview-generated 'unwrapped 2D map'
+    AllenAtlas     // Frames in which the colour indicates an Allen-project-annotated
+                   // brain region. Here the signal is always the coloured image.
 };
 
 enum FrameFlag
@@ -207,8 +209,8 @@ public:
     std::vector<std::vector<cv::Point2d>> box_coords_lmalign;
     //! The signal values for each box as a vector of floats for each box.
     std::vector<std::vector<float>> boxes_signal;
-    //! Raw colours of boxes in RGB
-    std::vector<std::vector<std::array<float, 3>>> boxes_pixels_bgr;
+    //! Mean colour of each box in Blue-Green-Red
+    std::vector<std::array<float, 3>> boxes_bgr;
 
     //! Bin A sets the number of pixels along the normal to the fit to start the sample box
     int binA = 0;
@@ -344,11 +346,11 @@ public:
 
     //! What kind of colour model is in use?
     ColourModel cmodel = ColourModel::Greyscale;
-    //! Colour space rotation to apply to [b g r] colour vectors
+    //! Colour space rotation to apply to [b g r] colour vectors (used for ColourModel::AllenDevMouse)
     std::array<float, 9> colour_rot;
-    //! Colour space pre-translation. [x y z] is [b g r]
+    //! Colour space pre-translation. [x y z] is [b g r] (used for ColourModel::AllenDevMouse)
     std::array<float, 3> colour_trans;
-    //! red-green ellipse for "elliptical tube of expressing colours
+    //! red-green ellipse for "elliptical tube of expressing colours (used for ColourModel::AllenDevMouse)
     std::array<float, 2> ellip_axes;
     //! The slope of the linear luminosity vs signal fit. Only used for ColourModel::AllenDevMouse
     float luminosity_factor = -0.00392f; // -1/255 aka -1.0f
@@ -450,7 +452,7 @@ public:
         // Make a blurred copy of the floating point format frame, for estimating lighting background
         this->blurred = cv::Mat::zeros (frameF.rows, frameF.cols, CV_32FC3);
         cv::Mat frame_bgoff;
-        if (this->cmodel != ColourModel::Sfview) {
+        if (this->cmodel != ColourModel::Sfview && this->cmodel != ColourModel::AllenAtlas) {
             cv::Size ksz;
             ksz.width = frameF.cols * 2.0 * this->bgBlurScreenProportion;
             ksz.width += (ksz.width%2 == 1) ? 0 : 1; // ensure ksz.width is odd
@@ -470,7 +472,7 @@ public:
             // Add suboffset_minus_blurred to frameF to get frame_bgoff.
             cv::add (frameF, suboffset_minus_blurred, frame_bgoff, cv::noArray(), CV_32FC3);
             this->showMaxMin (frame_bgoff, "frame_bgoff");
-        } // else ColourModel::Sfview, so frame_bgoff won't be used.
+        } // else ColourModel::Sfview/AllenAtlas, so frame_bgoff won't be used.
 
         // This is where we distinguish between possible different ColourModels. Apply
         // some conversion to go from the input (frame/frame_bgoff) to the signal:
@@ -485,6 +487,9 @@ public:
         } else if (this->cmodel == ColourModel::Sfview) {
             // In this case, we have data read from a sfview .h5 file (.TF.*.h5) format
             // frame_signal and frame will have been set up in the constructor.
+        } else if (this->cmodel == ColourModel::AllenAtlas) {
+            // Put something sensible in frame_signal... Mean of frame? Copy of frame?
+            this->frame_signal = this->frame.clone();
         } else {
             // Assume it's grayscale: Invert frame_bgoff to create the signal frame.
             std::cout << "Treating image as greyscale\n";
@@ -499,6 +504,7 @@ public:
     //! they're on the "expressing" axis. This will include a translate matrix, a
     //! rotation matrix and ellipse parameters, obtained from the octave script
     //! plotcolour.m. See DM.h for the settings of colour_trans and colour_rot.
+    //! This function relates to ColourModel::AllenDevMouse only.
     void allenColourConversion (const cv::Mat& inframe, cv::Mat& outframe)
     {
         // inframe should be:
@@ -1722,6 +1728,10 @@ public:
             df.add_val (dname.c_str(), this->luminosity_cutoff);
         }
 
+        // Save the colour model itself
+        dname = frameName + "/class/cmodel";
+        df.add_val (dname.c_str(), static_cast<unsigned int>(this->cmodel));
+
         // The frame data itself
         if (this->saveFrameToH5 == true) {
             dname = frameName + "/class/frame";
@@ -1754,6 +1764,15 @@ public:
         df.add_contained_vals (dname.c_str(), this->box_signal_sds);
         dname = frameName + "/signal/bits8/boxes/sds";
         df.add_contained_vals (dname.c_str(), this->box_pixel_sds);
+
+        if (this->cmodel == ColourModel::AllenAtlas) {
+            // Save raw colour
+            dname = frameName + "/signal/bits8/boxes/bgr";
+            for (auto bb : this->boxes_bgr) {
+                std::cout << "Saving box mean colour: " << bb[0] << ","<< bb[1] << "," << bb[2] << std::endl;
+            }
+            df.add_contained_vals (dname.c_str(), this->boxes_bgr); // if can save array, then convert cv::Vec to std::array first
+        }
 
         // Autoscale box_signal_means and save a copy
         dname = frameName + "/signal/postproc/boxes/means_autoscaled";
@@ -2677,6 +2696,25 @@ private:
         return regionSignalVals;
     }
 
+    // Return the mean colour for the region.
+    std::array<float, 3> getRegionMeanColour (const std::vector<cv::Point>& region)
+    {
+        std::array<float, 3> meanColour = {0.0f, 0.0f, 0.0f};
+        size_t i = 0;
+        for (auto px : region) {
+            cv::Vec<unsigned char, 3> val = this->frame.at<cv::Vec<unsigned char, 3>>(px.y, px.x);
+            meanColour[0] += static_cast<float>(val[0]);
+            meanColour[1] += static_cast<float>(val[1]);
+            meanColour[2] += static_cast<float>(val[2]);
+            ++i;
+        }
+        meanColour[0] /= static_cast<float>(i);
+        meanColour[1] /= static_cast<float>(i);
+        meanColour[2] /= static_cast<float>(i);
+        // meanColour is in range 0-255 for each channel.
+        return meanColour;
+    }
+
     //! Get the pixel values from the region from the original image window (frame, red channel).
     std::vector<unsigned int> getRegionPixelVals (const std::vector<cv::Point>& region)
     {
@@ -2727,6 +2765,14 @@ private:
         return this->getRegionSignalVals (maskpositives);
     }
 
+    // Return the mean colour
+    std::array<float, 3> getBoxedMeanColour (const std::vector<cv::Point> boxVtxs)
+    {
+        std::cout << __FUNCTION__ << " called\n";
+        std::vector<cv::Point> maskpositives = this->getBoxRegion (boxVtxs);
+        return this->getRegionMeanColour (maskpositives);
+    }
+
     //! Compute the mean values for the bins. Not const. But means don't need to be a
     //! member as they're only computed to be written out to file.
     void computeBoxMeans()
@@ -2736,7 +2782,7 @@ private:
         this->box_coords_pixels.resize (this->boxes.size());
         this->box_coords_autoalign.resize (this->boxes.size());
         this->box_coords_lmalign.resize (this->boxes.size());
-        this->boxes_pixels_bgr.resize (this->boxes.size());
+        this->boxes_bgr.resize (this->boxes.size());
         this->box_signal_means.resize (this->boxes.size());
         this->box_pixel_means.resize (this->boxes.size());
         this->box_signal_sds.resize (this->boxes.size());
@@ -2755,6 +2801,10 @@ private:
             this->boxes_signal[i] = this->getBoxedSignalVals (this->boxes[i]);
             this->box_pixel_sds[i] = morph::MathAlgo::compute_mean_sd<unsigned int> (this->boxes_pixels[i], this->box_pixel_means[i]);
             this->box_signal_sds[i] = morph::MathAlgo::compute_mean_sd<float> (this->boxes_signal[i], this->box_signal_means[i]);
+            // In ColourModel::AllenAtlas, I want to determine the mean (or maybe mode) colour of the box.
+            std::cout << "Getting mean colour for box[" << i << "]\n";
+            this->boxes_bgr[i] = this->getBoxedMeanColour (this->boxes[i]);
+
             // transform box_coords_pixels into box_coords_autoalign and box_coords_lmalign
             std::vector<cv::Point2d> bcpix(this->box_coords_pixels[i].size());
             this->scalePoints (this->box_coords_pixels[i], bcpix);

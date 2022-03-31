@@ -202,6 +202,19 @@ public:
         this->checkTextColour();
     }
 
+    ColourModel getColourModel()
+    {
+        ColourModel cm = ColourModel::Greyscale;
+        if (this->colourmodel == "allen") {
+            cm = ColourModel::AllenDevMouse;
+        } else if (this->colourmodel == "allen_atlas") {
+            cm = ColourModel::AllenAtlas;
+        } else if (this->colourmodel == "sfview") {
+            cm = ColourModel::Sfview;
+        }
+        return cm;
+    }
+
     /*!
      * Add frame to vFrameData, setting the metadata attributes
      * \a frameImgFilename (The filename for the image), \a slice_x (position in the x
@@ -212,8 +225,7 @@ public:
         std::cout << __FUNCTION__ << "(1) called\n";
         // Create an empty FrameData, with no image data as yet.
         FrameData fd(this->bgBlurScreenProportion, this->bgBlurSubtractionOffset,
-                     (this->colourmodel == "allen" ? ColourModel::AllenDevMouse : ColourModel::Greyscale),
-                     this->acparams);
+                     this->getColourModel(), this->acparams);
         this->addFrame (fd, frameImgFilename, slice_x);
     }
 
@@ -225,14 +237,8 @@ public:
     void addFrame (cv::Mat& frameImg, const std::string& frameImgFilename, const float& slice_x)
     {
         std::cout << __FUNCTION__ << "(2) called\n";
-        ColourModel cm = ColourModel::Greyscale;
-        if (this->colourmodel == "allen") {
-            cm = ColourModel::AllenDevMouse;
-        } else if (this->colourmodel == "sfview") {
-            cm = ColourModel::Sfview;
-        }
         FrameData fd(frameImg, this->bgBlurScreenProportion, this->bgBlurSubtractionOffset,
-                     cm, this->acparams);
+                     this->getColourModel(), this->acparams);
         this->addFrame (fd, frameImgFilename, slice_x);
     }
 
