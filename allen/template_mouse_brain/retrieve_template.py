@@ -108,17 +108,17 @@ def getImageToImageOffsets (images, x, y):
 #
 # Do we downsample the image? downsample 1 divides images in two; downsample 2 makes
 # image a quarter size (along a length), etc.
-def retrieve (atlasstr, downsample=2, do_download_expr=0):
+def retrieve (atlasstr, downsample=2, do_download_annot=0):
 
     # Values that are going to go into the top level of the expt json file
     section_thickness = 0.1 # HARDCODE to 10 um for atlas as I don't know how to get this out of the API.
     plane = -1
 
     # Do we download the ISH images? Yes, unless we're debugging
-    do_download = 0
+    do_download = 1
 
     # Create an experiment directory
-    atdir = './atlas/' + atlasstr
+    atdir = './atlas/' + atlasstr + '_annot' if do_download_annot else ''
     print ('Create directory {0}'.format(atdir))
     if not os.path.exists (atdir):
         os.makedirs (atdir)
@@ -192,25 +192,13 @@ def retrieve (atlasstr, downsample=2, do_download_expr=0):
 
     # Loop through the image IDs downloading each one.
     if do_download:
-        urltail = '?downsample={0}'.format(downsample)
+        urltail = '?downsample={0}&annotation={1}'.format(downsample, 'true' if do_download_annot else 'false')
         for im in images:
             # Can I make this get the expression version, rather than ISH?
-            rurl = 'http://api.brain-map.org/api/v2/image_download/'+str(images[im])+urltail
+            rurl = 'http://api.brain-map.org/api/v2/atlas_image_download/'+str(images[im])+urltail
             print ('URL: {0}'.format (rurl))
             r = requests.get (rurl, stream=True)
             filename = atdir + '/e{0}_{1:02d}_{2}.jpg'.format(atlasstr,im,images[im])
-            print ('Downloading image ID: {0} to {1}'.format(images[im], filename))
-            with open(filename, 'wb') as fd:
-                for chunk in r.iter_content(chunk_size=128):
-                    fd.write(chunk)
-    if do_download_expr:
-        #urltail = '?view=expression' # or
-        urltail = '?downsample={0}&view=expression'.format(downsample)
-        for im in images:
-            # Can I make this get the expression version, rather than ISH? Yes, just add &view=expression
-            rurl = 'http://api.brain-map.org/api/v2/image_download/'+str(images[im])+urltail
-            r = requests.get (rurl, stream=True)
-            filename = atdir + '/e{0}_{1:02d}_{2}_expr.jpg'.format(atlasstr,im,images[im])
             print ('Downloading image ID: {0} to {1}'.format(images[im], filename))
             with open(filename, 'wb') as fd:
                 for chunk in r.iter_content(chunk_size=128):
@@ -252,7 +240,7 @@ def retrieve (atlasstr, downsample=2, do_download_expr=0):
 
     sliceinfo['slices'] = slices
 
-    ##sliceinfo['colourmodel'] = 'allen'
+    sliceinfo['colourmodel'] = 'allen_atlas' if do_download_annot else 'greyscale'
     sliceinfo['slices_prealigned'] = True
 
     # Remove what we don't want in the JSON (to save it becoming cluttered)
@@ -276,7 +264,7 @@ def retrieve (atlasstr, downsample=2, do_download_expr=0):
 import sys
 if len(sys.argv) < 2:
     print ('')
-    print ('Usage: {0} atlas_number [downsample_num] [download_expression_images]'.format (sys.argv[0]))
+    print ('Usage: {0} atlas_number [downsample_num] [download_annotations]'.format (sys.argv[0]))
     print ('')
     print (' Where atlas_number is the number you find for a given template atlas on the ')
     print (' Allen website')
@@ -284,7 +272,8 @@ if len(sys.argv) < 2:
     print (' [downsample_num] defaults to 2 and is the number of times the original (huge) image')
     print (' on the Allen server is halved in side length before being sent to you')
     print ('')
-    print (' [download_expression_images] should be 0 or 1 (if present; defaults to 0)')
+    print (' [download_annotations] should be 0 or 1 (if present; defaults to 0). If 1, ')
+    print (' coloured annotation maps are downloaded rather than the greyscale MRI images.')
     print ('')
     exit(0)
 
