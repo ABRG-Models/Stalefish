@@ -443,7 +443,7 @@ public:
         this->frame.convertTo (frameF, CV_32FC3, 1/255.0);
         this->showMaxMin (frameF, "frameF (float)");
         // NB: Init these before the next three resize() calls
-        this->setBins (100);
+        //this->setBins (100); // Commented out - this erroneously overrides nBins read from .h5.
         // Init flags
         this->flags.set (ShowFits);
         this->flags.set (ShowUsers);
