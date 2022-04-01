@@ -2708,10 +2708,10 @@ private:
             meanColour[2] += static_cast<float>(val[2]);
             ++i;
         }
-        meanColour[0] /= static_cast<float>(i);
-        meanColour[1] /= static_cast<float>(i);
-        meanColour[2] /= static_cast<float>(i);
-        // meanColour is in range 0-255 for each channel.
+        meanColour[0] /= (static_cast<float>(i) * 255.0f);
+        meanColour[1] /= (static_cast<float>(i) * 255.0f);
+        meanColour[2] /= (static_cast<float>(i) * 255.0f);
+        // meanColour is in range 0-1 for each channel.
         return meanColour;
     }
 
