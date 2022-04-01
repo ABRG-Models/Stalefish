@@ -29,6 +29,7 @@
 #include <morph/Matrix33.h>
 #include <morph/MathConst.h>
 #include <popt.h>
+#include "PointRowsVisExt.h"
 
 using namespace std;
 
@@ -570,6 +571,9 @@ int addVisMod (SFVisual& v, const string& datafile, const CmdOptions& co, const 
     morph::ColourMapType cmt = morph::ColourMapType::Monochrome;
     if (showcolour == false) { cmt = morph::ColourMapType::Fixed; }
 
+    // Colour model. Read from .h5
+    int cmodel = 0;
+
     try {
         morph::Vector<float> offset = { 0.0, 0.0, 0.0 };
 
@@ -587,6 +591,7 @@ int addVisMod (SFVisual& v, const string& datafile, const CmdOptions& co, const 
         vector<morph::Vector<float>> points_lmaligned; // Centres of boxes; for smooth surface (points rows)
         vector<morph::Vector<float>> points_scaled; // Centres of boxes; for smooth surface (points rows)
         vector<float> means;
+        vector<std::array<float, 3>> boxColours;
 
         // For the 'centres' These are the locations, around the curve that are an equal
         // angle about the user-defined brain axis.
@@ -837,12 +842,28 @@ int addVisMod (SFVisual& v, const string& datafile, const CmdOptions& co, const 
                     frameMeansF.push_back (static_cast<float>(frameMeans[j]));
                 }
 
+                // Special action for extracting raw colours from the .h5 (for AllenAtlas mode)
+                str = frameName+"/class/cmodel";
+                d.read_val (str.c_str(), cmodel);
+                vector<std::array<float, 3>> frameBoxColours;
+                if (cmodel == 3 /* ColourModel::AllenAtlas */) {
+                    try {
+                        str = frameName+"/signal/bits8/boxes/bgr";
+                        d.read_contained_vals (str.c_str(), frameBoxColours);
+                        //for (auto fbc : frameBoxColours) {
+                        //    std::cout << "Read colour: " << fbc[0] << "," << fbc[1] << "," << fbc[2] << std::endl;
+                        //}
+                    } catch (const exception& ee) {
+                        continue; // No curve
+                    }
+                }
+
                 // Append the frameQuads for the curve on one slice onto the container that has the quads for the *entire slice set*.
                 quads_autoaligned.insert (quads_autoaligned.end(), frameQuads_autoaligned.begin(), frameQuads_autoaligned.end());
                 quads_lmaligned.insert (quads_lmaligned.end(), frameQuads_lmaligned.begin(), frameQuads_lmaligned.end());
                 quads_scaled.insert (quads_scaled.end(), frameQuads_scaled.begin(), frameQuads_scaled.end());
                 means.insert (means.end(), frameMeansF.begin(), frameMeansF.end());
-
+                boxColours.insert (boxColours.end(), frameBoxColours.begin(), frameBoxColours.end());
                 // Similar, for points
                 points_lmaligned.insert (points_lmaligned.end(), framePoints_lmaligned.begin(), framePoints_lmaligned.end());
                 points_autoaligned.insert (points_autoaligned.end(), framePoints_autoaligned.begin(), framePoints_autoaligned.end());
@@ -882,10 +903,20 @@ int addVisMod (SFVisual& v, const string& datafile, const CmdOptions& co, const 
                                                                                          cmt, hue/*(0.0/360.0f)*/, 1.0f, 1.0f, 0.015f));
                     } else {
                         std::cout << "Adding PointRowsVisual with hue=" << hue << std::endl;
-                        visId = v.addVisualModel (new morph::PointRowsVisual<float> (v.shaderprog,
-                                                                                     &points_lmaligned, offset,
-                                                                                     &means, scale,
-                                                                                     cmt, hue));
+                        if (cmodel == 3) {
+                            // rcm for 'raw colour model'
+                            std::cout << "RAW COLOUR MODEL\n";
+                            morph::PointRowsVisExt<float>* rcm = new morph::PointRowsVisExt<float> (v.shaderprog,
+                                                                                                    &points_lmaligned, offset,
+                                                                                                    boxColours, scale,
+                                                                                                    cmt, hue);
+                            visId = v.addVisualModel (rcm);
+                        } else {
+                            visId = v.addVisualModel (new morph::PointRowsVisual<float> (v.shaderprog,
+                                                                                         &points_lmaligned, offset,
+                                                                                         &means, scale,
+                                                                                         cmt, hue));
+                        }
                     }
                 }
                 v.surfaces_3d.push_back (visId);
