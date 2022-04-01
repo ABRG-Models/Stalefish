@@ -971,10 +971,20 @@ int addVisMod (SFVisual& v, const string& datafile, const CmdOptions& co, const 
                     } else {
                         std::cout << "NO mesh. Adding PointRowsVisual\n";
                         std::cout << "points_autoaligned contains " << points_autoaligned.size() << " points\n";
-                        visId = v.addVisualModel (new morph::PointRowsVisual<float> (v.shaderprog,
-                                                                                     &points_autoaligned, offset,
-                                                                                     &means, scale,
-                                                                                     cmt, hue));
+                        if (cmodel == 3) {
+                            // rcm for 'raw colour model'
+                            std::cout << "RAW COLOUR MODEL\n";
+                            morph::PointRowsVisExt<float>* rcm = new morph::PointRowsVisExt<float> (v.shaderprog,
+                                                                                                    &points_autoaligned, offset,
+                                                                                                    boxColours, scale,
+                                                                                                    cmt, hue);
+                            visId = v.addVisualModel (rcm);
+                        } else {
+                            visId = v.addVisualModel (new morph::PointRowsVisual<float> (v.shaderprog,
+                                                                                         &points_autoaligned, offset,
+                                                                                         &means, scale,
+                                                                                         cmt, hue));
+                        }
                     }
                 }
                 v.surfaces_3d.push_back (visId);

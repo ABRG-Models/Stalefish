@@ -89,13 +89,18 @@ namespace morph {
 
         //! Do the computations to initialize the vertices that will represent the
         //! surface.
-        void initializeVertices (void) {
-            //std::cout << __FUNCTION__ << " called" << std::endl;
+        void initializeVertices()
+        {
+            std::cout << __FUNCTION__ << " called" << std::endl;
 
             unsigned int npoints = this->dataCoords->size();
-            unsigned int ndata = this->scalarData->size();
+            unsigned int ndata = 0;
             if (!this->dataRawColour.empty()) {
                 ndata = this->dataRawColour.size();
+                std::cout << "dataRawColour size: " << ndata << "\n";
+            } else {
+                std::cout << "dataRawColour is empty\n";
+                ndata = this->scalarData->size();
             }
 
             if (npoints != ndata) {
@@ -103,9 +108,12 @@ namespace morph {
                 return;
             }
 
-            std::vector<Flt> dcopy = *(this->scalarData);
-            this->colourScale.do_autoscale = true;
-            this->colourScale.transform (*this->scalarData, dcopy);
+            std::vector<Flt> dcopy;
+            if (this->dataRawColour.empty()) {
+                dcopy = *(this->scalarData);
+                this->colourScale.do_autoscale = true;
+                this->colourScale.transform (*this->scalarData, dcopy);
+            }
 
             // First, need to know which set of points form two, adjacent rows. An assumption we'll
             // accept: The rows are listed in slice-order and the points in each row are listed in
