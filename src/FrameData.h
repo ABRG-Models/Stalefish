@@ -85,7 +85,7 @@ private:
     std::vector<FrameData>* parentStack;
 
     //! Number of bins to create for the fit (one less than nFit)
-    int nBins;
+    int nBins = -1;
     //! Number of points to create in the fit
     int nFit;
 
@@ -1768,9 +1768,6 @@ public:
         if (this->cmodel == ColourModel::AllenAtlas) {
             // Save raw colour
             dname = frameName + "/signal/bits8/boxes/bgr";
-            for (auto bb : this->boxes_bgr) {
-                std::cout << "Saving box mean colour: " << bb[0] << ","<< bb[1] << "," << bb[2] << std::endl;
-            }
             df.add_contained_vals (dname.c_str(), this->boxes_bgr); // if can save array, then convert cv::Vec to std::array first
         }
 
@@ -2768,7 +2765,6 @@ private:
     // Return the mean colour
     std::array<float, 3> getBoxedMeanColour (const std::vector<cv::Point> boxVtxs)
     {
-        std::cout << __FUNCTION__ << " called\n";
         std::vector<cv::Point> maskpositives = this->getBoxRegion (boxVtxs);
         return this->getRegionMeanColour (maskpositives);
     }
@@ -2802,7 +2798,6 @@ private:
             this->box_pixel_sds[i] = morph::MathAlgo::compute_mean_sd<unsigned int> (this->boxes_pixels[i], this->box_pixel_means[i]);
             this->box_signal_sds[i] = morph::MathAlgo::compute_mean_sd<float> (this->boxes_signal[i], this->box_signal_means[i]);
             // In ColourModel::AllenAtlas, I want to determine the mean (or maybe mode) colour of the box.
-            std::cout << "Getting mean colour for box[" << i << "]\n";
             this->boxes_bgr[i] = this->getBoxedMeanColour (this->boxes[i]);
 
             // transform box_coords_pixels into box_coords_autoalign and box_coords_lmalign
