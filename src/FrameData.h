@@ -2337,7 +2337,8 @@ private:
         if (this->slices_prealigned) {
             // No transform required
             this->autoalign_theta = 0;
-            this->autoalign_translation = {0,0};
+            cv::Point2d slice0centroid = morph::MathAlgo::centroid (this->fitted_scaled);
+            this->autoalign_translation = -slice0centroid;//{0,0};
         } else {
             if (this->previous < 0) {
                 // get centroid of this->fitted_scaled (the 0th slice
