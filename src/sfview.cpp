@@ -30,6 +30,7 @@
 #include <morph/MathConst.h>
 #include <popt.h>
 #include "PointRowsVisExt.h"
+#include "QuadsVisualExt.h"
 
 using namespace std;
 
@@ -1365,6 +1366,8 @@ int addFlattened (SFVisual& v, const string& datafile, const CmdOptions& co,
     bool autoscale_per_slice = co.scale_perslice > 0 ? true : false;
     bool align_lm = co.use_autoalign > 0 ? false : true;
 
+    int cmodel = 0;
+
     // THIS needs to handle missing data in some slices
     try {
 
@@ -1378,6 +1381,7 @@ int addFlattened (SFVisual& v, const string& datafile, const CmdOptions& co,
         vector<morph::Vector<float, 2>> fmids; // Mid points of the quads
         vector<float> means;
         vector<float> fmeans;
+        vector<std::array<float, 3>> boxColours;
 
         {
             string datafile2(datafile);
@@ -1477,6 +1481,20 @@ int addFlattened (SFVisual& v, const string& datafile, const CmdOptions& co,
                 // now - if the linbins we loaded were the sbox_angles, then we need to
                 // sort linbins, while sorting, at the same time, the signals.
 
+                // Special action for extracting raw colours from the .h5 (for AllenAtlas mode)
+                str = frameName+"/class/cmodel";
+                d.read_val (str.c_str(), cmodel);
+                vector<std::array<float, 3>> frameBoxColours;
+                if (cmodel == 3 /* ColourModel::AllenAtlas */) {
+                    try {
+                        str = frameName+"/signal/bits8/boxes/bgr";
+                        d.read_contained_vals (str.c_str(), frameBoxColours);
+                    } catch (const exception& ee) {
+                        continue; // No curve
+                    }
+                    std::cout << "frameBoxColours size: " << frameBoxColours.size() << "\n";
+                }
+
                 // The corners of the boxes to be drawn, in 3D (though z will be 0)
                 vector<array<float,12>> flatsurf_boxes;
                 // The centroids of the boxes, in the 2D plane.
@@ -1543,6 +1561,7 @@ int addFlattened (SFVisual& v, const string& datafile, const CmdOptions& co,
 
                 try {
                     // Try inserting frameMeansF first, as this may throw an error, in which case, move on
+                    boxColours.insert (boxColours.end(), frameBoxColours.begin(), --frameBoxColours.end());
                     fmeans.insert (fmeans.end(), frameMeansF.begin(), --frameMeansF.end());
                     fquads.insert (fquads.end(), flatsurf_boxes.begin(), flatsurf_boxes.end());
                     fmids.insert (fmids.end(), flat_mids.begin(), flat_mids.end());
@@ -1554,11 +1573,19 @@ int addFlattened (SFVisual& v, const string& datafile, const CmdOptions& co,
             unsigned int visId = 0;
 
             // This is the flattened map; showing it alongside the 3D map for now
-            offset[0]+=-5.5;
-            visId = v.addVisualModel (new morph::QuadsVisual<float> (v.shaderprog,
-                                                                     &fquads, offset,
-                                                                     &fmeans, scale,
-                                                                     morph::ColourMapType::Greyscale));
+            offset[0]+=-8.5;
+            if (cmodel == 3) {
+                // Going to need special QuadsVisual now..
+                std::cout << "Special QuadsVisual!\n";
+                visId = v.addVisualModel (new morph::QuadsVisualExt<float> (v.shaderprog,
+                                                                            &fquads, offset,
+                                                                            boxColours, scale));
+            } else {
+                visId = v.addVisualModel (new morph::QuadsVisual<float> (v.shaderprog,
+                                                                         &fquads, offset,
+                                                                         &fmeans, scale,
+                                                                         morph::ColourMapType::Greyscale));
+            }
             v.surfaces_2d.push_back (visId);
 
             // Add the newly-generated expression and coordinates to the data file.
@@ -1593,121 +1620,122 @@ int addFlattened (SFVisual& v, const string& datafile, const CmdOptions& co,
                 sigma[i][2] = std::atan2 (xprime[1], xprime[0]);
             }
 
-            // extents is: { minx, maxx, miny, maxy, }. Set all 0 to auto-determine
-            std::pair<unsigned int, unsigned int> wh = resample_twod (fmids, fmeans,
-                                                                      cmdOptions.extents, fmids_resampled,
-                                                                      fmeans_resampled, sigma, l);
+            if (cmodel != 3) {
+                // extents is: { minx, maxx, miny, maxy, }. Set all 0 to auto-determine
+                std::pair<unsigned int, unsigned int> wh = resample_twod (fmids, fmeans,
+                                                                          cmdOptions.extents, fmids_resampled,
+                                                                          fmeans_resampled, sigma, l);
 
-            // Convert fmids_resampled into quads
-            size_t n_re = fmids_resampled.size();
-            std::cout << "There are " << n_re << " resampled coordinates\n";
-            float halflx = l[0]*0.5f;
-            float halfly = l[1]*0.5f;
-            vector<array<float, 12>> fquads_re (n_re); // Flat quads, for the flat visualization
-            for (unsigned int i = 0; i < n_re; ++i) {
-                float _x = fmids_resampled[i][0];
-                float _y = fmids_resampled[i][1];
-                fquads_re[i][0] = _x-halflx;
-                fquads_re[i][1] = _y+halfly;
-                fquads_re[i][2] = 0.0f;
+                // Convert fmids_resampled into quads
+                size_t n_re = fmids_resampled.size();
+                std::cout << "There are " << n_re << " resampled coordinates\n";
+                float halflx = l[0]*0.5f;
+                float halfly = l[1]*0.5f;
+                vector<array<float, 12>> fquads_re (n_re); // Flat quads, for the flat visualization
+                for (unsigned int i = 0; i < n_re; ++i) {
+                    float _x = fmids_resampled[i][0];
+                    float _y = fmids_resampled[i][1];
+                    fquads_re[i][0] = _x-halflx;
+                    fquads_re[i][1] = _y+halfly;
+                    fquads_re[i][2] = 0.0f;
 
-                fquads_re[i][3] = _x-halflx;
-                fquads_re[i][4] = _y-halfly;
-                fquads_re[i][5] = 0.0f;
+                    fquads_re[i][3] = _x-halflx;
+                    fquads_re[i][4] = _y-halfly;
+                    fquads_re[i][5] = 0.0f;
 
-                fquads_re[i][6] = _x+halflx;
-                fquads_re[i][7] = _y-halfly;
-                fquads_re[i][8] = 0.0f;
+                    fquads_re[i][6] = _x+halflx;
+                    fquads_re[i][7] = _y-halfly;
+                    fquads_re[i][8] = 0.0f;
 
-                fquads_re[i][9] = _x+halflx;
-                fquads_re[i][10] = _y+halfly;
-                fquads_re[i][11] = 0.0f;
+                    fquads_re[i][9] = _x+halflx;
+                    fquads_re[i][10] = _y+halfly;
+                    fquads_re[i][11] = 0.0f;
+                }
+                // And turn them into a graph
+                offset[1]+=7.5f;
+                //scale.setAutoscale (fmeans_resampled); or something
+                std::cout << "Adding resampled graph at offset " << offset << std::endl;
+                visId = v.addVisualModel (new morph::QuadsVisual<float> (v.shaderprog,
+                                                                         &fquads_re, offset,
+                                                                         &fmeans_resampled, scale,
+                                                                         morph::ColourMapType::Greyscale));
+                v.surfaces_2d.push_back (visId);
+
+                // Add a plain VisualModel whose reason for inclusion is just for text
+                offset[1]+=5.0f;
+                auto jtvm = new morph::VisualModel (v.shaderprog, v.tshaderprog, offset);
+                jtvm->addLabel (datafile, {1.0f, 0.0f, 0.0f},
+                                (cmdOptions.whitebg > 0 ? morph::colour::black : morph::colour::white),
+                                morph::VisualFont::Vera, 0.2, 24);
+                v.addVisualModel (jtvm);
+                offset[1]-=5.0f;
+                offset[1]-=7.5f;
+
+                d2.add_contained_vals ("/output_map/twod/M", M.mat);
+
+                // Add a row of points for the centre marker, for debugging
+                vector<morph::Vector<float>> centres_;
+                vector<float> centres_id;
+                for (int i = 1; i < nf; ++i) {
+                    stringstream ss;
+                    ss << "/Frame";
+                    ss.width(3);
+                    ss.fill('0');
+                    ss << i;
+                    frameName = ss.str();
+                    string str = frameName+"/class/layer_x";
+                    d.read_val (str.c_str(), xx);
+                    morph::Vector<float> cp;
+                    cp[0] = xx;
+                    cp[1] = 0;
+                    cp[2] = 0;
+                    centres_.push_back (M*cp);
+                    centres_id.push_back (0.1f*(float)i);
+                }
+
+                auto sv1 = new morph::ScatterVisual<float> (v.shaderprog, offset);
+                sv1->setDataCoords (&centres_);
+                sv1->setScalarData (&centres_id);
+                sv1->radiusFixed = 0.03f;
+                sv1->colourScale = scale;
+                sv1->cm.setType (morph::ColourMapType::Jet);
+                sv1->finalize();
+                visId = v.addVisualModel (sv1);
+
+                v.angle_centres.push_back (visId);
+
+                // Plot A (the landmarks) if necessary.
+                std::vector<morph::Vector<float,3>> sc_coords(3);
+                std::vector<float> sc_data = { 0.2f, 0.4f, 0.6f };
+                sc_coords[0] = A.col(0); sc_coords[0][2] = 1.0f;
+                sc_coords[1] = A.col(1); sc_coords[1][2] = 1.0f;
+                sc_coords[2] = A.col(2); sc_coords[2][2] = 1.0f;
+                // Apply transform
+                for (unsigned int j = 0; j < 3; ++j) {
+                    sc_coords[j] = M * sc_coords[j];
+                    sc_coords[j][2] = 0.0f;
+                }
+                auto sv2 = new morph::ScatterVisual<float> (v.shaderprog, offset);
+                sv2->setDataCoords (&sc_coords);
+                sv2->setScalarData (&sc_data);
+                //sv2->radiusFixed = 0.03f;
+                sv2->colourScale = scale;
+                sv2->cm.setType (morph::ColourMapType::Jet);
+                sv2->finalize();
+                visId = v.addVisualModel (sv2);
+
+                v.surfaces_2d.push_back (visId);
+
+                // Save the resampled stuff to file
+                std::cout << "saving resampled...\n" << std::endl;
+                d2.add_contained_vals ("/output_map/twod/widthheight_resampled", wh);
+                d2.add_contained_vals ("/output_map/twod/expression_resampled", fmeans_resampled);
+                d2.add_contained_vals ("/output_map/twod/coordinates_resampled", fmids_resampled);
+                // FIXME: Convert to 2D then save. Here are landmarks in 3D:
+                d2.add_contained_vals ("/output_map/twod/global_landmarks", sc_coords);
+                // Finally, add the datafile used to determine M.
+                d2.add_string ("/output_map/twod/M_comes_from", co.datafiles[0]);
             }
-            // And turn them into a graph
-            offset[1]+=7.5f;
-            //scale.setAutoscale (fmeans_resampled); or something
-            std::cout << "Adding resampled graph at offset " << offset << std::endl;
-            visId = v.addVisualModel (new morph::QuadsVisual<float> (v.shaderprog,
-                                                                     &fquads_re, offset,
-                                                                     &fmeans_resampled, scale,
-                                                                     morph::ColourMapType::Greyscale));
-            v.surfaces_2d.push_back (visId);
-
-            // Add a plain VisualModel whose reason for inclusion is just for text
-            offset[1]+=5.0f;
-            auto jtvm = new morph::VisualModel (v.shaderprog, v.tshaderprog, offset);
-            jtvm->addLabel (datafile, {1.0f, 0.0f, 0.0f},
-                            (cmdOptions.whitebg > 0 ? morph::colour::black : morph::colour::white),
-                            morph::VisualFont::Vera, 0.2, 24);
-            v.addVisualModel (jtvm);
-            offset[1]-=5.0f;
-            offset[1]-=7.5f;
-
-            d2.add_contained_vals ("/output_map/twod/M", M.mat);
-
-            // Add a row of points for the centre marker, for debugging
-            vector<morph::Vector<float>> centres_;
-            vector<float> centres_id;
-            for (int i = 1; i < nf; ++i) {
-                stringstream ss;
-                ss << "/Frame";
-                ss.width(3);
-                ss.fill('0');
-                ss << i;
-                frameName = ss.str();
-                string str = frameName+"/class/layer_x";
-                d.read_val (str.c_str(), xx);
-                morph::Vector<float> cp;
-                cp[0] = xx;
-                cp[1] = 0;
-                cp[2] = 0;
-                centres_.push_back (M*cp);
-                centres_id.push_back (0.1f*(float)i);
-            }
-
-
-            auto sv1 = new morph::ScatterVisual<float> (v.shaderprog, offset);
-            sv1->setDataCoords (&centres_);
-            sv1->setScalarData (&centres_id);
-            sv1->radiusFixed = 0.03f;
-            sv1->colourScale = scale;
-            sv1->cm.setType (morph::ColourMapType::Jet);
-            sv1->finalize();
-            visId = v.addVisualModel (sv1);
-
-            v.angle_centres.push_back (visId);
-
-            // Plot A (the landmarks) if necessary.
-            std::vector<morph::Vector<float,3>> sc_coords(3);
-            std::vector<float> sc_data = { 0.2f, 0.4f, 0.6f };
-            sc_coords[0] = A.col(0); sc_coords[0][2] = 1.0f;
-            sc_coords[1] = A.col(1); sc_coords[1][2] = 1.0f;
-            sc_coords[2] = A.col(2); sc_coords[2][2] = 1.0f;
-            // Apply transform
-            for (unsigned int j = 0; j < 3; ++j) {
-                sc_coords[j] = M * sc_coords[j];
-                sc_coords[j][2] = 0.0f;
-            }
-            auto sv2 = new morph::ScatterVisual<float> (v.shaderprog, offset);
-            sv2->setDataCoords (&sc_coords);
-            sv2->setScalarData (&sc_data);
-            //sv2->radiusFixed = 0.03f;
-            sv2->colourScale = scale;
-            sv2->cm.setType (morph::ColourMapType::Jet);
-            sv2->finalize();
-            visId = v.addVisualModel (sv2);
-
-            v.surfaces_2d.push_back (visId);
-
-            // Save the resampled stuff to file
-            std::cout << "saving resampled...\n" << std::endl;
-            d2.add_contained_vals ("/output_map/twod/widthheight_resampled", wh);
-            d2.add_contained_vals ("/output_map/twod/expression_resampled", fmeans_resampled);
-            d2.add_contained_vals ("/output_map/twod/coordinates_resampled", fmids_resampled);
-            // FIXME: Convert to 2D then save. Here are landmarks in 3D:
-            d2.add_contained_vals ("/output_map/twod/global_landmarks", sc_coords);
-            // Finally, add the datafile used to determine M.
-            d2.add_string ("/output_map/twod/M_comes_from", co.datafiles[0]);
         }
     } catch (const exception& e) {
         cerr << "Caught exception: " << e.what() << ". Can't generate and write out 2D maps." << endl;
