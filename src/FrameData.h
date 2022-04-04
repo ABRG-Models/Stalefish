@@ -2700,9 +2700,9 @@ private:
         size_t i = 0;
         for (auto px : region) {
             cv::Vec<unsigned char, 3> val = this->frame.at<cv::Vec<unsigned char, 3>>(px.y, px.x);
-            meanColour[0] += static_cast<float>(val[0]);
+            meanColour[2] += static_cast<float>(val[0]); // Note reversal of colour so it'll come out right in sfview
             meanColour[1] += static_cast<float>(val[1]);
-            meanColour[2] += static_cast<float>(val[2]);
+            meanColour[0] += static_cast<float>(val[2]);
             ++i;
         }
         meanColour[0] /= (static_cast<float>(i) * 255.0f);
@@ -2710,6 +2710,45 @@ private:
         meanColour[2] /= (static_cast<float>(i) * 255.0f);
         // meanColour is in range 0-1 for each channel.
         return meanColour;
+    }
+
+    // Return the most frequently occurring colour for the region.
+    std::array<float, 3> getRegionModeColour (const std::vector<cv::Point>& region)
+    {
+        size_t i = 0;
+        std::map< morph::Vector<float, 3>, unsigned int > colourCounts;
+        for (auto px : region) {
+
+            cv::Vec<unsigned char, 3> val_ = this->frame.at<cv::Vec<unsigned char, 3>>(px.y, px.x);
+            morph::Vector<float, 3> val = {0.0f, 0.0f, 0.0f};
+            val[0] = static_cast<float>(val_[0]) / 255.0f;
+            val[1] = static_cast<float>(val_[1]) / 255.0f;
+            val[2] = static_cast<float>(val_[2]) / 255.0f;
+            try {
+                colourCounts.at(val) = colourCounts.at(val) + 1;
+            } catch (const std::out_of_range& e) {
+                colourCounts[val] = 1;
+            }
+            ++i;
+        }
+
+        morph::Vector<float, 3> modeCol;
+        unsigned int countbest = 0;
+        for (auto c : colourCounts) {
+            if (c.second > countbest) {
+                countbest = c.second;
+                modeCol = c.first;
+            }
+        }
+
+        // Return as std::array rather than morph::Vector (can probably cast)
+        std::array<float, 3> modeColour = {0.0f, 0.0f, 0.0f};
+        modeColour[2] = modeCol[0]; // Testing reverse order of colour
+        modeColour[1] = modeCol[1];
+        modeColour[0] = modeCol[2];
+
+        // modeColour is in range 0-1 for each channel.
+        return modeColour;
     }
 
     //! Get the pixel values from the region from the original image window (frame, red channel).
@@ -2769,6 +2808,13 @@ private:
         return this->getRegionMeanColour (maskpositives);
     }
 
+    // Return the mode colour
+    std::array<float, 3> getBoxedModeColour (const std::vector<cv::Point> boxVtxs)
+    {
+        std::vector<cv::Point> maskpositives = this->getBoxRegion (boxVtxs);
+        return this->getRegionModeColour (maskpositives);
+    }
+
     //! Compute the mean values for the bins. Not const. But means don't need to be a
     //! member as they're only computed to be written out to file.
     void computeBoxMeans()
@@ -2799,6 +2845,7 @@ private:
             this->box_signal_sds[i] = morph::MathAlgo::compute_mean_sd<float> (this->boxes_signal[i], this->box_signal_means[i]);
             // In ColourModel::AllenAtlas, I want to determine the mean (or maybe mode) colour of the box.
             this->boxes_bgr[i] = this->getBoxedMeanColour (this->boxes[i]);
+            //this->boxes_bgr[i] = this->getBoxedModeColour (this->boxes[i]);
 
             // transform box_coords_pixels into box_coords_autoalign and box_coords_lmalign
             std::vector<cv::Point2d> bcpix(this->box_coords_pixels[i].size());
