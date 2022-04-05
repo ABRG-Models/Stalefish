@@ -343,7 +343,11 @@ void computeTransforms (const vector<string>& datafiles,
                         vector<morph::TransformMatrix<float>>& M,
                         const CmdOptions& co)
 {
+    std::cout << __FUNCTION__ << " called\n";
+
     if (datafiles.size() < 2) {
+        std::cout << "Need 2+ data files to compute transforms (have "
+                  << datafiles.size() <<"). Returning.\n";
         // nothing to do though ensure M[0] contains identity, if necessary
         if (datafiles.size()==1 && M.size()==1) { M[0].setToIdentity(); }
         return;
@@ -1282,7 +1286,7 @@ resample_twod (const vector<morph::Vector<float, 2>>& coords, // input coords
         throw std::runtime_error (ee.str());
     }
     if (coords.size() < 2) {
-        throw std::runtime_error ("Expect more than 1 coordinate!");
+        throw std::runtime_error ("Expect more than 1 coordinate (got " + std::to_string(coords.size()) + ")!");
     }
     // Grid spacing is l (passed in)
     std::cout << "Image grid length, l is "<< l << std::endl;
@@ -1359,6 +1363,100 @@ resample_twod (const vector<morph::Vector<float, 2>>& coords, // input coords
     return std::make_pair (width_px, height_px);
 }
 
+// Special version of resample for colours
+std::pair<unsigned int, unsigned int>
+resample_twod (const vector<morph::Vector<float, 2>>& coords, // input coords
+               //const vector<float>& expression,               // input values
+               const vector<std::array<float, 3>>& expressionColours, // input values
+               const morph::Vector<float, 4>& extents,        // parameter - sets output extents
+               vector<morph::Vector<float, 2>>& cartgrid,     // output domain (resized per extents)
+               vector<std::array<float, 3>>& expr_resampled,  // output values (resized per extents)
+               const vector<morph::Vector<float, 3>> sigma,   // parameter - sigmas for ellip gaussians
+               const morph::Vector<float, 2> l)               // parameter - how big are the output pixels?
+{
+    // Check input
+    if (coords.size() != expressionColours.size()) {
+        std::stringstream ee;
+        ee << "Expect coords (length " << coords.size()
+           << ") and expression vectors (length " << expressionColours.size() << ") to be same size";
+        throw std::runtime_error (ee.str());
+    }
+    if (coords.size() < 2) {
+        throw std::runtime_error ("Expect more than 1 coordinate!");
+    }
+    // Grid spacing is l (passed in)
+    std::cout << "Image grid length, l is "<< l << std::endl;
+    if (l.length() == 0.0f) { throw std::runtime_error ("l must be non-zero"); }
+
+    // Determine the output extents
+    float minx = 1e9, miny = 1e9, maxx = -1e9, maxy = -1e9;
+    if (extents.length() > 0.0f) {
+        // Use passed-in extents
+        minx = extents[0];
+        maxx = extents[1];
+        miny = extents[2];
+        maxy = extents[3];
+    } else {
+        // Find the extents of the output grid
+        for (auto c : coords) {
+            minx = c[0] < minx ? c[0] : minx;
+            miny = c[1] < miny ? c[1] : miny;
+            maxx = c[0] > maxx ? c[0] : maxx;
+            maxy = c[1] > maxy ? c[1] : maxy;
+        }
+    }
+
+    // Count width and height to determine size of output
+    unsigned int width_px = 0;
+    for (float _x = minx; _x < maxx; _x += l[0]) { ++width_px; }
+    unsigned int height_px = 0;
+    for (float _y = miny; _y < maxy; _y += l[1]) { ++height_px; }
+    cartgrid.resize (width_px * height_px);
+    expr_resampled.resize (width_px * height_px);
+
+    std::cout << "Image size " << width_px << "x" << height_px << std::endl
+              << "EXTENTS: [" << minx << "," << maxx << "," << miny << "," << maxy << "]" << std::endl;
+
+    size_t csz = coords.size();
+    unsigned int yi = 0;
+    for (float _y = miny; _y < maxy; _y += l[1], ++yi) {
+        unsigned int xi = 0;
+        for (float _x = minx; _x < maxx; _x += l[0], ++xi) {
+            unsigned int idx = yi * width_px + xi;
+            morph::Vector<float, 2> cartpos = {_x,_y};
+            //std::array<float, 3> expr = {0.0f, 0.0f, 0.0f};
+            float expr0 = 0.0f;
+            float expr1 = 0.0f;
+            float expr2 = 0.0f;
+#pragma omp parallel for reduction(+:expr0,expr1,expr2)
+            for (unsigned int i = 0; i < csz; ++i) {
+                // Compute contributions to each pixel, using a rotated elliptical Gaussian
+                float theta = sigma[i][2];
+                float costheta = std::cos(theta);
+                float sintheta = std::sin(theta);
+                float sin2theta = std::sin(2.0f * theta);
+                float a = costheta * costheta / (2.0f * sigma[i][0] * sigma[i][0])
+                + sintheta * sintheta / (2.0f *  sigma[i][1] * sigma[i][1]);
+                float b = (sin2theta/(4.0f * sigma[i][1] * sigma[i][1]))
+                - (sin2theta/(4.0f * sigma[i][0] * sigma[i][0]));
+                float c = sintheta * sintheta/(2.0f * sigma[i][0] * sigma[i][0])
+                + costheta * costheta / (2.0f *  sigma[i][1] * sigma[i][1]);
+                morph::Vector<float, 2> d = cartpos - coords[i];
+                float w = std::exp ( -(a * d[0] * d[0]  +  2.0f * b * d[0] * d[1]  +  c * d[1] * d[1]));
+                expr0 += w * expressionColours[i][0];
+                expr1 += w * expressionColours[i][1];
+                expr2 += w * expressionColours[i][2];
+            }
+            //std::cout << "idx: " << idx << " cartpos: " << cartpos << " expr: " << expr << std::endl;
+            cartgrid[idx] = cartpos;
+            expr_resampled[idx] = {expr0, expr1, expr2};
+        }
+    }
+
+    std::cout << "Computed resample for image of " << width_px << "x" << height_px << std::endl;
+    return std::make_pair (width_px, height_px);
+}
+
 //! Add flattened map. 'A' contains the locations of the global landmarks, in 2D
 //! coords. M contains the transformation matrices, to apply.
 int addFlattened (SFVisual& v, const string& datafile, const CmdOptions& co,
@@ -1366,6 +1464,7 @@ int addFlattened (SFVisual& v, const string& datafile, const CmdOptions& co,
                   morph::Matrix33<float>& M,
                   morph::Vector<float> offset = { 0.0f, 0.0f, 0.0f })
 {
+    std::cout << __FUNCTION__ << " called\n";
     int rtn = 0;
 
     bool autoscale_per_slice = co.scale_perslice > 0 ? true : false;
@@ -1433,13 +1532,13 @@ int addFlattened (SFVisual& v, const string& datafile, const CmdOptions& co,
             // Need this loop to graciously handle missing slice data
             string frameName("");
             for (int i = 1; i<=nf; ++i) {
-
                 stringstream ss;
                 ss << "/Frame";
                 ss.width(3);
                 ss.fill('0');
                 ss << i;
                 frameName = ss.str();
+                std::cout << "Processing " << frameName << std::endl;
 
                 // x position comes from FrameNNN/class/layer_x
                 string str = frameName+"/class/layer_x";
@@ -1568,12 +1667,14 @@ int addFlattened (SFVisual& v, const string& datafile, const CmdOptions& co,
 
                 try {
                     // Try inserting frameMeansF first, as this may throw an error, in which case, move on
-                    boxColours.insert (boxColours.end(), frameBoxColours.begin(), --frameBoxColours.end());
+                    if (cmodel == 3) {
+                        boxColours.insert (boxColours.end(), frameBoxColours.begin(), --frameBoxColours.end());
+                    }
                     fmeans.insert (fmeans.end(), frameMeansF.begin(), --frameMeansF.end());
                     fquads.insert (fquads.end(), flatsurf_boxes.begin(), flatsurf_boxes.end());
                     fmids.insert (fmids.end(), flat_mids.begin(), flat_mids.end());
                 } catch (...) {
-                    // std::cout << "Failed; there was no 2D ribbon for slice " << i << std::endl;
+                    std::cout << "Failed; there was no 2D ribbon for slice " << i << std::endl;
                 }
                 lastxx = xx;
             }
@@ -1602,6 +1703,7 @@ int addFlattened (SFVisual& v, const string& datafile, const CmdOptions& co,
             // Resample onto a rectangular grid
             vector<morph::Vector<float, 2>> fmids_resampled;
             vector<float> fmeans_resampled;
+            vector<std::array<float, 3>> boxColours_resampled;
             //float x1, x2;
             //d.read_val ("/Frame001/class/layer_x", x1);
             //d.read_val ("/Frame002/class/layer_x", x2);
@@ -1627,122 +1729,139 @@ int addFlattened (SFVisual& v, const string& datafile, const CmdOptions& co,
                 sigma[i][2] = std::atan2 (xprime[1], xprime[0]);
             }
 
-            if (cmodel != 3) {
+            std::pair<unsigned int, unsigned int> wh;
+            if (cmodel == 3) {
+                // resample for colour map into boxColours_resampled
+                std::cout << "Resample 2D with *colours*\n";
+                wh = resample_twod (fmids, boxColours,
+                                    cmdOptions.extents, fmids_resampled,
+                                    boxColours_resampled, sigma, l);
+            } else {
                 // extents is: { minx, maxx, miny, maxy, }. Set all 0 to auto-determine
-                std::pair<unsigned int, unsigned int> wh = resample_twod (fmids, fmeans,
-                                                                          cmdOptions.extents, fmids_resampled,
-                                                                          fmeans_resampled, sigma, l);
+                std::cout << "Resample with fmids size: " << fmids.size()
+                          << " and fmeans size " << fmeans.size() << std::endl;
+                wh = resample_twod (fmids, fmeans,
+                                    cmdOptions.extents, fmids_resampled,
+                                    fmeans_resampled, sigma, l);
+            }
+            // Convert fmids_resampled into quads
+            size_t n_re = fmids_resampled.size();
+            std::cout << "There are " << n_re << " resampled coordinates\n";
+            float halflx = l[0]*0.5f;
+            float halfly = l[1]*0.5f;
+            vector<array<float, 12>> fquads_re (n_re); // Flat quads, for the flat visualization
+            for (unsigned int i = 0; i < n_re; ++i) {
+                float _x = fmids_resampled[i][0];
+                float _y = fmids_resampled[i][1];
+                fquads_re[i][0] = _x-halflx;
+                fquads_re[i][1] = _y+halfly;
+                fquads_re[i][2] = 0.0f;
 
-                // Convert fmids_resampled into quads
-                size_t n_re = fmids_resampled.size();
-                std::cout << "There are " << n_re << " resampled coordinates\n";
-                float halflx = l[0]*0.5f;
-                float halfly = l[1]*0.5f;
-                vector<array<float, 12>> fquads_re (n_re); // Flat quads, for the flat visualization
-                for (unsigned int i = 0; i < n_re; ++i) {
-                    float _x = fmids_resampled[i][0];
-                    float _y = fmids_resampled[i][1];
-                    fquads_re[i][0] = _x-halflx;
-                    fquads_re[i][1] = _y+halfly;
-                    fquads_re[i][2] = 0.0f;
+                fquads_re[i][3] = _x-halflx;
+                fquads_re[i][4] = _y-halfly;
+                fquads_re[i][5] = 0.0f;
 
-                    fquads_re[i][3] = _x-halflx;
-                    fquads_re[i][4] = _y-halfly;
-                    fquads_re[i][5] = 0.0f;
+                fquads_re[i][6] = _x+halflx;
+                fquads_re[i][7] = _y-halfly;
+                fquads_re[i][8] = 0.0f;
 
-                    fquads_re[i][6] = _x+halflx;
-                    fquads_re[i][7] = _y-halfly;
-                    fquads_re[i][8] = 0.0f;
-
-                    fquads_re[i][9] = _x+halflx;
-                    fquads_re[i][10] = _y+halfly;
-                    fquads_re[i][11] = 0.0f;
-                }
-                // And turn them into a graph
-                offset[1]+=7.5f;
-                //scale.setAutoscale (fmeans_resampled); or something
-                std::cout << "Adding resampled graph at offset " << offset << std::endl;
+                fquads_re[i][9] = _x+halflx;
+                fquads_re[i][10] = _y+halfly;
+                fquads_re[i][11] = 0.0f;
+            }
+            // And turn them into a graph
+            offset[1]+=7.5f;
+            //scale.setAutoscale (fmeans_resampled); or something
+            std::cout << "Adding resampled graph at offset " << offset << std::endl;
+            if (cmodel == 3) {
+                //offset[0] -= 8.0f;
+                visId = v.addVisualModel (new morph::QuadsVisualExt<float> (v.shaderprog,
+                                                                            &fquads_re, offset,
+                                                                            boxColours_resampled, scale));
+            } else {
+                //offset[0] -= 8.0f;
                 visId = v.addVisualModel (new morph::QuadsVisual<float> (v.shaderprog,
                                                                          &fquads_re, offset,
                                                                          &fmeans_resampled, scale,
                                                                          morph::ColourMapType::Greyscale));
-                v.surfaces_2d.push_back (visId);
-
-                // Add a plain VisualModel whose reason for inclusion is just for text
-                offset[1]+=5.0f;
-                auto jtvm = new morph::VisualModel (v.shaderprog, v.tshaderprog, offset);
-                jtvm->addLabel (datafile, {1.0f, 0.0f, 0.0f},
-                                (cmdOptions.whitebg > 0 ? morph::colour::black : morph::colour::white),
-                                morph::VisualFont::Vera, 0.2, 24);
-                v.addVisualModel (jtvm);
-                offset[1]-=5.0f;
-                offset[1]-=7.5f;
-
-                d2.add_contained_vals ("/output_map/twod/M", M.mat);
-
-                // Add a row of points for the centre marker, for debugging
-                vector<morph::Vector<float>> centres_;
-                vector<float> centres_id;
-                for (int i = 1; i < nf; ++i) {
-                    stringstream ss;
-                    ss << "/Frame";
-                    ss.width(3);
-                    ss.fill('0');
-                    ss << i;
-                    frameName = ss.str();
-                    string str = frameName+"/class/layer_x";
-                    d.read_val (str.c_str(), xx);
-                    morph::Vector<float> cp;
-                    cp[0] = xx;
-                    cp[1] = 0;
-                    cp[2] = 0;
-                    centres_.push_back (M*cp);
-                    centres_id.push_back (0.1f*(float)i);
-                }
-
-                auto sv1 = new morph::ScatterVisual<float> (v.shaderprog, offset);
-                sv1->setDataCoords (&centres_);
-                sv1->setScalarData (&centres_id);
-                sv1->radiusFixed = 0.03f;
-                sv1->colourScale = scale;
-                sv1->cm.setType (morph::ColourMapType::Jet);
-                sv1->finalize();
-                visId = v.addVisualModel (sv1);
-
-                v.angle_centres.push_back (visId);
-
-                // Plot A (the landmarks) if necessary.
-                std::vector<morph::Vector<float,3>> sc_coords(3);
-                std::vector<float> sc_data = { 0.2f, 0.4f, 0.6f };
-                sc_coords[0] = A.col(0); sc_coords[0][2] = 1.0f;
-                sc_coords[1] = A.col(1); sc_coords[1][2] = 1.0f;
-                sc_coords[2] = A.col(2); sc_coords[2][2] = 1.0f;
-                // Apply transform
-                for (unsigned int j = 0; j < 3; ++j) {
-                    sc_coords[j] = M * sc_coords[j];
-                    sc_coords[j][2] = 0.0f;
-                }
-                auto sv2 = new morph::ScatterVisual<float> (v.shaderprog, offset);
-                sv2->setDataCoords (&sc_coords);
-                sv2->setScalarData (&sc_data);
-                //sv2->radiusFixed = 0.03f;
-                sv2->colourScale = scale;
-                sv2->cm.setType (morph::ColourMapType::Jet);
-                sv2->finalize();
-                visId = v.addVisualModel (sv2);
-
-                v.surfaces_2d.push_back (visId);
-
-                // Save the resampled stuff to file
-                std::cout << "saving resampled...\n" << std::endl;
-                d2.add_contained_vals ("/output_map/twod/widthheight_resampled", wh);
-                d2.add_contained_vals ("/output_map/twod/expression_resampled", fmeans_resampled);
-                d2.add_contained_vals ("/output_map/twod/coordinates_resampled", fmids_resampled);
-                // FIXME: Convert to 2D then save. Here are landmarks in 3D:
-                d2.add_contained_vals ("/output_map/twod/global_landmarks", sc_coords);
-                // Finally, add the datafile used to determine M.
-                d2.add_string ("/output_map/twod/M_comes_from", co.datafiles[0]);
             }
+            v.surfaces_2d.push_back (visId);
+
+            // Add a plain VisualModel whose reason for inclusion is just for text
+            offset[1]+=5.0f;
+            auto jtvm = new morph::VisualModel (v.shaderprog, v.tshaderprog, offset);
+            jtvm->addLabel (datafile, {1.0f, 0.0f, 0.0f},
+                            (cmdOptions.whitebg > 0 ? morph::colour::black : morph::colour::white),
+                            morph::VisualFont::Vera, 0.2, 24);
+            v.addVisualModel (jtvm);
+            offset[1]-=5.0f;
+            offset[1]-=7.5f;
+
+            d2.add_contained_vals ("/output_map/twod/M", M.mat);
+
+            // Add a row of points for the centre marker, for debugging
+            vector<morph::Vector<float>> centres_;
+            vector<float> centres_id;
+            for (int i = 1; i < nf; ++i) {
+                stringstream ss;
+                ss << "/Frame";
+                ss.width(3);
+                ss.fill('0');
+                ss << i;
+                frameName = ss.str();
+                string str = frameName+"/class/layer_x";
+                d.read_val (str.c_str(), xx);
+                morph::Vector<float> cp;
+                cp[0] = xx;
+                cp[1] = 0;
+                cp[2] = 0;
+                centres_.push_back (M*cp);
+                centres_id.push_back (0.1f*(float)i);
+            }
+
+            auto sv1 = new morph::ScatterVisual<float> (v.shaderprog, offset);
+            sv1->setDataCoords (&centres_);
+            sv1->setScalarData (&centres_id);
+            sv1->radiusFixed = 0.03f;
+            sv1->colourScale = scale;
+            sv1->cm.setType (morph::ColourMapType::Jet);
+            sv1->finalize();
+            visId = v.addVisualModel (sv1);
+
+            v.angle_centres.push_back (visId);
+
+            // Plot A (the landmarks) if necessary.
+            std::vector<morph::Vector<float,3>> sc_coords(3);
+            std::vector<float> sc_data = { 0.2f, 0.4f, 0.6f };
+            sc_coords[0] = A.col(0); sc_coords[0][2] = 1.0f;
+            sc_coords[1] = A.col(1); sc_coords[1][2] = 1.0f;
+            sc_coords[2] = A.col(2); sc_coords[2][2] = 1.0f;
+            // Apply transform
+            for (unsigned int j = 0; j < 3; ++j) {
+                sc_coords[j] = M * sc_coords[j];
+                sc_coords[j][2] = 0.0f;
+            }
+            auto sv2 = new morph::ScatterVisual<float> (v.shaderprog, offset);
+            sv2->setDataCoords (&sc_coords);
+            sv2->setScalarData (&sc_data);
+            //sv2->radiusFixed = 0.03f;
+            sv2->colourScale = scale;
+            sv2->cm.setType (morph::ColourMapType::Jet);
+            sv2->finalize();
+            visId = v.addVisualModel (sv2);
+
+            v.surfaces_2d.push_back (visId);
+
+            // Save the resampled stuff to file
+            std::cout << "saving resampled...\n" << std::endl;
+            d2.add_contained_vals ("/output_map/twod/widthheight_resampled", wh);
+            d2.add_contained_vals ("/output_map/twod/expression_resampled", fmeans_resampled); // Maybe save colours too?
+            d2.add_contained_vals ("/output_map/twod/coordinates_resampled", fmids_resampled);
+            // FIXME: Convert to 2D then save. Here are landmarks in 3D:
+            d2.add_contained_vals ("/output_map/twod/global_landmarks", sc_coords);
+            // Finally, add the datafile used to determine M.
+            d2.add_string ("/output_map/twod/M_comes_from", co.datafiles[0]);
+
         }
     } catch (const exception& e) {
         cerr << "Caught exception: " << e.what() << ". Can't generate and write out 2D maps." << endl;
@@ -1949,7 +2068,10 @@ int main (int argc, char** argv)
     if (cmdOptions.datafiles.size() > 1) {
         // Count how many landmarks in the first datafile:
         n_global_landmarks = countGlobalLandmarks (cmdOptions.datafiles[0]);
-        std::cout << "First data file contains " << n_global_landmarks << " global landmarks.\n";
+        for (size_t di = 0; di < cmdOptions.datafiles.size(); ++di) {
+            unsigned int ngl = countGlobalLandmarks (cmdOptions.datafiles[di]);
+            std::cout << "data file " << di << "contains " << ngl << " global landmarks.\n";
+        }
     }
 
     // Before addVisMod(), addLandmarks(), etc, and if there is more than 1 model and if
