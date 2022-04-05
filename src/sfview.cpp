@@ -159,6 +159,10 @@ struct CmdOptions
     char* extents_str;
     //! The extents extracted from extents_str
     morph::Vector<float, 4> extents;
+    //! map_offsets string
+    char* map_offsets_str;
+    //! The map_offsets extracted from map_offsets_str
+    morph::Vector<float, 2> map_offsets;
     //! The h5 files to visualize
     std::vector<string> datafiles;
     //! The output directory for saving *.TF.*.h5 files - the 2D map files.
@@ -185,6 +189,8 @@ void zeroCmdOptions (CmdOptions* copts)
     copts->datafile = nullptr;
     copts->extents_str = nullptr;
     copts->extents = {0.0f, 0.0f, 0.0f, 0.0f};
+    copts->map_offsets_str = nullptr;
+    copts->map_offsets = {8.0f, 8.0f}; // zero to default values
     copts->datafiles.clear();
     copts->output_dir = nullptr;
 }
@@ -226,6 +232,21 @@ void popt_option_callback (poptContext con,
                 }
             } else {
                 throw std::runtime_error ("extents string is not well formed (give 4 comma-separated numbers)");
+            }
+        } else if (opt->shortName == 'M') { // map_offsets
+            // Process cmdOptions.map_offsets_str
+            std::string mo(cmdOptions.map_offsets_str);
+            std::vector<std::string> mon = morph::Tools::stringToVector (mo, ",");
+            if (mon.size() == 2) {
+                for (size_t i = 0; i < 2; ++i) {
+                    std::stringstream ss;
+                    float f = 0.0f;
+                    ss << mon[i];
+                    ss >> f;
+                    cmdOptions.map_offsets[i] = f;
+                }
+            } else {
+                throw std::runtime_error ("map_offsets string is not well formed (give 2 comma-separated numbers)");
             }
         }
         break;
@@ -1681,10 +1702,9 @@ int addFlattened (SFVisual& v, const string& datafile, const CmdOptions& co,
             unsigned int visId = 0;
 
             // This is the flattened map; showing it alongside the 3D map for now
-            offset[0]+=-8.5;
+            offset[0]+=-co.map_offsets[0]; // Move left enough to place the 2D map next to the 3D visualisation.
             if (cmodel == 3) {
                 // Going to need special QuadsVisual now..
-                std::cout << "Special QuadsVisual!\n";
                 visId = v.addVisualModel (new morph::QuadsVisualExt<float> (v.shaderprog,
                                                                             &fquads, offset,
                                                                             boxColours, scale));
@@ -1770,16 +1790,14 @@ int addFlattened (SFVisual& v, const string& datafile, const CmdOptions& co,
                 fquads_re[i][11] = 0.0f;
             }
             // And turn them into a graph
-            offset[1]+=7.5f;
+            offset[1]+=co.map_offsets[1];
             //scale.setAutoscale (fmeans_resampled); or something
             std::cout << "Adding resampled graph at offset " << offset << std::endl;
             if (cmodel == 3) {
-                //offset[0] -= 8.0f;
                 visId = v.addVisualModel (new morph::QuadsVisualExt<float> (v.shaderprog,
                                                                             &fquads_re, offset,
                                                                             boxColours_resampled, scale));
             } else {
-                //offset[0] -= 8.0f;
                 visId = v.addVisualModel (new morph::QuadsVisual<float> (v.shaderprog,
                                                                          &fquads_re, offset,
                                                                          &fmeans_resampled, scale,
@@ -1788,14 +1806,13 @@ int addFlattened (SFVisual& v, const string& datafile, const CmdOptions& co,
             v.surfaces_2d.push_back (visId);
 
             // Add a plain VisualModel whose reason for inclusion is just for text
-            offset[1]+=5.0f;
+            offset[1]+=co.map_offsets[1]/2.0f;
             auto jtvm = new morph::VisualModel (v.shaderprog, v.tshaderprog, offset);
             jtvm->addLabel (datafile, {1.0f, 0.0f, 0.0f},
                             (cmdOptions.whitebg > 0 ? morph::colour::black : morph::colour::white),
                             morph::VisualFont::Vera, 0.2, 24);
             v.addVisualModel (jtvm);
-            offset[1]-=5.0f;
-            offset[1]-=7.5f;
+            offset[1] -= co.map_offsets[1] * 1.5f;
 
             d2.add_contained_vals ("/output_map/twod/M", M.mat);
 
@@ -1861,7 +1878,6 @@ int addFlattened (SFVisual& v, const string& datafile, const CmdOptions& co,
             d2.add_contained_vals ("/output_map/twod/global_landmarks", sc_coords);
             // Finally, add the datafile used to determine M.
             d2.add_string ("/output_map/twod/M_comes_from", co.datafiles[0]);
-
         }
     } catch (const exception& e) {
         cerr << "Caught exception: " << e.what() << ". Can't generate and write out 2D maps." << endl;
@@ -1991,6 +2007,12 @@ int main (int argc, char** argv)
          ". Allows all resampled maps to be same size. Format: xmin,xmax,ymin,ymax so "
          "e.g.: -0.22,4.65,-3.03,3.85"},
 
+        {"map_offsets", 'M',
+         POPT_ARG_STRING, &(cmdOptions.map_offsets_str), 0,
+         "Provide a string for the x and y offsets between resampled maps (when you produce "
+         "2D maps). Format: xspace,yspace so "
+         "e.g.: 5.5,16.0"},
+
         POPT_AUTOALIAS
         POPT_TABLEEND
     };
@@ -2115,7 +2137,6 @@ int main (int argc, char** argv)
         for (size_t ai = 0; ai < A2.size(); ++ai) { std::cout << "A2["<<ai<<"]=" << A2[ai] << std::endl; }
 
         if (cmdOptions.linear_transforms > 0 && cmdOptions.datafiles.size() > 1 && n_global_landmarks == 3) {
-
             std::cout << "Applying 2D linear transforms...\n";
             computeFlatTransforms (cmdOptions, A2, M2);
             // Display flattened (and transformed) maps
@@ -2123,7 +2144,7 @@ int main (int argc, char** argv)
             size_t dfi = 0;
             for (auto df : cmdOptions.datafiles) {
                 rtn += addFlattened (v, df, cmdOptions, A2[dfi], M2[dfi], {xoffs, 0, 0});
-                xoffs += -6.0f;
+                xoffs += -cmdOptions.map_offsets[0];
                 dfi++;
             }
 
@@ -2142,13 +2163,16 @@ int main (int argc, char** argv)
 #endif
 
         } else {
-            std::cout << "NB: There was not the right number of global landmarks for transformations, just show untransformed flattened maps.\n";
+            if (cmdOptions.linear_transforms != 0) {
+                std::cout << "NB: There was not the right number of global landmarks for transformations, just show untransformed flattened maps.\n";
+            } // else user didn't give the -T command line arg.
+
             // Display flattened (but UNtransformed) maps
             float xoffs = 0.0f;
             size_t dfi = 0;
             for (auto df : cmdOptions.datafiles) {
                 rtn += addFlattened (v, df, cmdOptions, A2[dfi], M2[dfi], {xoffs, 0, 0});
-                xoffs += -6.0f;
+                xoffs += -cmdOptions.map_offsets[0];
                 dfi++;
             }
         }
