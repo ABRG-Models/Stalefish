@@ -479,7 +479,9 @@ int addLandmarks (SFVisual& v, const string& datafile, const CmdOptions& co,
                         }
                         glm_id.push_back (glmcount);
                         glmcount -= 0.2f;
-                        std::cout << "Added global landmark sphere, glm_id = " << glm_id.back() << std::endl;
+                        std::cout << "Added global landmark sphere, glm_id = " << glm_id.back()
+                                  << " at location " << morph::Vector<float, 3>({_glm[0], _glm[1], _glm[2]})
+                                  << std::endl;
                     }
                     ++glm_idx;
                 }
@@ -845,7 +847,10 @@ int addVisMod (SFVisual& v, const string& datafile, const CmdOptions& co, const 
 
                 // Special action for extracting raw colours from the .h5 (for AllenAtlas mode)
                 str = frameName+"/class/cmodel";
-                d.read_val (str.c_str(), cmodel);
+                try {
+                    d.read_val (str.c_str(), cmodel);
+                } catch (const exception& ee) {}
+
                 vector<std::array<float, 3>> frameBoxColours;
                 if (cmodel == 3 /* ColourModel::AllenAtlas */) {
                     try {
@@ -1483,7 +1488,9 @@ int addFlattened (SFVisual& v, const string& datafile, const CmdOptions& co,
 
                 // Special action for extracting raw colours from the .h5 (for AllenAtlas mode)
                 str = frameName+"/class/cmodel";
-                d.read_val (str.c_str(), cmodel);
+                try {
+                    d.read_val (str.c_str(), cmodel);
+                } catch (const exception& ee) {}
                 vector<std::array<float, 3>> frameBoxColours;
                 if (cmodel == 3 /* ColourModel::AllenAtlas */) {
                     try {
