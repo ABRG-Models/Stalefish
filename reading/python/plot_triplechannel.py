@@ -19,7 +19,7 @@ def getZColour(fname):
     return Z
 
 # Read data
-Z = getZColour ('602630314_annot.TF.602630314_annot.h5')
+Z = getZColour ('example_data/602630314_annot.TF.602630314_annot.h5')
 
 ax1 = Z.shape[1]
 ax2 = Z.shape[0]

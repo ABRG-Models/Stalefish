@@ -37,7 +37,7 @@ def combi(fnames, thresh=0.2):
     return Z[:,:,1:], M[:,:,1:]
 
 
-D = ['P9_Mouse_2_Litter_4_RZRB.TF.602630314_annot.h5']
+D = ['example_data/P9_Mouse_2_Litter_4_RZRB.TF.602630314_annot.h5']
 
 Z, M = combi(D, 0.2)
 
