@@ -1445,7 +1445,6 @@ resample_twod (const vector<morph::Vector<float, 2>>& coords, // input coords
         for (float _x = minx; _x < maxx; _x += l[0], ++xi) {
             unsigned int idx = yi * width_px + xi;
             morph::Vector<float, 2> cartpos = {_x,_y};
-            //std::array<float, 3> expr = {0.0f, 0.0f, 0.0f};
             float expr0 = 0.0f;
             float expr1 = 0.0f;
             float expr2 = 0.0f;
@@ -1873,6 +1872,7 @@ int addFlattened (SFVisual& v, const string& datafile, const CmdOptions& co,
             std::cout << "saving resampled...\n" << std::endl;
             d2.add_contained_vals ("/output_map/twod/widthheight_resampled", wh);
             d2.add_contained_vals ("/output_map/twod/expression_resampled", fmeans_resampled); // Maybe save colours too?
+            d2.add_contained_vals ("/output_map/twod/boxcolours_resampled", boxColours_resampled);
             d2.add_contained_vals ("/output_map/twod/coordinates_resampled", fmids_resampled);
             // FIXME: Convert to 2D then save. Here are landmarks in 3D:
             d2.add_contained_vals ("/output_map/twod/global_landmarks", sc_coords);
