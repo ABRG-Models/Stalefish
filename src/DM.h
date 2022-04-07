@@ -1442,9 +1442,9 @@ public:
                    && cf->flags.test(ShowUsers) == true) {
             // draw the "candidate" point set (for adding to the end of the curve):
             if (cf->PP2.empty() || (!cf->PP2.empty() && cf->P2.size() > 1)) {
-                for (size_t ii=0; ii<cf->P.size(); ii++) {
+                for (size_t ii=0; ii<cf->P2.size(); ii++) {
                     circle (*pImg, cf->P2[ii], 5, SF_GREEN3, -1);
-                    if (ii) { line (*pImg, cf->P2[ii-1], cf->P2[ii], SF_GREEN, 1, cv::LINE_AA); }
+                    if (ii) { line (*pImg, cf->P2[ii-1], cf->P2[ii], SF_GREEN3, 1, cv::LINE_AA); }
                 }
             }
             // draw the "candidate" point set (for adding to the *start* of the curve):
@@ -1455,17 +1455,7 @@ public:
                 }
             }
             // also draw a thin line to the cursor position
-            if (cf->ct == InputMode::Bezier) {
-                if ((cf->PP.empty() && cf->P.size() > 0)
-                    || (!cf->PP.empty() && cf->P.size() > 1)) {
-                    line (*pImg, cf->P[cf->P.size()-1], pt, SF_GREEN, 1, cv::LINE_AA);
-                }
-            } else if (cf->ct == InputMode::ReverseBezier) {
-                if ((cf->PP.empty() && cf->sP.size() > 0)
-                    || (!cf->PP.empty() && cf->sP.size() > 1)) {
-                    line (*pImg, cf->sP[0], pt, SF_GREEN2, 1, cv::LINE_AA);
-                }
-            } else if (cf->ct == InputMode::Bezier2) {
+            if (cf->ct == InputMode::Bezier2) {
                 if ((cf->PP2.empty() && cf->P2.size() > 0)
                     || (!cf->PP2.empty() && cf->P2.size() > 1)) {
                     line (*pImg, cf->P2[cf->P2.size()-1], pt, SF_GREEN3, 1, cv::LINE_AA);
