@@ -1266,6 +1266,26 @@ void computeFlatTransforms (const CmdOptions& co,
     }
 }
 
+/*
+ * What kind of normalisation to carry out in the resampling code? Choose one of these.
+ */
+
+// CORRECT_NORMALISATION does sum(w * signal) / sum(weight) which gives good results,
+// but leads to a slightly annoying boundary effect
+#define CORRECT_NORMALISATION 1
+
+// This is like CORRECT_NORMALISATION with a bit of thresholding to reduce the
+// annoying boundary effect.
+//#define CORRECT_NORMALISATION_WITH_THRESH 1
+
+// Alternative workaround is to simply clip the summed signal at 1 (as this is default,
+// you don't even need to define this).
+//#define CLIP_AT_ONE 1
+
+/*
+ * Else, no normalisation.
+ */
+
 /*!
  * Resampling function.
  *
@@ -1346,6 +1366,9 @@ resample_twod (const vector<morph::Vector<float, 2>>& coords, // input coords
     std::cout << "Image size " << width_px << "x" << height_px << std::endl
               << "EXTENTS: [" << minx << "," << maxx << "," << miny << "," << maxy << "]" << std::endl;
 
+#if defined CORRECT_NORMALISATION_WITH_THRESH
+    static constexpr float wsum_thresh = 0.0001f;
+#endif
     size_t csz = coords.size();
     unsigned int yi = 0;
     for (float _y = miny; _y < maxy; _y += l[1], ++yi) {
@@ -1354,7 +1377,12 @@ resample_twod (const vector<morph::Vector<float, 2>>& coords, // input coords
             unsigned int idx = yi * width_px + xi;
             morph::Vector<float, 2> cartpos = {_x,_y};
             float expr = 0.0f;
-#pragma omp parallel for reduction(+:expr)
+#if defined CORRECT_NORMALISATION or defined CORRECT_NORMALISATION_WITH_THRESH
+            float wsum = 0.0f;
+# pragma omp parallel for reduction(+:expr,wsum)
+#else
+# pragma omp parallel for reduction(+:expr)
+#endif
             for (unsigned int i = 0; i < csz; ++i) {
                 // Compute contributions to each pixel, using a rotated elliptical Gaussian
                 float theta = sigma[i][2];
@@ -1370,10 +1398,22 @@ resample_twod (const vector<morph::Vector<float, 2>>& coords, // input coords
                 morph::Vector<float, 2> d = cartpos - coords[i];
                 float w = std::exp ( -(a * d[0] * d[0]  +  2.0f * b * d[0] * d[1]  +  c * d[1] * d[1]));
                 expr += w * expression[i];
+#if defined CORRECT_NORMALISATION or defined CORRECT_NORMALISATION_WITH_THRESH
+                wsum += w;
+#endif
             }
             //std::cout << "idx: " << idx << " cartpos: " << cartpos << " expr: " << expr << std::endl;
             cartgrid[idx] = cartpos;
+#if defined CORRECT_NORMALISATION
+            expr_resampled[idx] = (wsum > 0.0f) ? expr/wsum : 0.0f;
+#elif defined CORRECT_NORMALISATION_WITH_THRESH // Reduces the size of the edge region
+            expr_resampled[idx] = (expr > wsum_thresh && wsum > wsum_thresh) ? expr/wsum : 0.0f;
+#elif defined CLIP_AT_ONE // Clip at 1.0f
+            expr_resampled[idx] = expr > 1.0f ? 1.0f : expr;
+#else
             expr_resampled[idx] = expr;
+#endif
+
         }
     }
 
@@ -1387,7 +1427,6 @@ resample_twod (const vector<morph::Vector<float, 2>>& coords, // input coords
 // Special version of resample for colours
 std::pair<unsigned int, unsigned int>
 resample_twod (const vector<morph::Vector<float, 2>>& coords, // input coords
-               //const vector<float>& expression,               // input values
                const vector<std::array<float, 3>>& expressionColours, // input values
                const morph::Vector<float, 4>& extents,        // parameter - sets output extents
                vector<morph::Vector<float, 2>>& cartgrid,     // output domain (resized per extents)
@@ -1438,6 +1477,9 @@ resample_twod (const vector<morph::Vector<float, 2>>& coords, // input coords
     std::cout << "Image size " << width_px << "x" << height_px << std::endl
               << "EXTENTS: [" << minx << "," << maxx << "," << miny << "," << maxy << "]" << std::endl;
 
+#if defined CORRECT_NORMALISATION_WITH_THRESH
+    static constexpr float wsum_thresh = 0.0001f;
+#endif
     size_t csz = coords.size();
     unsigned int yi = 0;
     for (float _y = miny; _y < maxy; _y += l[1], ++yi) {
@@ -1448,9 +1490,14 @@ resample_twod (const vector<morph::Vector<float, 2>>& coords, // input coords
             float expr0 = 0.0f;
             float expr1 = 0.0f;
             float expr2 = 0.0f;
-#pragma omp parallel for reduction(+:expr0,expr1,expr2)
+#if defined CORRECT_NORMALISATION or defined CORRECT_NORMALISATION_WITH_THRESH
+            float wsum = 0.0f;
+# pragma omp parallel for reduction(+:expr0,expr1,expr2,wsum)
+#else
+# pragma omp parallel for reduction(+:expr0,expr1,expr2)
+#endif
             for (unsigned int i = 0; i < csz; ++i) {
-                // Compute contributions to each pixel, using a rotated elliptical Gaussian
+                // Compute contributions to each pixel, using a circular Gaussian
                 float theta = sigma[i][2];
                 float costheta = std::cos(theta);
                 float sintheta = std::sin(theta);
@@ -1466,10 +1513,32 @@ resample_twod (const vector<morph::Vector<float, 2>>& coords, // input coords
                 expr0 += w * expressionColours[i][0];
                 expr1 += w * expressionColours[i][1];
                 expr2 += w * expressionColours[i][2];
+#if defined CORRECT_NORMALISATION or defined CORRECT_NORMALISATION_WITH_THRESH
+                wsum += w;
+#endif
             }
             //std::cout << "idx: " << idx << " cartpos: " << cartpos << " expr: " << expr << std::endl;
             cartgrid[idx] = cartpos;
+#if defined CORRECT_NORMALISATION
+            if (wsum > 0.0f) {
+                expr_resampled[idx] = {expr0/wsum, expr1/wsum, expr2/wsum};
+            } else {
+                expr_resampled[idx] = {1.0f, 1.0f, 1.0f};
+            }
+#elif defined CORRECT_NORMALISATION_WITH_THRESH // Reduces the size of the edge region
+            if ((expr0 > wsum_thresh || expr1 > wsum_thresh || expr2 > wsum_thresh) && wsum > wsum_thresh) {
+                //std::cout << "expr0: " << expr0 << " and expr0/" << wsum << " = " << expr0/wsum << std::endl;
+                expr_resampled[idx] = {expr0/wsum, expr1/wsum, expr2/wsum};
+            } else {
+                expr_resampled[idx] = {1.0f, 1.0f, 1.0f};
+            }
+#elif defined CLIP_AT_ONE // Clip at 1.0f
+            expr_resampled[idx] = {expr0 > 1.0f ? 1.0f : expr0,
+                                   expr1 > 1.0f ? 1.0f : expr1,
+                                   expr2 > 1.0f ? 1.0f : expr2};
+#else
             expr_resampled[idx] = {expr0, expr1, expr2};
+#endif
         }
     }
 
