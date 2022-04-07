@@ -1810,7 +1810,6 @@ public:
                 _this->setShowUsers(true);
                 cf->setShowUsers(true);
             } else if (cf->ct == InputMode::Bezier2) {
-                std::cout << "Push back on P2\n";
                 cf->P2.push_back (pt);
                 _this->setShowUsers(true);
                 cf->setShowUsers(true);
