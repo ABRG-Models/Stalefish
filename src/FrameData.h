@@ -955,8 +955,8 @@ public:
         } else if (this->ct == InputMode::Bezier2) {
             std::cout << "removeLastPoint2...\n";
             this->removeLastPoint2();
-            std::cout << "updateFit2...\n";
-            this->updateFit2();
+            std::cout << "updateFit...\n";
+            this->updateFit();
             std::cout << "refreshBoxes...\n";
             this->refreshBoxes (-this->binA, this->binB);
         } else if (this->ct == InputMode::ReverseBezier2) {
@@ -2581,8 +2581,12 @@ public:
     }
 
     //! Public wrapper around updateFitBezier()
-    void updateFit() { this->updateFitBezier(); }
-    void updateFit2() { this->updateFitBezier2(); }
+    void updateFit() {
+        this->updateFitBezier();
+        if (!this->PP2.empty()) {
+            this->updateFitBezier2();
+        }
+    }
 
     //! Re-compute the boxes from the curve (taking ints)
     void refreshBoxes (const int lenA, const int lenB) { this->refreshBoxes ((double)lenA, (double)lenB); }
@@ -2599,8 +2603,62 @@ public:
         for (int i=0; i<this->nFit; i++) {
             cv::Point2d normLenA = this->normals[i]*lenA;
             cv::Point2d normLenB = this->normals[i]*lenB;
-            this->pointsInner[i] = cv::Point(this->fitted[i] + cv::Point2d(normLenA.x, normLenA.y));
-            this->pointsOuter[i] = cv::Point(this->fitted[i] + cv::Point2d(normLenB.x, normLenB.y));
+            this->pointsInner[i] = cv::Point(this->fitted[i] + normLenA);
+            if (this->fitted2.empty()) {
+                this->pointsOuter[i] = cv::Point(this->fitted[i] + normLenB);
+            } else {
+                // We have a second curve, so extend boxes to the second curve fit.
+                size_t cc = 0;
+                // p1 to q1 is fitted[i] to fitted[i]+normLenB
+                // p1 to q2 is one of the segments on fitted2.
+                cv::Point2d p1_end = this->fitted[i] + normLenB;
+                morph::Vector<float, 2> p1 = { static_cast<float>(this->fitted[i].x),
+                                               static_cast<float>(this->fitted[i].y) };
+                morph::Vector<float, 2> q1 = { static_cast<float>(p1_end.x),
+                                               static_cast<float>(p1_end.y) };
+
+                for (size_t cj = 0; cj < this->fitted2.size(); ++cj) {
+
+                    morph::Vector<float, 2> p2;
+                    morph::Vector<float, 2> q2;
+                    if (cj == 0) {
+                        p2 = { static_cast<float>(this->fitted2[cj].x), static_cast<float>(this->fitted2[cj].y) };
+                        q2 = { static_cast<float>(this->fitted2[cj+1].x), static_cast<float>(this->fitted2[cj+1].y) };
+                    } else {
+                        p2 = { static_cast<float>(this->fitted2[cj-1].x), static_cast<float>(this->fitted2[cj-1].y) };
+                        q2 = { static_cast<float>(this->fitted2[cj].x), static_cast<float>(this->fitted2[cj].y) };
+                    }
+                    // This should never get triggered here
+                    if (p1 == p2 || p1 == q2 || q1 == p2 || q1 == q2) {
+                        // Don't count intersections between line segments that are connected ANYWAY
+                        continue;
+                    }
+
+                    morph::rotation_sense p1q1p2 = morph::MathAlgo::orientation (p1,q1,p2);
+                    morph::rotation_sense p1q1q2 = morph::MathAlgo::orientation (p1,q1,q2);
+                    morph::rotation_sense p2q2p1 = morph::MathAlgo::orientation (p2,q2,p1);
+                    morph::rotation_sense p2q2q1 = morph::MathAlgo::orientation (p2,q2,q1);
+
+                    if (p1q1p2 != p1q1q2 && p2q2p1 != p2q2q1) {
+                        // ci and cj intersect
+                        ++cc;
+                    } else {
+                        // Are they colinear?
+                        if (p1q1p2 == morph::rotation_sense::colinear && morph::MathAlgo::onsegment (p1, p2, q1)) { ++cc; }
+                        else if (p1q1q2 == morph::rotation_sense::colinear && morph::MathAlgo::onsegment (p1, q2, q1)) { ++cc; }
+                        else if (p2q2p1 == morph::rotation_sense::colinear && morph::MathAlgo::onsegment (p2, p1, q2)) { ++cc; }
+                        else if (p2q2q1 == morph::rotation_sense::colinear && morph::MathAlgo::onsegment (p2, q1, q2)) { ++cc; }
+                    }
+                    // If cc incremented, then there was a crossover. Need to figure out
+                    // where that is, or do something simple, like take distance from
+                    // fitted2 to fitted and use that as length (yes, this)
+                    if (cc) {
+                        normLenB = this->normals[i] * cv::norm(this->fitted2[cj]-this->fitted[i]);
+                        break;
+                    }
+                }
+                this->pointsOuter[i] = cv::Point(this->fitted[i] + normLenB);
+            }
         }
 
         // Make the boxes from pointsInner and pointsOuter
@@ -2934,16 +2992,15 @@ private:
     void updateFitBezier2()
     {
         if (this->PP2.empty()) {
-            //std::cout << "Too few points to fit" << std::endl;
             this->bcp2.reset();
             this->fitted2.clear();
-            this->clearBoxes();// ?
+            //this->clearBoxes();
             return;
         }
 
         this->bcp2.reset();
 
-        // Loop over PP first
+        // Loop over PP2 first
         for (auto _P : this->PP2) {
             std::vector<std::pair<double,double>> user_points;
             user_points.clear();
