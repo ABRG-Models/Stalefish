@@ -6,6 +6,7 @@
 import numpy as np
 import pylab as pl
 import h5py
+from PIL import Image
 
 def getZ(fname):
     f = h5py.File(fname,'r')
@@ -50,6 +51,9 @@ ax = True
 F = pl.figure(figsize=(6,6))
 f = F.add_subplot(111)
 f.imshow(Z[:,:,0]*M[:,:,0],cmap=_cmap)
+
+_img = Image.fromarray(np.uint8(Z[:,:,0]*255))
+_img.save ('plot_one.png')
 
 f.plot([ax1/2,ax1/2],[0,ax2],'-',color=(0,0,0))
 f.plot([0,ax1],[ax2/2,ax2/2],'-',color=(0,0,0))
