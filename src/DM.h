@@ -1250,6 +1250,11 @@ public:
                 d.read_contained_vals ("/output_map/twod/widthheight_resampled", wh);
                 std::vector<float> fmeans_resampled; // retain name used in sfview
                 d.read_contained_vals ("/output_map/twod/expression_resampled", fmeans_resampled);
+                std::cout << "fmeans_resampled size: " << fmeans_resampled.size() << "\n";
+                if (fmeans_resampled.empty()) {
+                    // This .h5 file might contain colour data rather than monochrome.
+                    d.read_contained_vals ("/output_map/twod/boxcolours_resampled", boxcolours_resampled);
+                }
                 // Now set frame up with width and height and write fmeans_resampled into it.
                 cv::Mat fr1 (wh.second, wh.first, CV_32F, fmeans_resampled.data());
                 // That produced a single channel frame, so triple up the channels:
