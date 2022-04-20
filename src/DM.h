@@ -1253,13 +1253,19 @@ public:
                 std::cout << "fmeans_resampled size: " << fmeans_resampled.size() << "\n";
                 if (fmeans_resampled.empty()) {
                     // This .h5 file might contain colour data rather than monochrome.
-                    d.read_contained_vals ("/output_map/twod/boxcolours_resampled", boxcolours_resampled);
+                    std::vector<std::array<float, 3>> boxColours_resampled;
+                    d.read_contained_vals ("/output_map/twod/boxcolours_resampled", boxColours_resampled);
+                    cv::Mat fr1 (wh.second, wh.first, CV_32FC3, boxColours_resampled.data());
+                    // copy fr1 to the cv::Mat frame.
+                    frame = fr1.clone();
+                } else {
+                    // Now set frame up with width and height and write fmeans_resampled into it.
+                    cv::Mat fr1 (wh.second, wh.first, CV_32F, fmeans_resampled.data());
+                    // That produced a single channel frame, so triple up the channels:
+                    cv::Mat in[] = {fr1, fr1, fr1};
+                    cv::merge (in, 3, frame);
                 }
-                // Now set frame up with width and height and write fmeans_resampled into it.
-                cv::Mat fr1 (wh.second, wh.first, CV_32F, fmeans_resampled.data());
-                // That produced a single channel frame, so triple up the channels:
-                cv::Mat in[] = {fr1, fr1, fr1};
-                cv::merge (in, 3, frame);
+
                 std::vector<morph::Vector<float, 2>> fmids_resampled;
                 d.read_contained_vals ("/output_map/twod/coordinates_resampled", fmids_resampled);
                 // pixels_per_mm for the frame is set from this->pixels_per_mm. If there
