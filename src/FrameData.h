@@ -85,7 +85,7 @@ private:
     std::vector<FrameData>* parentStack;
 
     //! Number of bins to create for the fit (one less than nFit)
-    int nBins = -1;
+    int nBins = 0;
     //! Number of points to create in the fit
     int nFit;
 
