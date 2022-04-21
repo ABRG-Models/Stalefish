@@ -46,10 +46,11 @@ enum class InputMode
 enum class ColourModel
 {
     Greyscale,     // Regular greyscale image
-    AllenDevMouse, // Coloured expression images as found on the Allen Developing Mouse Brain Atlas
+    AllenDevMouse, // Coloured expression images as found on the Allen Developing Mouse
+                   // Brain Atlas. The colour is interpreted as a scalar signal.
     Sfview,        // Signal data loaded from a sfview-generated 'unwrapped 2D map'
-    AllenAtlas     // Frames in which the colour indicates an Allen-project-annotated
-                   // brain region. Here the signal is always the coloured image.
+    RawColour      // Frames in which the colour indicates a brain region. Here the
+                   // colours are saved, rather than a scalar signal based on the colour.
 };
 
 enum FrameFlag
@@ -452,7 +453,7 @@ public:
         // Make a blurred copy of the floating point format frame, for estimating lighting background
         this->blurred = cv::Mat::zeros (frameF.rows, frameF.cols, CV_32FC3);
         cv::Mat frame_bgoff;
-        if (this->cmodel != ColourModel::Sfview && this->cmodel != ColourModel::AllenAtlas) {
+        if (this->cmodel != ColourModel::Sfview && this->cmodel != ColourModel::RawColour) {
             cv::Size ksz;
             ksz.width = frameF.cols * 2.0 * this->bgBlurScreenProportion;
             ksz.width += (ksz.width%2 == 1) ? 0 : 1; // ensure ksz.width is odd
@@ -472,7 +473,7 @@ public:
             // Add suboffset_minus_blurred to frameF to get frame_bgoff.
             cv::add (frameF, suboffset_minus_blurred, frame_bgoff, cv::noArray(), CV_32FC3);
             this->showMaxMin (frame_bgoff, "frame_bgoff");
-        } // else ColourModel::Sfview/AllenAtlas, so frame_bgoff won't be used.
+        } // else ColourModel::Sfview/RawColour, so frame_bgoff won't be used.
 
         // This is where we distinguish between possible different ColourModels. Apply
         // some conversion to go from the input (frame/frame_bgoff) to the signal:
@@ -487,7 +488,7 @@ public:
         } else if (this->cmodel == ColourModel::Sfview) {
             // In this case, we have data read from a sfview .h5 file (.TF.*.h5) format
             // frame_signal and frame will have been set up in the constructor.
-        } else if (this->cmodel == ColourModel::AllenAtlas) {
+        } else if (this->cmodel == ColourModel::RawColour) {
             // Put something sensible in frame_signal... Mean of frame? Copy of frame?
             this->frame_signal = this->frame.clone();
         } else {
@@ -1765,7 +1766,7 @@ public:
         dname = frameName + "/signal/bits8/boxes/sds";
         df.add_contained_vals (dname.c_str(), this->box_pixel_sds);
 
-        if (this->cmodel == ColourModel::AllenAtlas) {
+        if (this->cmodel == ColourModel::RawColour) {
             // Save raw colour
             dname = frameName + "/signal/bits8/boxes/bgr";
             df.add_contained_vals (dname.c_str(), this->boxes_bgr); // if can save array, then convert cv::Vec to std::array first
@@ -2902,7 +2903,7 @@ private:
             this->boxes_signal[i] = this->getBoxedSignalVals (this->boxes[i]);
             this->box_pixel_sds[i] = morph::MathAlgo::compute_mean_sd<unsigned int> (this->boxes_pixels[i], this->box_pixel_means[i]);
             this->box_signal_sds[i] = morph::MathAlgo::compute_mean_sd<float> (this->boxes_signal[i], this->box_signal_means[i]);
-            // In ColourModel::AllenAtlas, I want to determine the mean (or maybe mode) colour of the box.
+            // In ColourModel::RawColour, I want to determine the mean (or maybe mode) colour of the box.
             this->boxes_bgr[i] = this->getBoxedMeanColour (this->boxes[i]);
             //this->boxes_bgr[i] = this->getBoxedModeColour (this->boxes[i]);
 

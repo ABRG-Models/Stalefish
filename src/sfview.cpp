@@ -870,14 +870,14 @@ int addVisMod (SFVisual& v, const string& datafile, const CmdOptions& co, const 
                     frameMeansF.push_back (static_cast<float>(frameMeans[j]));
                 }
 
-                // Special action for extracting raw colours from the .h5 (for AllenAtlas mode)
+                // Special action for extracting raw colours from the .h5 (for RawColour mode)
                 str = frameName+"/class/cmodel";
                 try {
                     d.read_val (str.c_str(), cmodel);
                 } catch (const exception& ee) {}
 
                 vector<std::array<float, 3>> frameBoxColours;
-                if (cmodel == 3 /* ColourModel::AllenAtlas */) {
+                if (cmodel == 3 /* ColourModel::RawColour */) {
                     try {
                         str = frameName+"/signal/bits8/boxes/bgr";
                         d.read_contained_vals (str.c_str(), frameBoxColours);
@@ -1674,13 +1674,13 @@ int addFlattened (SFVisual& v, const string& datafile, const CmdOptions& co,
                 // now - if the linbins we loaded were the sbox_angles, then we need to
                 // sort linbins, while sorting, at the same time, the signals.
 
-                // Special action for extracting raw colours from the .h5 (for AllenAtlas mode)
+                // Special action for extracting raw colours from the .h5 (for RawColour mode)
                 str = frameName+"/class/cmodel";
                 try {
                     d.read_val (str.c_str(), cmodel);
                 } catch (const exception& ee) {}
                 vector<std::array<float, 3>> frameBoxColours;
-                if (cmodel == 3 /* ColourModel::AllenAtlas */) {
+                if (cmodel == 3 /* ColourModel::RawColour */) {
                     try {
                         str = frameName+"/signal/bits8/boxes/bgr";
                         d.read_contained_vals (str.c_str(), frameBoxColours);

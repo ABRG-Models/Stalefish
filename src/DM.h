@@ -207,8 +207,10 @@ public:
         ColourModel cm = ColourModel::Greyscale;
         if (this->colourmodel == "allen") {
             cm = ColourModel::AllenDevMouse;
+        } else if (this->colourmodel == "raw_colour") {
+            cm = ColourModel::RawColour;
         } else if (this->colourmodel == "allen_atlas") {
-            cm = ColourModel::AllenAtlas;
+            cm = ColourModel::RawColour;
         } else if (this->colourmodel == "sfview") {
             cm = ColourModel::Sfview;
         }
