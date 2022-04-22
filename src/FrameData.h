@@ -1374,6 +1374,7 @@ public:
     void importCurves (morph::HdfData& df)
     {
         std::cout << __FUNCTION__ << " called\n";
+        // Curve 1 (main curve)
         std::string frameName = this->getFrameName();
         std::string dname = frameName + "/class/P";
         this->P.clear();
@@ -1400,6 +1401,33 @@ public:
         dname = frameName + "/class/pp_idx";
         df.read_val (dname.c_str(), this->pp_idx);
 
+        // Curve 2
+        dname = frameName + "/class/P2";
+        this->P2.clear();
+        df.read_contained_vals (dname.c_str(), this->P2);
+        dname = frameName + "/class/sP2";
+        this->sP2.clear();
+        df.read_contained_vals (dname.c_str(), this->sP2);
+
+        dname = frameName + "/class/PP2_n";
+        unsigned int pp2_size = 0;
+        df.read_val (dname.c_str(), pp2_size);
+        //std::cout << "pp2_size = " << pp2_size << std::endl;
+
+        this->PP2.resize(pp2_size);
+        for (size_t i = 0; i<pp2_size; ++i) {
+            std::stringstream ss;
+            ss << frameName + "/class/PP2";
+            ss.width(3);
+            ss.fill('0');
+            ss << i;
+            df.read_contained_vals (ss.str().c_str(), this->PP2[i]);
+        }
+
+        dname = frameName + "/class/pp_idx2";
+        df.read_val (dname.c_str(), this->pp_idx2);
+
+        // Bins
         dname = frameName + "/class/nBins";
         int _nBins = 0;
         try {
@@ -1492,6 +1520,7 @@ public:
     //! Export the user-supplied points for curve drawing
     void exportCurves (morph::HdfData& df) const
     {
+        // Save data for the main curve
         std::string frameName = this->getFrameName();
         std::string dname = frameName + "/class/P";
         df.add_contained_vals (dname.c_str(), this->P);
@@ -1511,6 +1540,28 @@ public:
         }
         dname = frameName + "/class/pp_idx";
         df.add_val (dname.c_str(), this->pp_idx);
+
+        // Save data for second curve
+        dname = frameName + "/class/P2";
+        df.add_contained_vals (dname.c_str(), this->P2);
+        dname = frameName + "/class/sP2";
+        df.add_contained_vals (dname.c_str(), this->sP2);
+
+        dname = frameName + "/class/PP2_n";
+        unsigned int pp2_size = this->PP2.size();
+        df.add_val (dname.c_str(), pp2_size);
+        for (size_t i = 0; i<pp2_size; ++i) {
+            std::stringstream ss;
+            ss << frameName + "/class/PP2";
+            ss.width(3);
+            ss.fill('0');
+            ss << i;
+            df.add_contained_vals (ss.str().c_str(), this->PP2[i]);
+        }
+        dname = frameName + "/class/pp_idx2";
+        df.add_val (dname.c_str(), this->pp_idx2);
+
+        // Save the number of bins and bin lengths
         dname = frameName + "/class/nBins";
         df.add_val (dname.c_str(), this->nBins);
         dname = frameName + "/class/binA";
