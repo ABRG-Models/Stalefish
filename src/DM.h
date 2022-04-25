@@ -1257,6 +1257,12 @@ public:
                     // This .h5 file might contain colour data rather than monochrome.
                     std::vector<std::array<float, 3>> boxColours_resampled;
                     d.read_contained_vals ("/output_map/twod/boxcolours_resampled", boxColours_resampled);
+                    // Need to swap R and B before creating cv::Mat for display
+                    for (auto& bc : boxColours_resampled) {
+                        float red = bc[0];
+                        bc[0] = bc[2];
+                        bc[2] = red;
+                    }
                     cv::Mat fr1 (wh.second, wh.first, CV_32FC3, boxColours_resampled.data());
                     // copy fr1 to the cv::Mat frame.
                     frame = fr1.clone();
