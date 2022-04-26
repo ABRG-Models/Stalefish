@@ -222,6 +222,14 @@ From the list above, **FrameNNN/scaled** may contain **fitted**,
    in each freehand loop.
 
  * **signal/*/freehand/means** - The mean signal value for each freehand loop
+ 
+ * **signal/*/min_signal** - The absolute minimum signal value on the frame
+ 
+ * **signal/*/max_signal** - The absolute maximum signal value on the frame
+
+ * **signal/*/manual_min_signal** - The minimum signal value on the frame as marked by the user in 'min/max mode'
+ 
+ * **signal/*/manual_max_signal** - The maximum signal value on the frame as marked by the user in 'min/max mode'
 
 ### map
 
