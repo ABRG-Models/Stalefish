@@ -118,7 +118,7 @@ def retrieve (atlasstr, downsample=2, do_download_annot=0):
     do_download = 1
 
     # Create an experiment directory
-    atdir = './atlas/' + atlasstr + '_annot' if do_download_annot else ''
+    atdir = './atlas/' + atlasstr + '_annot' if do_download_annot else './atlas/' + atlasstr
     print ('Create directory {0}'.format(atdir))
     if not os.path.exists (atdir):
         os.makedirs (atdir)
