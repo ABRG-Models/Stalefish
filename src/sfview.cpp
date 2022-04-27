@@ -2205,7 +2205,11 @@ int main (int argc, char** argv)
         v.addLabel (exmsg.str(), {-0.05f, 0.005f, 0.0f});
 #endif
     }
+
+    // To hack around with lighting, change these
     v.diffuse_position = {-1, 2, -3};
+    v.ambient_intensity = 1.0f;
+    v.diffuse_intensity = (cmdOptions.lighting > 0 || cmdOptions.show_mesh > 0) ?  0.5f : 0.0f;
 
     unsigned int n_global_landmarks = 0;
     if (cmdOptions.datafiles.size() > 1) {
