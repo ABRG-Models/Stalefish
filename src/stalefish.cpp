@@ -189,6 +189,16 @@ int main (int argc, char** argv)
             }
             break;
         }
+        case ('['):
+        {
+            if (DM::i()->exportPending == true) {
+                DM::i()->exportInputModePointsCurrentFrame();
+                DM::i()->exportPending = false;
+            } else {
+                DM::i()->exportPending = true;
+            }
+            break;
+        }
         case ('p'):
         {
             if (DM::i()->exportPending == true) {

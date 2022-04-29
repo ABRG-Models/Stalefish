@@ -765,13 +765,32 @@ public:
     void exportInputModePoints()
     {
         FrameData* cf = DM::i()->gcf();
-        if (cf->ct == InputMode::Bezier || cf->ct == InputMode::ReverseBezier) {
+        if (cf->ct == InputMode::Bezier || cf->ct == InputMode::ReverseBezier
+            || cf->ct == InputMode::Bezier2 || cf->ct == InputMode::ReverseBezier2) {
             this->exportCurves();
         } else if (cf->ct == InputMode::Freehand) {
             this->exportFreehand();
         } else if (cf->ct == InputMode::Landmark || cf->ct == InputMode::GlobalLandmark
                    || cf->ct == InputMode::Circlemark || cf->ct == InputMode::Axismark) {
             this->exportLandmarks();
+        } else {
+            std::cerr << "Unknown mode for export\n";
+        }
+    }
+
+    //! Export data only from the current frame, in a form in which they could be
+    //! imported into any other frame (even in a different project).
+    void exportInputModePointsCurrentFrame()
+    {
+        FrameData* cf = DM::i()->gcf();
+        if (cf->ct == InputMode::Bezier || cf->ct == InputMode::ReverseBezier
+            || cf->ct == InputMode::Bezier2 || cf->ct == InputMode::ReverseBezier2) {
+            this->exportCurvesCurrentFrame();
+        } else if (cf->ct == InputMode::Freehand) {
+            this->exportFreehandCurrentFrame();
+        } else if (cf->ct == InputMode::Landmark || cf->ct == InputMode::GlobalLandmark
+                   || cf->ct == InputMode::Circlemark || cf->ct == InputMode::Axismark) {
+            std::cerr << "Warning: Haven't implemented single-frame export of landmarks. Nothing happened.\n";
         } else {
             std::cerr << "Unknown mode for export\n";
         }
@@ -820,6 +839,18 @@ public:
         std::cout << "Exported freehand loops to " << fh_exportfile << std::endl;
     }
 
+    void exportFreehandCurrentFrame()
+    {
+        if (this->appmode == AppMode::NoFile || this->appmode == AppMode::ExampleFile) { return; }
+        this->refreshAllBoxes();
+        for (auto& f : this->vFrameData) { f.updateAlignments(); }
+        morph::HdfData d(fh_exportfile);
+        this->gcf()->exportFreehand (d);
+        d.add_val("/singleframe", 1);
+        d.add_val("/singleframe_idx", this->gcf()->idx);
+        std::cout << "Exported freehand loops for single frame to " << fh_exportfile << std::endl;
+    }
+
     void exportCurves()
     {
         if (this->appmode == AppMode::NoFile || this->appmode == AppMode::ExampleFile) { return; }
@@ -830,6 +861,18 @@ public:
         for (auto f : this->vFrameData) { f.exportCurves (d); }
         d.add_val("/nframes", nf);
         std::cout << "Exported curves to " << cp_exportfile << std::endl;
+    }
+
+    void exportCurvesCurrentFrame()
+    {
+        if (this->appmode == AppMode::NoFile || this->appmode == AppMode::ExampleFile) { return; }
+        this->refreshAllBoxes();
+        for (auto& f : this->vFrameData) { f.updateAlignments(); }
+        morph::HdfData d(cp_exportfile);
+        this->gcf()->exportCurves (d);
+        d.add_val("/singleframe", 1);
+        d.add_val("/singleframe_idx", this->gcf()->idx);
+        std::cout << "Exported curves for current frame to " << cp_exportfile << std::endl;
     }
 
     //! Export all user-supplied point information to files
@@ -873,13 +916,35 @@ public:
         }
     }
 
+    std::string makeFrameName (int _idx) const
+    {
+        std::stringstream ss;
+        ss << "/Frame";
+        ss.width(3);
+        ss.fill('0');
+        ss << (1+_idx); // Count from 1 in the data file
+        return ss.str();
+    }
+
     //! Import "curve points" from a file
     void importCurves()
     {
         if (this->appmode == AppMode::NoFile) { return; }
         try {
             morph::HdfData d(cp_exportfile, morph::FileAccess::ReadOnly);
-            for (auto& f : this->vFrameData) { f.importCurves (d); }
+            // See if it's a single frame
+            int singleframe = 0;
+            d.read_val ("/singleframe", singleframe);
+            if (singleframe) {
+                int singleframe_idx = 0;
+                d.read_val ("/singleframe_idx", singleframe_idx);
+                // Now import curves on the current frame for the frame in the h5 file...
+                std::string frameName = this->makeFrameName (singleframe_idx);
+                std::cout << "Importing curves from frame " << frameName << " into current frame...\n";
+                this->gcf()->importCurves (d, frameName);
+            } else {
+                for (auto& f : this->vFrameData) { f.importCurves (d); }
+            }
         } catch (...) {
             std::cout << "Failed to read " << cp_exportfile << std::endl;
         }
@@ -891,7 +956,19 @@ public:
         if (this->appmode == AppMode::NoFile) { return; }
         try {
             morph::HdfData d(fh_exportfile, morph::FileAccess::ReadOnly);
-            for (auto& f : this->vFrameData) { f.importFreehand (d); }
+            // See if it's a single frame...
+            int singleframe = 0;
+            d.read_val ("/singleframe", singleframe);
+            if (singleframe) {
+                int singleframe_idx = 0;
+                d.read_val ("/singleframe_idx", singleframe_idx);
+                // Now import loops on the current frame for the frame in the h5 file...
+                std::string frameName = this->makeFrameName (singleframe_idx);
+                std::cout << "Importing freehand loops from frame " << frameName << " into current frame...\n";
+                this->gcf()->importFreehand (d, frameName);
+            } else {
+                for (auto& f : this->vFrameData) { f.importFreehand (d); }
+            }
         } catch (...) {
             std::cout << "Failed to read " << fh_exportfile << std::endl;
         }
@@ -1781,8 +1858,8 @@ public:
         std::string("s:   Toggle add points to curve at start/end"),
         std::string("k:   Export points to files in /tmp"),
         std::string("p:   Export landmark OR curves OR freehand to file in /tmp (depends on Draw mode)"),
-        std::string("l:   Import landmarks from ") + this->lm_exportfile,
-        std::string("i:   Import curve points from ") + this->cp_exportfile,
+        std::string("[:   Export landmark OR curves OR freehand from SINGLE frame to file in /tmp"),
+        std::string("l:   Import landmarks from ") + this->lm_exportfile + std::string("  i: Import curve points from ") + this->cp_exportfile,
         std::string("j:   Import freehand loops from ") + this->fh_exportfile,
         std::string("n:   Next frame   b:   Back a frame   8:  Move back   9:  Move to next"),
         std::string("N:   Copy objects from next frame    P: Copy from previous"),

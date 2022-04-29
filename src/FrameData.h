@@ -1302,11 +1302,15 @@ public:
         }
     }
 
-    //! Read landmark and circlemark points from file (or rather, morph::HdfData object)
     void importLandmarks (morph::HdfData& df)
     {
         std::string frameName = this->getFrameName();
+        this->importLandmarks (df, frameName);
+    }
 
+    //! Read landmark and circlemark points from file (or rather, morph::HdfData object)
+    void importLandmarks (morph::HdfData& df, const std::string& frameName)
+    {
         // Landmark points
         std::string dname = frameName + "/class/LM";
         this->LM.clear();
@@ -1369,13 +1373,18 @@ public:
         }
     }
 
+    void importCurves (morph::HdfData& df)
+    {
+        std::string frameName = this->getFrameName();
+        this->importCurves (df, frameName);
+    }
+
     //! Import the user-supplied coordinates used to create fitted Bezier curves as well
     //! as the sample box info (size and number)
-    void importCurves (morph::HdfData& df)
+    void importCurves (morph::HdfData& df, const std::string& frameName)
     {
         std::cout << __FUNCTION__ << " called\n";
         // Curve 1 (main curve)
-        std::string frameName = this->getFrameName();
         std::string dname = frameName + "/class/P";
         this->P.clear();
         df.read_contained_vals (dname.c_str(), this->P);
@@ -1447,6 +1456,11 @@ public:
     void importFreehand (morph::HdfData& df)
     {
         std::string frameName = this->getFrameName();
+        this->importFreehand (df, frameName);
+    }
+
+    void importFreehand (morph::HdfData& df, const std::string& frameName)
+    {
         // Freehand-drawn regions
         std::string dname = frameName + "/class/FL";
         this->FL.clear();
