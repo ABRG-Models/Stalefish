@@ -167,7 +167,7 @@ Each of **FrameNNN/autoalign** or **FrameNNN/lmalign** may contain:
      loops. This may contain loop0_centroid, loop1_centroid, etc,
      giving the location of each loop. For the boundary of each loop,
      see FrameNNN/class/FBE000 etc.
-     
+
  * **global_landmarks**: An n coumns by 3 rows matrix recording the location of n global landmarks on the frame. The 3 rows give the 3D coordinates of the global landmarks (the x location derives from the slice's position along the x axis).
 
  * **landmarks**: This is a two column matrix containing the 3D locations
@@ -222,6 +222,8 @@ From the list above, **FrameNNN/scaled** may contain **fitted**,
    in each freehand loop.
 
  * **signal/*/freehand/means** - The mean signal value for each freehand loop
+
+The mean, non-zero signal value for the frame is also saved. See **signal/postproc/frame/mean_nonzero**.
 
 ### map
 
