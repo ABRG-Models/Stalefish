@@ -1831,6 +1831,20 @@ public:
         dname = frameName + "/signal/bits8/boxes/sds";
         df.add_contained_vals (dname.c_str(), this->box_pixel_sds);
 
+        // Save mean non-zero signal of whole frame. Can be useful when dealing with 2D maps.
+        int nzpixels = 0;
+        if (this->frame_signal.channels() == 3) {
+            std::vector<cv::Mat> rgbChannels(3);
+            cv::split(this->frame_signal, rgbChannels);
+            nzpixels = cv::countNonZero (rgbChannels[0]);
+        } else if (this->frame_signal.channels() == 1) {
+            nzpixels = cv::countNonZero (this->frame_signal);
+        }
+        dname = frameName + "/signal/postproc/frame/mean_nonzero";
+        cv::Scalar pix_sum = cv::sum (this->frame_signal);
+        float mean_nonzero = pix_sum[0] / static_cast<float>(nzpixels);
+        df.add_val (dname.c_str(), mean_nonzero);
+
         if (this->cmodel == ColourModel::RawColour) {
             // Save raw colour
             dname = frameName + "/signal/bits8/boxes/bgr";
