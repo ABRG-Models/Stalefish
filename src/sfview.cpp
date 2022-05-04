@@ -135,6 +135,10 @@ struct CmdOptions
     int show_example;
     //! If true, use ambient/diffuse lighting
     int lighting;
+    //! Diffuse intensity, default to 127/255. Range 0-255.
+    int diffuse_intensity;
+    //! Ambient intensity, default to 127/255. Range 0-255.
+    int ambient_intensity;
     //! If true, use white background
     int whitebg;
     //! If true, hide colour map and plot in white.
@@ -180,6 +184,8 @@ void zeroCmdOptions (CmdOptions* copts)
     copts->show_mesh = 0;
     copts->show_example = 0;
     copts->lighting = 0;
+    copts->diffuse_intensity = -1; // -1 means un-set
+    copts->ambient_intensity = -1; // -1 means un-set
     copts->whitebg = 0;
     copts->hide_colour = 0; // Default to showing colour
     copts->show_landmarks = 1;
@@ -2066,6 +2072,14 @@ int main (int argc, char** argv)
          POPT_ARG_NONE, &(cmdOptions.lighting), 0,
          "If set, apply ambient/diffuse lighting in the shader."},
 
+        {"diffuse_intensity", 'D',
+         POPT_ARG_INT, &(cmdOptions.diffuse_intensity), 0,
+         "Lighting diffuse intensity, range 0 to 255."},
+
+        {"ambient_intensity", 'A',
+         POPT_ARG_INT, &(cmdOptions.ambient_intensity), 0,
+         "Lighting ambient intensity, range 0 to 255."},
+
         {"whitebg", 'w',
          POPT_ARG_NONE, &(cmdOptions.whitebg), 0,
          "If set, make the sfview background white, not black."},
@@ -2208,8 +2222,25 @@ int main (int argc, char** argv)
 
     // To hack around with lighting, change these
     v.diffuse_position = {-1, 2, -3};
-    v.ambient_intensity = 1.0f;
-    v.diffuse_intensity = (cmdOptions.lighting > 0 || cmdOptions.show_mesh > 0) ?  0.5f : 0.0f;
+
+    int ai = -1;
+    ai = cmdOptions.ambient_intensity < 0 ? -1 : cmdOptions.ambient_intensity;
+    ai = ai > 255 ? 255 : ai;
+    if (ai == -1) {
+        // No user setting. Set ambient intensity based on lighting/mesh.
+        v.ambient_intensity = (cmdOptions.lighting > 0 || cmdOptions.show_mesh > 0) ?  0.5f : 1.0f;
+    } else { // apply user setting
+        v.ambient_intensity = static_cast<float>(ai) / 255.0f;
+    }
+
+    int di = -1;
+    di = cmdOptions.diffuse_intensity < 0 ? -1 : cmdOptions.diffuse_intensity;
+    di = di > 255 ? 255 : di;
+    if (di == -1) {
+        v.diffuse_intensity = (cmdOptions.lighting > 0 || cmdOptions.show_mesh > 0) ?  0.5f : 0.0f;
+    } else {
+        v.diffuse_intensity = static_cast<float>(di) / 255.0f;
+    }
 
     unsigned int n_global_landmarks = 0;
     if (cmdOptions.datafiles.size() > 1) {
