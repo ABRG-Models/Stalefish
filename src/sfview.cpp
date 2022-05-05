@@ -1249,6 +1249,15 @@ void computeFlatTransforms (const CmdOptions& co,
     if (co.datafiles.size() < 2) {
         // nothing to do though ensure M[0] contains identity, if necessary
         if (co.datafiles.size()==1 && M.size()==1) { M[0].setToIdentity(); }
+        // ...also set A up with the global landmark positions.
+        if (co.datafiles.size()==1 && A.size()==1) {
+            std::cout << "readGlobalPositions...\n";
+            std::array<unsigned int, 3> frame_indices;
+            morph::Matrix33<float> _A3D = readGlobalPositions (co.datafiles[0], frame_indices);
+            // How to get frame_indices? With readGlobalPositions i guess.
+            morph::Matrix33<float> D = convertTwoDims (co.datafiles[0], co, _A3D, frame_indices);
+            A[0] = D;
+        }
         return;
     }
 
@@ -1970,6 +1979,7 @@ int addFlattened (SFVisual& v, const string& datafile, const CmdOptions& co,
             v.angle_centres.push_back (visId);
 
             // Plot A (the landmarks) if necessary.
+            std::cout << "AAAA What is A? " << A << std::endl;
             std::vector<morph::Vector<float,3>> sc_coords(3);
             std::vector<float> sc_data = { 0.2f, 0.4f, 0.6f };
             sc_coords[0] = A.col(0); sc_coords[0][2] = 1.0f;
@@ -2243,7 +2253,7 @@ int main (int argc, char** argv)
     }
 
     unsigned int n_global_landmarks = 0;
-    if (cmdOptions.datafiles.size() > 1) {
+    if (cmdOptions.datafiles.size() > 0) {
         // Count how many landmarks in the first datafile:
         n_global_landmarks = countGlobalLandmarks (cmdOptions.datafiles[0]);
         for (size_t di = 0; di < cmdOptions.datafiles.size(); ++di) {
@@ -2324,6 +2334,15 @@ int main (int argc, char** argv)
             } // else user didn't give the -T command line arg.
 
             // Display flattened (but UNtransformed) maps
+            std::cout << "Display flattened but UNtransformed maps...\n";
+            // If we have global landmarks, then set A2 up with their locations.
+            if (n_global_landmarks == 3) {
+                std::vector<morph::Matrix33<float>> Mdummy(cmdOptions.datafiles.size());
+                computeFlatTransforms (cmdOptions, A2, Mdummy);
+                // A2 should now contain the global landmark positions
+            } else {
+                std::cout << "n_global_landmarks = " << n_global_landmarks << std::endl;
+            }
             float xoffs = 0.0f;
             size_t dfi = 0;
             for (auto df : cmdOptions.datafiles) {
