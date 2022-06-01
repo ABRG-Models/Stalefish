@@ -26,7 +26,7 @@ gray70=(0.7019607843,0.7019607843,0.7019607843)
 deepskyblue2=(0,0.6980392157,0.9333333333)
 
 # Choose your filename:
-filename = 'Fig_depth.h5'
+filename = 'example_data/Fig_depth.h5'
 
 # Set which frame you'd like to get depth plots for (counting from 1):
 selected_frame = 1
@@ -41,6 +41,8 @@ mpl.rc('font', **fnt)
 # This incantation is important to ensure that, in an SVG output file, text is
 # written as 'objects that can be edited in inkscape'.
 plt.rcParams['svg.fonttype'] = 'none'
+# We're going to open quite a few figures...
+plt.rcParams['figure.max_open_warning'] = 120
 
 # Make sure ./svg dir exists
 if not os.path.isdir('./svg'):
@@ -81,10 +83,11 @@ try:
                 dl = np.sqrt (dy*dy + dz*dz)
                 ypos += dl
                 Y[ii] = ypos
-                print ('Box {0} is at linear distance position {1}'.format(ii, ypos))
+                #print ('Box {0} is at linear distance position {1}'.format(ii, ypos))
                 ii = ii+1
             sbc_last=sbc
 
+        print ('Generating SVG plots...')
         do_dplots=1
         for j in range(0,nboxes): # or 0,nboxes
 
@@ -139,6 +142,8 @@ try:
 
         fname = './svg/Frame{0:03}_surf.svg'.format(selected_frame)
         plt.savefig(fname, transparent=True)
+
+        print ('Done. See ./svg/Frame*.svg for the output of this script.')
 
 except Exception as e:
     print("Exception: {0}".format(str(e)))

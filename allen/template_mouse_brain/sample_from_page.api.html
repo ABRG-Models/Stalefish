@@ -1,0 +1,12 @@
+# Can paste this into browser url (it's an example from the Allen website):
+
+http://api.brain-map.org/api/v2/data/query.xml?criteria=model::AtlasImage,rma::criteria,[annotated$eqtrue],atlas_data_set(atlases[id$eq1]),alternate_images[image_type$eq'Atlas+-+Adult+Mouse'],rma::options[order$eq'sub_images.section_number'][num_rows$eqall]
+
+
+# This one is modified just to select from a different atlas
+# (602630314 instead of 1)
+
+http://api.brain-map.org/api/v2/data/query.xml?criteria=model::AtlasImage,rma::criteria,[annotated$eqtrue],atlas_data_set(atlases[id$eq602630314]),alternate_images[image_type$eq'Atlas+-+Adult+Mouse'],rma::options[order$eq'sub_images.section_number'][num_rows$eqall]
+
+# Switch query.xml for query.json to get the json format version:
+http://api.brain-map.org/api/v2/data/query.json?criteria=model::AtlasImage,rma::criteria,[annotated$eqtrue],atlas_data_set(atlases[id$eq602630314]),alternate_images[image_type$eq'Atlas+-+Adult+Mouse'],rma::options[order$eq'sub_images.section_number'][num_rows$eqall]

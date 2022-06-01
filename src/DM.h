@@ -21,8 +21,10 @@
 // OpenCV functions mostly expect colours in Blue-Green-Red order
 #define SF_BLUE     cv::Scalar(255,0,0,10)
 #define SF_BLUEISH  cv::Scalar(238,110,67)
-#define SF_GREEN    cv::Scalar(0,255,0,10)
+#define SF_GREEN    cv::Scalar(0,  255,0,10)
 #define SF_GREEN2   cv::Scalar(213,186,7,10)
+#define SF_GREEN3   cv::Scalar(65, 190,0,10)
+#define SF_GREEN4   cv::Scalar(140,170,7,10)
 #define SF_RED      cv::Scalar(0,0,255,10)
 #define SF_YELLOW   cv::Scalar(0,255,255,10)
 #define SF_ORANGE   cv::Scalar(25,136,249,10)
@@ -83,6 +85,9 @@ private:
     //! Allen Developing Mouse Brain Atlas colour mapping parameters
     AllenColourParams acparams;
 
+    //! Are brain slices prealigned/preregistered?
+    bool slices_prealigned = false;
+
     // Called by next/previousFrame. Take binA, binB from the frame and change the
     // sliders. Update the fit and refresh boxes. Update the view of boxes/fit line/control points
     void refreshFrame()
@@ -98,6 +103,18 @@ private:
         this->gcf()->setShowUsers (this->flags.test(AppShowUsers));
         this->gcf()->setShowFits (this->flags.test(AppShowFits));
         this->gcf()->setShowBoxes (this->flags.test(AppShowBoxes));
+        this->checkTextColour();
+    }
+
+    void checkTextColour()
+    {
+        // Get mean luminance of frame and set text colour accordingly.
+        cv::Scalar mean_ = cv::mean(this->gcf()->frame);
+        if (0.3333f*(mean_[0]+mean_[1]+mean_[2]) < 100.0f) { // Assume frame is in 0-255 range per channel
+            this->textColour = SF_WHITE;
+        } else {
+            this->textColour = SF_BLACK;
+        }
     }
 
 public:
@@ -112,6 +129,9 @@ public:
     bool importPending = false;
     //! Set true if user said they want to exit
     bool exitPending = false;
+
+    //! Default text colour is black, but change to white as necessary
+    cv::Scalar textColour = SF_BLACK;
 
     //! The instance public function. Uses the very short name 'i' to keep code tidy.
     static DM* i()
@@ -157,6 +177,8 @@ public:
         fd.rotateLandmarkOne = this->rotateLandmarkOne;
         fd.rotateButAlignLandmarkTwoPlus = this->rotateButAlignLandmarkTwoPlus;
 
+        fd.slices_prealigned = this->slices_prealigned;
+
         // Read, opportunistically
         try {
             morph::HdfData d(this->datafile, morph::FileAccess::ReadOnly);
@@ -176,6 +198,23 @@ public:
         fd.computeFreehandMeans();
 
         this->vFrameData.push_back (fd);
+
+        this->checkTextColour();
+    }
+
+    ColourModel getColourModel()
+    {
+        ColourModel cm = ColourModel::Greyscale;
+        if (this->colourmodel == "allen") {
+            cm = ColourModel::AllenDevMouse;
+        } else if (this->colourmodel == "raw_colour") {
+            cm = ColourModel::RawColour;
+        } else if (this->colourmodel == "allen_atlas") {
+            cm = ColourModel::RawColour;
+        } else if (this->colourmodel == "sfview") {
+            cm = ColourModel::Sfview;
+        }
+        return cm;
     }
 
     /*!
@@ -188,8 +227,7 @@ public:
         std::cout << __FUNCTION__ << "(1) called\n";
         // Create an empty FrameData, with no image data as yet.
         FrameData fd(this->bgBlurScreenProportion, this->bgBlurSubtractionOffset,
-                     (this->colourmodel == "allen" ? ColourModel::AllenDevMouse : ColourModel::Greyscale),
-                     this->acparams);
+                     this->getColourModel(), this->acparams);
         this->addFrame (fd, frameImgFilename, slice_x);
     }
 
@@ -201,14 +239,8 @@ public:
     void addFrame (cv::Mat& frameImg, const std::string& frameImgFilename, const float& slice_x)
     {
         std::cout << __FUNCTION__ << "(2) called\n";
-        ColourModel cm = ColourModel::Greyscale;
-        if (this->colourmodel == "allen") {
-            cm = ColourModel::AllenDevMouse;
-        } else if (this->colourmodel == "sfview") {
-            cm = ColourModel::Sfview;
-        }
         FrameData fd(frameImg, this->bgBlurScreenProportion, this->bgBlurSubtractionOffset,
-                     cm, this->acparams);
+                     this->getColourModel(), this->acparams);
         this->addFrame (fd, frameImgFilename, slice_x);
     }
 
@@ -278,6 +310,8 @@ public:
         } else if (this->input_mode == InputMode::Axismark) {
             this->input_mode = InputMode::Minmax;
         } else if (this->input_mode == InputMode::Minmax) {
+            this->input_mode = InputMode::Bezier2;
+        } else if (this->input_mode == InputMode::Bezier2 || this->input_mode == InputMode::ReverseBezier2) {
             this->input_mode = InputMode::Bezier;
         } else {
             // Shouldn't get here...
@@ -731,13 +765,32 @@ public:
     void exportInputModePoints()
     {
         FrameData* cf = DM::i()->gcf();
-        if (cf->ct == InputMode::Bezier || cf->ct == InputMode::ReverseBezier) {
+        if (cf->ct == InputMode::Bezier || cf->ct == InputMode::ReverseBezier
+            || cf->ct == InputMode::Bezier2 || cf->ct == InputMode::ReverseBezier2) {
             this->exportCurves();
         } else if (cf->ct == InputMode::Freehand) {
             this->exportFreehand();
         } else if (cf->ct == InputMode::Landmark || cf->ct == InputMode::GlobalLandmark
                    || cf->ct == InputMode::Circlemark || cf->ct == InputMode::Axismark) {
             this->exportLandmarks();
+        } else {
+            std::cerr << "Unknown mode for export\n";
+        }
+    }
+
+    //! Export data only from the current frame, in a form in which they could be
+    //! imported into any other frame (even in a different project).
+    void exportInputModePointsCurrentFrame()
+    {
+        FrameData* cf = DM::i()->gcf();
+        if (cf->ct == InputMode::Bezier || cf->ct == InputMode::ReverseBezier
+            || cf->ct == InputMode::Bezier2 || cf->ct == InputMode::ReverseBezier2) {
+            this->exportCurvesCurrentFrame();
+        } else if (cf->ct == InputMode::Freehand) {
+            this->exportFreehandCurrentFrame();
+        } else if (cf->ct == InputMode::Landmark || cf->ct == InputMode::GlobalLandmark
+                   || cf->ct == InputMode::Circlemark || cf->ct == InputMode::Axismark) {
+            std::cerr << "Warning: Haven't implemented single-frame export of landmarks. Nothing happened.\n";
         } else {
             std::cerr << "Unknown mode for export\n";
         }
@@ -786,6 +839,18 @@ public:
         std::cout << "Exported freehand loops to " << fh_exportfile << std::endl;
     }
 
+    void exportFreehandCurrentFrame()
+    {
+        if (this->appmode == AppMode::NoFile || this->appmode == AppMode::ExampleFile) { return; }
+        this->refreshAllBoxes();
+        for (auto& f : this->vFrameData) { f.updateAlignments(); }
+        morph::HdfData d(fh_exportfile);
+        this->gcf()->exportFreehand (d);
+        d.add_val("/singleframe", 1);
+        d.add_val("/singleframe_idx", this->gcf()->idx);
+        std::cout << "Exported freehand loops for single frame to " << fh_exportfile << std::endl;
+    }
+
     void exportCurves()
     {
         if (this->appmode == AppMode::NoFile || this->appmode == AppMode::ExampleFile) { return; }
@@ -796,6 +861,18 @@ public:
         for (auto f : this->vFrameData) { f.exportCurves (d); }
         d.add_val("/nframes", nf);
         std::cout << "Exported curves to " << cp_exportfile << std::endl;
+    }
+
+    void exportCurvesCurrentFrame()
+    {
+        if (this->appmode == AppMode::NoFile || this->appmode == AppMode::ExampleFile) { return; }
+        this->refreshAllBoxes();
+        for (auto& f : this->vFrameData) { f.updateAlignments(); }
+        morph::HdfData d(cp_exportfile);
+        this->gcf()->exportCurves (d);
+        d.add_val("/singleframe", 1);
+        d.add_val("/singleframe_idx", this->gcf()->idx);
+        std::cout << "Exported curves for current frame to " << cp_exportfile << std::endl;
     }
 
     //! Export all user-supplied point information to files
@@ -839,13 +916,35 @@ public:
         }
     }
 
+    std::string makeFrameName (int _idx) const
+    {
+        std::stringstream ss;
+        ss << "/Frame";
+        ss.width(3);
+        ss.fill('0');
+        ss << (1+_idx); // Count from 1 in the data file
+        return ss.str();
+    }
+
     //! Import "curve points" from a file
     void importCurves()
     {
         if (this->appmode == AppMode::NoFile) { return; }
         try {
             morph::HdfData d(cp_exportfile, morph::FileAccess::ReadOnly);
-            for (auto& f : this->vFrameData) { f.importCurves (d); }
+            // See if it's a single frame
+            int singleframe = 0;
+            d.read_val ("/singleframe", singleframe);
+            if (singleframe) {
+                int singleframe_idx = 0;
+                d.read_val ("/singleframe_idx", singleframe_idx);
+                // Now import curves on the current frame for the frame in the h5 file...
+                std::string frameName = this->makeFrameName (singleframe_idx);
+                std::cout << "Importing curves from frame " << frameName << " into current frame...\n";
+                this->gcf()->importCurves (d, frameName);
+            } else {
+                for (auto& f : this->vFrameData) { f.importCurves (d); }
+            }
         } catch (...) {
             std::cout << "Failed to read " << cp_exportfile << std::endl;
         }
@@ -857,7 +956,19 @@ public:
         if (this->appmode == AppMode::NoFile) { return; }
         try {
             morph::HdfData d(fh_exportfile, morph::FileAccess::ReadOnly);
-            for (auto& f : this->vFrameData) { f.importFreehand (d); }
+            // See if it's a single frame...
+            int singleframe = 0;
+            d.read_val ("/singleframe", singleframe);
+            if (singleframe) {
+                int singleframe_idx = 0;
+                d.read_val ("/singleframe_idx", singleframe_idx);
+                // Now import loops on the current frame for the frame in the h5 file...
+                std::string frameName = this->makeFrameName (singleframe_idx);
+                std::cout << "Importing freehand loops from frame " << frameName << " into current frame...\n";
+                this->gcf()->importFreehand (d, frameName);
+            } else {
+                for (auto& f : this->vFrameData) { f.importFreehand (d); }
+            }
         } catch (...) {
             std::cout << "Failed to read " << fh_exportfile << std::endl;
         }
@@ -1030,44 +1141,44 @@ public:
 
         cv::Mat* pImg = this->getImg();
         putText (*pImg, std::string("Welcome to Stalefish!"),
-                 cv::Point(xh,yh), cv::FONT_HERSHEY_SIMPLEX, titlefz, SF_BLACK, 2, cv::LINE_AA);
+                 cv::Point(xh,yh), cv::FONT_HERSHEY_SIMPLEX, titlefz, this->textColour, 2, cv::LINE_AA);
         yh += 60;
         putText (*pImg, std::string("This application has a *very* simple user interface and has to be run"),
-                 cv::Point(xh,yh), cv::FONT_HERSHEY_SIMPLEX, fontsz, SF_BLACK, 1, cv::LINE_AA);
+                 cv::Point(xh,yh), cv::FONT_HERSHEY_SIMPLEX, fontsz, this->textColour, 1, cv::LINE_AA);
         yh += 40;
         putText (*pImg, std::string("from the command line. You must specify the JSON or HDF5 project file"),
-                 cv::Point(xh,yh), cv::FONT_HERSHEY_SIMPLEX, fontsz, SF_BLACK, 1, cv::LINE_AA);
+                 cv::Point(xh,yh), cv::FONT_HERSHEY_SIMPLEX, fontsz, this->textColour, 1, cv::LINE_AA);
         yh += 40;
         putText (*pImg, std::string("that the program will read. Typically, you'll open a terminal and run:"),
-                 cv::Point(xh,yh), cv::FONT_HERSHEY_SIMPLEX, fontsz, SF_BLACK, 1, cv::LINE_AA);
+                 cv::Point(xh,yh), cv::FONT_HERSHEY_SIMPLEX, fontsz, this->textColour, 1, cv::LINE_AA);
         yh += 50;
         putText (*pImg, std::string("  ") + this->argv0 + std::string(" myfile.json"),
-                 cv::Point(xh,yh), cv::FONT_HERSHEY_SIMPLEX, fontsz, SF_BLACK, 1, cv::LINE_AA);
+                 cv::Point(xh,yh), cv::FONT_HERSHEY_SIMPLEX, fontsz, this->textColour, 1, cv::LINE_AA);
         yh += 50;
         putText (*pImg, std::string("where myfile.json has been set up as described in the documentation."),
-                 cv::Point(xh,yh), cv::FONT_HERSHEY_SIMPLEX, fontsz, SF_BLACK, 1, cv::LINE_AA);
+                 cv::Point(xh,yh), cv::FONT_HERSHEY_SIMPLEX, fontsz, this->textColour, 1, cv::LINE_AA);
         yh += 50;
         putText (*pImg, std::string("Find the documentation at:"),
-                 cv::Point(xh,yh), cv::FONT_HERSHEY_SIMPLEX, fontsz, SF_BLACK, 1, cv::LINE_AA);
+                 cv::Point(xh,yh), cv::FONT_HERSHEY_SIMPLEX, fontsz, this->textColour, 1, cv::LINE_AA);
         yh += 50;
         putText (*pImg, std::string("  https://github.com/ABRG-Models/Stalefish"),
-                 cv::Point(xh,yh), cv::FONT_HERSHEY_SIMPLEX, fontsz, SF_BLACK, 1, cv::LINE_AA);
+                 cv::Point(xh,yh), cv::FONT_HERSHEY_SIMPLEX, fontsz, this->textColour, 1, cv::LINE_AA);
 
         if (!this->exampleProjectPath().empty()) {
             yh += 60;
             putText (*pImg, std::string("Example project"),
-                     cv::Point(xh,yh), cv::FONT_HERSHEY_SIMPLEX, titlefz, SF_BLACK, 2, cv::LINE_AA);
+                     cv::Point(xh,yh), cv::FONT_HERSHEY_SIMPLEX, titlefz, this->textColour, 2, cv::LINE_AA);
             yh += 60;
             putText (*pImg, std::string("You can try a read-only example project by pressing 'e', now!"),
-                     cv::Point(xh,yh), cv::FONT_HERSHEY_SIMPLEX, fontsz, SF_BLACK, 1, cv::LINE_AA);
+                     cv::Point(xh,yh), cv::FONT_HERSHEY_SIMPLEX, fontsz, this->textColour, 1, cv::LINE_AA);
         }
 
         yh += 60;
         putText (*pImg, std::string("Exit and try again"),
-                 cv::Point(xh,yh), cv::FONT_HERSHEY_SIMPLEX, titlefz, SF_BLACK, 2, cv::LINE_AA);
+                 cv::Point(xh,yh), cv::FONT_HERSHEY_SIMPLEX, titlefz, this->textColour, 2, cv::LINE_AA);
         yh += 60;
         putText (*pImg, std::string("Please press 'x' to exit so you can re-start with a json or h5 path."),
-                 cv::Point(xh,yh), cv::FONT_HERSHEY_SIMPLEX, fontsz, SF_BLACK, 1, cv::LINE_AA);
+                 cv::Point(xh,yh), cv::FONT_HERSHEY_SIMPLEX, fontsz, this->textColour, 1, cv::LINE_AA);
     }
 
     //! Entry point to application setup. Select method to call based on this->noFiles
@@ -1170,6 +1281,9 @@ public:
         for (unsigned int ii = 0; ii < ct.size(); ++ii) {
             this->acparams.colour_trans[ii] = ct[ii].asFloat();
         }
+        // Set true if there is NO NEED to rotate/translate slices to bring them into
+        // register. Coded in to handle Allen template mouse brain images.
+        this->slices_prealigned = conf.getBool ("slices_prealigned", false);
         // ellip_axes array<float, 2>
         const Json::Value ea = conf.getArray ("ellip_axes");
         this->acparams.ellip_axes[0] = ea[0].asFloat();
@@ -1215,11 +1329,28 @@ public:
                 d.read_contained_vals ("/output_map/twod/widthheight_resampled", wh);
                 std::vector<float> fmeans_resampled; // retain name used in sfview
                 d.read_contained_vals ("/output_map/twod/expression_resampled", fmeans_resampled);
-                // Now set frame up with width and height and write fmeans_resampled into it.
-                cv::Mat fr1 (wh.second, wh.first, CV_32F, fmeans_resampled.data());
-                // That produced a single channel frame, so triple up the channels:
-                cv::Mat in[] = {fr1, fr1, fr1};
-                cv::merge (in, 3, frame);
+                std::cout << "fmeans_resampled size: " << fmeans_resampled.size() << "\n";
+                if (fmeans_resampled.empty()) {
+                    // This .h5 file might contain colour data rather than monochrome.
+                    std::vector<std::array<float, 3>> boxColours_resampled;
+                    d.read_contained_vals ("/output_map/twod/boxcolours_resampled", boxColours_resampled);
+                    // Need to swap R and B before creating cv::Mat for display
+                    for (auto& bc : boxColours_resampled) {
+                        float red = bc[0];
+                        bc[0] = bc[2];
+                        bc[2] = red;
+                    }
+                    cv::Mat fr1 (wh.second, wh.first, CV_32FC3, boxColours_resampled.data());
+                    // copy fr1 to the cv::Mat frame.
+                    frame = fr1.clone();
+                } else {
+                    // Now set frame up with width and height and write fmeans_resampled into it.
+                    cv::Mat fr1 (wh.second, wh.first, CV_32F, fmeans_resampled.data());
+                    // That produced a single channel frame, so triple up the channels:
+                    cv::Mat in[] = {fr1, fr1, fr1};
+                    cv::merge (in, 3, frame);
+                }
+
                 std::vector<morph::Vector<float, 2>> fmids_resampled;
                 d.read_contained_vals ("/output_map/twod/coordinates_resampled", fmids_resampled);
                 // pixels_per_mm for the frame is set from this->pixels_per_mm. If there
@@ -1292,7 +1423,7 @@ public:
         this->gcf()->refreshBoxes (-(this->binA-BIN_A_OFFSET), this->binB);
     }
 
-    //! In Bezier or Polynomial modes, draw curves and users points
+    //! In Bezier(2) or Polynomial modes, draw curves and users points
     void draw_curves (const cv::Point& pt)
     {
         DM* _this = DM::i();
@@ -1307,6 +1438,10 @@ public:
                 circle (*pImg, pt, 5, SF_GREEN, 1);
             } else if (cf->ct == InputMode::ReverseBezier) {
                 circle (*pImg, pt, 5, SF_GREEN2, 1);
+            } else if (cf->ct == InputMode::Bezier2) {
+                circle (*pImg, pt, 5, SF_GREEN3, 1);
+            } else if (cf->ct == InputMode::ReverseBezier2) {
+                circle (*pImg, pt, 5, SF_GREEN4, 1);
             }
         }
 
@@ -1317,6 +1452,14 @@ public:
                 for (size_t ii=0; ii<cf->PP[j].size(); ii++) {
                     circle (*pImg, cf->PP[j][ii], 5, linecol, -1);
                     if (ii) { line (*pImg, cf->PP[j][ii-1], cf->PP[j][ii], linecol, 2, cv::LINE_AA); }
+                }
+            }
+            // Second curve, if necessary
+            for (size_t j=0; j<cf->PP2.size(); j++) {
+                cv::Scalar linecol = j%2 ? SF_RED : SF_BLUE;
+                for (size_t ii=0; ii<cf->PP2[j].size(); ii++) {
+                    circle (*pImg, cf->PP2[j][ii], 5, linecol, -1);
+                    if (ii) { line (*pImg, cf->PP2[j][ii-1], cf->PP2[j][ii], linecol, 2, cv::LINE_AA); }
                 }
             }
         }
@@ -1338,6 +1481,25 @@ public:
                 cv::Point ps2(ctrls[ctrls.size()-2].first, ctrls[ctrls.size()-2].second);
                 cv::Point pe2(ctrls[ctrls.size()-1].first, ctrls[ctrls.size()-1].second);
                 line (*pImg, ps2, pe2, SF_GREEN, 1, cv::LINE_AA);
+
+                j++;
+            }
+
+            theCurves = cf->bcp2.curves;
+            j = 0;
+            for (auto curv : theCurves) {
+                cv::Scalar linecol = j%2 ? SF_RED : SF_BLUE;
+                std::vector<std::pair<double,double>> ctrls = curv.getControls();
+                for (size_t cc = 0; cc<ctrls.size(); ++cc) {
+                    cv::Point p1(ctrls[cc].first, ctrls[cc].second);
+                    cv::circle (*pImg, p1, 5, linecol, -1);
+                }
+                cv::Point ps(ctrls[0].first, ctrls[0].second);
+                cv::Point pe(ctrls[1].first, ctrls[1].second);
+                line (*pImg, ps, pe, SF_GREEN3, 1, cv::LINE_AA);
+                cv::Point ps2(ctrls[ctrls.size()-2].first, ctrls[ctrls.size()-2].second);
+                cv::Point pe2(ctrls[ctrls.size()-1].first, ctrls[ctrls.size()-1].second);
+                line (*pImg, ps2, pe2, SF_GREEN3, 1, cv::LINE_AA);
 
                 j++;
             }
@@ -1372,13 +1534,43 @@ public:
                     line (*pImg, cf->sP[0], pt, SF_GREEN2, 1, cv::LINE_AA);
                 }
             }
+        } else if ((cf->ct == InputMode::Bezier2 || cf->ct == InputMode::ReverseBezier2)
+                   && cf->flags.test(ShowUsers) == true) {
+            // draw the "candidate" point set (for adding to the end of the curve):
+            if (cf->PP2.empty() || (!cf->PP2.empty() && cf->P2.size() > 1)) {
+                for (size_t ii=0; ii<cf->P2.size(); ii++) {
+                    circle (*pImg, cf->P2[ii], 5, SF_GREEN3, -1);
+                    if (ii) { line (*pImg, cf->P2[ii-1], cf->P2[ii], SF_GREEN3, 1, cv::LINE_AA); }
+                }
+            }
+            // draw the "candidate" point set (for adding to the *start* of the curve):
+            if (cf->PP2.empty() || (!cf->PP2.empty() && cf->sP2.size() > 1)) {
+                for (size_t ii=0; ii<cf->sP2.size(); ii++) {
+                    circle (*pImg, cf->sP2[ii], 5, SF_GREEN4, -1);
+                    if (ii) { line (*pImg, cf->sP2[ii-1], cf->sP2[ii], SF_GREEN4, 1, cv::LINE_AA); }
+                }
+            }
+            // also draw a thin line to the cursor position
+            if (cf->ct == InputMode::Bezier2) {
+                if ((cf->PP2.empty() && cf->P2.size() > 0)
+                    || (!cf->PP2.empty() && cf->P2.size() > 1)) {
+                    line (*pImg, cf->P2[cf->P2.size()-1], pt, SF_GREEN3, 1, cv::LINE_AA);
+                }
+            } else if (cf->ct == InputMode::ReverseBezier2) {
+                if ((cf->PP2.empty() && cf->sP2.size() > 0)
+                    || (!cf->PP2.empty() && cf->sP2.size() > 1)) {
+                    line (*pImg, cf->sP2[0], pt, SF_GREEN4, 1, cv::LINE_AA);
+                }
+            }
         }
 
         // This is the fit line
         if (cf->flags.test(ShowFits) == true) {
             for (size_t ii=1; ii<cf->fitted.size(); ii++) {
                 line (*pImg, cf->fitted[ii-1], cf->fitted[ii], SF_GREEN, 2, cv::LINE_AA);
-                // line (*sImg, cf->fitted[ii-1], cf->fitted[ii], SF_BLACK, 2, cv::LINE_AA);
+            }
+            for (size_t ii=1; ii<cf->fitted2.size(); ii++) {
+                line (*pImg, cf->fitted2[ii-1], cf->fitted2[ii], SF_GREEN3, 2, cv::LINE_AA);
             }
         }
 
@@ -1426,7 +1618,7 @@ public:
             if (regnum > -1) { flm << regnum << ": "; }
             flm << themean;
             cv::Point tpt(xmean, ymean); // Could use extents_FL here.
-            putText (*_pImg, flm.str(), tpt, cv::FONT_HERSHEY_SIMPLEX, 0.5, SF_BLACK, 1, cv::LINE_AA);
+            putText (*_pImg, flm.str(), tpt, cv::FONT_HERSHEY_SIMPLEX, 0.5, this->textColour, 1, cv::LINE_AA);
         }
     }
 
@@ -1512,7 +1704,7 @@ public:
                 std::stringstream ss;
                 ss << 'a' << (1+ii);
                 cv::Point tpt(cf->AM[ii]);
-                putText (*pImg, ss.str(), tpt+toffset, cv::FONT_HERSHEY_SIMPLEX, 0.8, SF_BLACK, 1, cv::LINE_AA);
+                putText (*pImg, ss.str(), tpt+toffset, cv::FONT_HERSHEY_SIMPLEX, 0.8, this->textColour, 1, cv::LINE_AA);
             }
         }
     }
@@ -1547,7 +1739,7 @@ public:
                 std::stringstream ss;
                 ss << "gl" << (start_gl+ii);
                 cv::Point tpt(cf->GLM[ii]);
-                putText (*pImg, ss.str(), tpt+toffset, cv::FONT_HERSHEY_SIMPLEX, 0.8, SF_BLACK, 1, cv::LINE_AA);
+                putText (*pImg, ss.str(), tpt+toffset, cv::FONT_HERSHEY_SIMPLEX, 0.8, this->textColour, 1, cv::LINE_AA);
             }
         }
     }
@@ -1561,19 +1753,19 @@ public:
 
         // circle under the cursor
         if (cf->ct == InputMode::Landmark && _this->flags.test(AppShowText)) {
-            circle (*pImg, pt, 7, SF_BLACK, 1);
+            circle (*pImg, pt, 7, this->textColour, 1);
         }
 
         // Draw circles for the landmarks, with a number next to each one.
         cv::Point toffset(8,5); // a text offset
         int lm_ok = cf->landmarkCheck(); // True if all landmarks are present and correct
         for (size_t ii=0; ii<cf->LM.size(); ii++) {
-            circle (*pImg, cf->LM[ii], 5, (static_cast<int>(ii)<lm_ok ? SF_BLACK : SF_RED), -1);
+            circle (*pImg, cf->LM[ii], 5, (static_cast<int>(ii)<lm_ok ? this->textColour : SF_RED), -1);
             if (_this->flags.test(AppShowText)) {
                 std::stringstream ss;
                 ss << (1+ii);
                 cv::Point tpt(cf->LM[ii]);
-                putText (*pImg, ss.str(), tpt+toffset, cv::FONT_HERSHEY_SIMPLEX, 0.8, SF_BLACK, 1, cv::LINE_AA);
+                putText (*pImg, ss.str(), tpt+toffset, cv::FONT_HERSHEY_SIMPLEX, 0.8, this->textColour, 1, cv::LINE_AA);
             }
         }
     }
@@ -1609,8 +1801,8 @@ public:
         if (cf->ct == InputMode::Circlemark && _this->flags.test(AppShowText)) {
             circle (*pImg, pt, 7, SF_PURPLE, 1);
             // Cross hares too
-            line (*pImg, pt-cv::Point(0,6), pt+cv::Point(0,6), SF_BLACK, 1);
-            line (*pImg, pt-cv::Point(6,0), pt+cv::Point(6,0), SF_BLACK, 1);
+            line (*pImg, pt-cv::Point(0,6), pt+cv::Point(0,6), this->textColour, 1);
+            line (*pImg, pt-cv::Point(6,0), pt+cv::Point(6,0), this->textColour, 1);
         }
 
         // Draw any entries in CM
@@ -1666,8 +1858,8 @@ public:
         std::string("s:   Toggle add points to curve at start/end"),
         std::string("k:   Export points to files in /tmp"),
         std::string("p:   Export landmark OR curves OR freehand to file in /tmp (depends on Draw mode)"),
-        std::string("l:   Import landmarks from ") + this->lm_exportfile,
-        std::string("i:   Import curve points from ") + this->cp_exportfile,
+        std::string("[:   Export landmark OR curves OR freehand from SINGLE frame to file in /tmp"),
+        std::string("l:   Import landmarks from ") + this->lm_exportfile + std::string("  i: Import curve points from ") + this->cp_exportfile,
         std::string("j:   Import freehand loops from ") + this->fh_exportfile,
         std::string("n:   Next frame   b:   Back a frame   8:  Move back   9:  Move to next"),
         std::string("N:   Copy objects from next frame    P: Copy from previous"),
@@ -1711,6 +1903,17 @@ public:
                 // have to add *2* points.
                 if (!cf->PP.empty() && cf->sP.empty()) { cf->sP.push_front (cf->PP.front().front()); }
                 cf->sP.push_front (pt);
+                _this->setShowUsers(true);
+                cf->setShowUsers(true);
+            } else if (cf->ct == InputMode::Bezier2) {
+                cf->P2.push_back (pt);
+                _this->setShowUsers(true);
+                cf->setShowUsers(true);
+            } else if (cf->ct == InputMode::ReverseBezier2) {
+                // If we have some already-registered curves in PP2, and sP2 is empty, we
+                // have to add *2* points.
+                if (!cf->PP2.empty() && cf->sP2.empty()) { cf->sP2.push_front (cf->PP2.front().front()); }
+                cf->sP2.push_front (pt);
                 _this->setShowUsers(true);
                 cf->setShowUsers(true);
             } else if (cf->ct == InputMode::Freehand) {
@@ -1764,7 +1967,7 @@ public:
         float fwidth = (float)cf->frame.cols;
         float fontsz = fwidth / 1727.0f;
         if (_this->flags.test(AppShowText)) {
-            putText (*pImg, ss.str(), cv::Point(xh,30*_this->scaleFactor), cv::FONT_HERSHEY_SIMPLEX, fontsz, SF_BLACK, 1, cv::LINE_AA);
+            putText (*pImg, ss.str(), cv::Point(xh,30*_this->scaleFactor), cv::FONT_HERSHEY_SIMPLEX, fontsz, _this->textColour, 1, cv::LINE_AA);
         }
 
         if (_this->flags.test(AppShowText)) {
@@ -1779,7 +1982,7 @@ public:
             std::stringstream ss3;
             ss3 << "Clear curves on ALL frames? (press 'C' to confirm, 'Esc' to cancel)";
             if (_this->flags.test(AppShowText)) {
-                putText (*pImg, ss3.str(), cv::Point(xh,80*_this->scaleFactor), cv::FONT_HERSHEY_SIMPLEX, 1.2*fontsz, SF_BLACK, 1, cv::LINE_AA);
+                putText (*pImg, ss3.str(), cv::Point(xh,80*_this->scaleFactor), cv::FONT_HERSHEY_SIMPLEX, 1.2*fontsz, _this->textColour, 1, cv::LINE_AA);
                 putText (*sImg, ss3.str(), cv::Point(xh,80*_this->scaleFactor), cv::FONT_HERSHEY_SIMPLEX, 1.2*fontsz, SF_WHITE, 1, cv::LINE_AA);
             } else {
                 std::cout << ss3.str() << std::endl;
@@ -1789,7 +1992,7 @@ public:
             std::stringstream ss3;
             ss3 << "Export data? (press key again to confirm, 'Esc' to cancel)";
             if (_this->flags.test(AppShowText)) {
-                putText (*pImg, ss3.str(), cv::Point(xh,80*_this->scaleFactor), cv::FONT_HERSHEY_SIMPLEX, 1.2*fontsz, SF_BLACK, 1, cv::LINE_AA);
+                putText (*pImg, ss3.str(), cv::Point(xh,80*_this->scaleFactor), cv::FONT_HERSHEY_SIMPLEX, 1.2*fontsz, _this->textColour, 1, cv::LINE_AA);
                 putText (*sImg, ss3.str(), cv::Point(xh,80*_this->scaleFactor), cv::FONT_HERSHEY_SIMPLEX, 1.2*fontsz, SF_WHITE, 1, cv::LINE_AA);
             } else {
                 std::cout << ss3.str() << std::endl;
@@ -1799,7 +2002,7 @@ public:
             std::stringstream ss3;
             ss3 << "IMPORT data? (press key again to confirm, 'Esc' to cancel)";
             if (_this->flags.test(AppShowText)) {
-                putText (*pImg, ss3.str(), cv::Point(xh,80*_this->scaleFactor), cv::FONT_HERSHEY_SIMPLEX, 1.2*fontsz, SF_BLACK, 1, cv::LINE_AA);
+                putText (*pImg, ss3.str(), cv::Point(xh,80*_this->scaleFactor), cv::FONT_HERSHEY_SIMPLEX, 1.2*fontsz, _this->textColour, 1, cv::LINE_AA);
                 putText (*sImg, ss3.str(), cv::Point(xh,80*_this->scaleFactor), cv::FONT_HERSHEY_SIMPLEX, 1.2*fontsz, SF_WHITE, 1, cv::LINE_AA);
             } else {
                 std::cout << ss3.str() << std::endl;
@@ -1809,7 +2012,7 @@ public:
             std::stringstream ss3;
             ss3 << "EXIT? (press key again to confirm, 'Esc' to cancel)";
             if (_this->flags.test(AppShowText)) {
-                putText (*pImg, ss3.str(), cv::Point(xh,80*_this->scaleFactor), cv::FONT_HERSHEY_SIMPLEX, 1.2*fontsz, SF_BLACK, 1, cv::LINE_AA);
+                putText (*pImg, ss3.str(), cv::Point(xh,80*_this->scaleFactor), cv::FONT_HERSHEY_SIMPLEX, 1.2*fontsz, _this->textColour, 1, cv::LINE_AA);
                 putText (*sImg, ss3.str(), cv::Point(xh,80*_this->scaleFactor), cv::FONT_HERSHEY_SIMPLEX, 1.2*fontsz, SF_WHITE, 1, cv::LINE_AA);
             } else {
                 std::cout << ss3.str() << std::endl;
@@ -1818,13 +2021,13 @@ public:
         // h for help
         if (_this->flags.test(AppShowText)) {
             std::string hs("Press 'h' for help");
-            putText (*pImg, hs, cv::Point(cf->frame.cols-300,cf->frame.rows-20), cv::FONT_HERSHEY_SIMPLEX, fontsz, SF_BLACK, 1, cv::LINE_AA);
+            putText (*pImg, hs, cv::Point(cf->frame.cols-300,cf->frame.rows-20), cv::FONT_HERSHEY_SIMPLEX, fontsz, _this->textColour, 1, cv::LINE_AA);
 
             // Draw text with cursor coordinates on bottom left of screen in a small font
             std::stringstream css;
             css << "px(y=" << x << ", z=" << y << ") "
                 << "mm[x=" << cf->layer_x << ", y=" << (x/cf->pixels_per_mm) << ", z=" << (y/cf->pixels_per_mm) << "]";
-            putText (*pImg, css.str(), cv::Point(xh,cf->frame.rows-20), cv::FONT_HERSHEY_SIMPLEX, fontsz/2.0f, SF_BLACK, 1, cv::LINE_AA);
+            putText (*pImg, css.str(), cv::Point(xh,cf->frame.rows-20), cv::FONT_HERSHEY_SIMPLEX, fontsz/2.0f, _this->textColour, 1, cv::LINE_AA);
         }
 
         int yh = 90 * _this->scaleFactor;
@@ -1832,7 +2035,7 @@ public:
 
         if (_this->flags.test(AppShowHelp) && _this->flags.test(AppShowText)) {
             for (auto ht : _this->helptxt) {
-                putText (*pImg, ht, cv::Point(xh,yh), cv::FONT_HERSHEY_SIMPLEX, fontsz, SF_BLACK, 1, cv::LINE_AA);
+                putText (*pImg, ht, cv::Point(xh,yh), cv::FONT_HERSHEY_SIMPLEX, fontsz, _this->textColour, 1, cv::LINE_AA);
                 yh += yinc;
             }
         }

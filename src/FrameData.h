@@ -36,16 +36,21 @@ enum class InputMode
                 // their centre. Developed to handle needle alignment holes.
     Axismark,   // Allows user to define two locations that mark a linear axis through
                 // the brain. To help construct nice 2D maps from 3D reconstructions.
-    Minmax      // Manually place two points. First gives minimum signal for the frame,
+    Minmax,     // Manually place two points. First gives minimum signal for the frame,
                 // second gives max.
+    Bezier2,    // Draw a second, bounding curve up to which the sample boxes should be drawn
+    ReverseBezier2
 };
 
 //! What sort of colour model is in use?
 enum class ColourModel
 {
     Greyscale,     // Regular greyscale image
-    AllenDevMouse, // Coloured images as found on the Allen Developing Mouse Brain Atlas
-    Sfview         // Signal data loaded from a sfview-generated 'unwrapped 2D map'
+    AllenDevMouse, // Coloured expression images as found on the Allen Developing Mouse
+                   // Brain Atlas. The colour is interpreted as a scalar signal.
+    Sfview,        // Signal data loaded from a sfview-generated 'unwrapped 2D map'
+    RawColour      // Frames in which the colour indicates a brain region. Here the
+                   // colours are saved, rather than a scalar signal based on the colour.
 };
 
 enum FrameFlag
@@ -81,7 +86,7 @@ private:
     std::vector<FrameData>* parentStack;
 
     //! Number of bins to create for the fit (one less than nFit)
-    int nBins;
+    int nBins = 0;
     //! Number of points to create in the fit
     int nFit;
 
@@ -101,6 +106,17 @@ public:
     std::deque<std::deque<cv::Point>> PP;
     //! Index into PP
     int pp_idx = 0;
+
+    //! A secondary Bezier curve path
+    morph::BezCurvePath<double> bcp2;
+    //! The user-supplied points from which to make a curve fit. Added to end of PP.
+    std::deque<cv::Point> P2;
+    //! user-supplied points for potential addition to PP at its *start*.
+    std::deque<cv::Point> sP2;
+    //! A deque or deques of points for multi-section Bezier curves
+    std::deque<std::deque<cv::Point>> PP2;
+    //! Index into PP
+    int pp_idx2 = 0;
 
     // Landmark attributes
 
@@ -194,8 +210,8 @@ public:
     std::vector<std::vector<cv::Point2d>> box_coords_lmalign;
     //! The signal values for each box as a vector of floats for each box.
     std::vector<std::vector<float>> boxes_signal;
-    //! Raw colours of boxes in RGB
-    std::vector<std::vector<std::array<float, 3>>> boxes_pixels_bgr;
+    //! Mean colour of each box in Blue-Green-Red
+    std::vector<std::array<float, 3>> boxes_bgr;
 
     //! Bin A sets the number of pixels along the normal to the fit to start the sample box
     int binA = 0;
@@ -206,6 +222,11 @@ public:
     std::vector<cv::Point2d> fitted;
     //! Take FrameData::fitted and scale by pixels_per_mm. Units: mm.
     std::vector<cv::Point2d> fitted_scaled;
+
+    //! Second curve - fitted points
+    std::vector<cv::Point2d> fitted2;
+    //! Take FrameData::fitted2 and scale by pixels_per_mm. Units: mm.
+    std::vector<cv::Point2d> fitted_scaled2;
 
     //! The centroid of the curve, after lm_translation or autoalign_translation have
     //! been applied to move the user points This will be 0,0 in the latter case (in
@@ -326,11 +347,11 @@ public:
 
     //! What kind of colour model is in use?
     ColourModel cmodel = ColourModel::Greyscale;
-    //! Colour space rotation to apply to [b g r] colour vectors
+    //! Colour space rotation to apply to [b g r] colour vectors (used for ColourModel::AllenDevMouse)
     std::array<float, 9> colour_rot;
-    //! Colour space pre-translation. [x y z] is [b g r]
+    //! Colour space pre-translation. [x y z] is [b g r] (used for ColourModel::AllenDevMouse)
     std::array<float, 3> colour_trans;
-    //! red-green ellipse for "elliptical tube of expressing colours
+    //! red-green ellipse for "elliptical tube of expressing colours (used for ColourModel::AllenDevMouse)
     std::array<float, 2> ellip_axes;
     //! The slope of the linear luminosity vs signal fit. Only used for ColourModel::AllenDevMouse
     float luminosity_factor = -0.00392f; // -1/255 aka -1.0f
@@ -423,7 +444,7 @@ public:
         this->frame.convertTo (frameF, CV_32FC3, 1/255.0);
         this->showMaxMin (frameF, "frameF (float)");
         // NB: Init these before the next three resize() calls
-        this->setBins (100);
+        //this->setBins (100); // Commented out - this erroneously overrides nBins read from .h5.
         // Init flags
         this->flags.set (ShowFits);
         this->flags.set (ShowUsers);
@@ -432,7 +453,7 @@ public:
         // Make a blurred copy of the floating point format frame, for estimating lighting background
         this->blurred = cv::Mat::zeros (frameF.rows, frameF.cols, CV_32FC3);
         cv::Mat frame_bgoff;
-        if (this->cmodel != ColourModel::Sfview) {
+        if (this->cmodel != ColourModel::Sfview && this->cmodel != ColourModel::RawColour) {
             cv::Size ksz;
             ksz.width = frameF.cols * 2.0 * this->bgBlurScreenProportion;
             ksz.width += (ksz.width%2 == 1) ? 0 : 1; // ensure ksz.width is odd
@@ -452,7 +473,7 @@ public:
             // Add suboffset_minus_blurred to frameF to get frame_bgoff.
             cv::add (frameF, suboffset_minus_blurred, frame_bgoff, cv::noArray(), CV_32FC3);
             this->showMaxMin (frame_bgoff, "frame_bgoff");
-        } // else ColourModel::Sfview, so frame_bgoff won't be used.
+        } // else ColourModel::Sfview/RawColour, so frame_bgoff won't be used.
 
         // This is where we distinguish between possible different ColourModels. Apply
         // some conversion to go from the input (frame/frame_bgoff) to the signal:
@@ -467,6 +488,9 @@ public:
         } else if (this->cmodel == ColourModel::Sfview) {
             // In this case, we have data read from a sfview .h5 file (.TF.*.h5) format
             // frame_signal and frame will have been set up in the constructor.
+        } else if (this->cmodel == ColourModel::RawColour) {
+            // Put something sensible in frame_signal... Mean of frame? Copy of frame?
+            this->frame_signal = this->frame.clone();
         } else {
             // Assume it's grayscale: Invert frame_bgoff to create the signal frame.
             std::cout << "Treating image as greyscale\n";
@@ -481,6 +505,7 @@ public:
     //! they're on the "expressing" axis. This will include a translate matrix, a
     //! rotation matrix and ellipse parameters, obtained from the octave script
     //! plotcolour.m. See DM.h for the settings of colour_trans and colour_rot.
+    //! This function relates to ColourModel::AllenDevMouse only.
     void allenColourConversion (const cv::Mat& inframe, cv::Mat& outframe)
     {
         // inframe should be:
@@ -648,6 +673,10 @@ public:
             ss << ". Axismark mode";
         } else if (this->ct == InputMode::Minmax) {
             ss << ". Min/max mode";
+        } else if (this->ct == InputMode::Bezier2) {
+            ss << ". Curve2 mode (end)";
+        } else if (this->ct == InputMode::ReverseBezier2) {
+            ss << ". Curve2 mode (start)";
         } else {
             ss << ". unknown mode";
         }
@@ -924,6 +953,15 @@ public:
             this->removeLastAxismark();
         } else if (this->ct == InputMode::Minmax) {
             this->removeLastMinmax();
+        } else if (this->ct == InputMode::Bezier2) {
+            std::cout << "removeLastPoint2...\n";
+            this->removeLastPoint2();
+            std::cout << "updateFit...\n";
+            this->updateFit();
+            std::cout << "refreshBoxes...\n";
+            this->refreshBoxes (-this->binA, this->binB);
+        } else if (this->ct == InputMode::ReverseBezier2) {
+            this->removeFirstPoint2();
         } else {
             this->removeLastPoint();
             this->updateFit();
@@ -1021,6 +1059,69 @@ public:
                 } else {
                     // Catch pathological case where PP is empty, but pp_idx != 0
                     this->pp_idx = 0;
+                }
+            }
+        }
+    }
+
+    //! Remove the first user point
+    void removeFirstPoint2()
+    {
+        if (this->PP2.empty() && this->sP2.size() == 1) {
+            // Normal behaviour, just remove point from sP
+            this->sP2.pop_back(); // don't need to pop_front.
+
+        } else if (!this->PP2.empty() && this->sP2.size() == 1) {
+            // Remove point from sP and...
+            this->sP2.pop_back();
+            // Because it is the same locn, the first point from PP.front(), too
+            this->removeFirstPoint2();
+
+        } else if (!this->sP2.empty()) {
+            this->sP2.pop_front();
+
+        } else {
+            // sP is empty, go to first curve in PP and remove a point from that
+            if (this->ct == InputMode::ReverseBezier2 && this->pp_idx2>0) {
+                if (!this->PP2.empty()) {
+                    this->sP2 = this->PP2[0];
+                    this->PP2.pop_front();
+                    this->pp_idx2--;
+                    this->sP2.pop_front();
+                } else {
+                    // Catch pathological case where PP is empty, but pp_idx != 0
+                    this->pp_idx2 = 0;
+                }
+            }
+        }
+    }
+
+    //! Remove the last user point
+    void removeLastPoint2()
+    {
+        if (this->PP2.empty() && this->P2.size() == 1) {
+            // Normal behaviour, just remove point from P
+            this->P2.pop_back();
+
+        } else if (!this->PP2.empty() && this->P2.size() == 1) {
+            // Remove point from P and...
+            this->P2.pop_back();
+            // Because it is the same locn, the last point from PP.back(), too
+            this->removeLastPoint2();
+
+        } else if (!this->P2.empty()) {
+            this->P2.pop_back();
+
+        } else {
+            // P is empty, go to previous curve and remove a point from that
+            if (this->ct == InputMode::Bezier2 && this->pp_idx2>0) {
+                if (!this->PP2.empty()) {
+                    this->P2 = this->PP2[--this->pp_idx2];
+                    this->PP2.pop_back();
+                    this->P2.pop_back();
+                } else {
+                    // Catch pathological case where PP is empty, but pp_idx != 0
+                    this->pp_idx2 = 0;
                 }
             }
         }
@@ -1177,6 +1278,20 @@ public:
             this->sP.push_front (this->PP.front().front());
             this->pp_idx++;
 
+        } else if (this->ct == InputMode::ReverseBezier2) {
+            if (this->sP2.size() < 3) { return; }
+            this->PP2.push_front (this->sP2);
+            this->sP2.clear();
+            this->sP2.push_front (this->PP2.front().front());
+            this->pp_idx2++;
+
+        } else if (this->ct == InputMode::Bezier2) {
+            if (this->P2.size() < 3) { return; }
+            this->PP2.push_back (this->P2);
+            this->P2.clear();
+            this->P2.push_back (this->PP2.back().back());
+            this->pp_idx2++;
+
         } else {
             // Don't add unless at least 3 points to fit:
             if (this->P.size() < 3) { return; }
@@ -1187,11 +1302,15 @@ public:
         }
     }
 
-    //! Read landmark and circlemark points from file (or rather, morph::HdfData object)
     void importLandmarks (morph::HdfData& df)
     {
         std::string frameName = this->getFrameName();
+        this->importLandmarks (df, frameName);
+    }
 
+    //! Read landmark and circlemark points from file (or rather, morph::HdfData object)
+    void importLandmarks (morph::HdfData& df, const std::string& frameName)
+    {
         // Landmark points
         std::string dname = frameName + "/class/LM";
         this->LM.clear();
@@ -1254,12 +1373,18 @@ public:
         }
     }
 
-    //! Import the user-supplied coordinates used to create fitted Bezier curves as well
-    //! as the sample box info (size and number)
     void importCurves (morph::HdfData& df)
     {
-        std::cout << __FUNCTION__ << " called\n";
         std::string frameName = this->getFrameName();
+        this->importCurves (df, frameName);
+    }
+
+    //! Import the user-supplied coordinates used to create fitted Bezier curves as well
+    //! as the sample box info (size and number)
+    void importCurves (morph::HdfData& df, const std::string& frameName)
+    {
+        std::cout << __FUNCTION__ << " called\n";
+        // Curve 1 (main curve)
         std::string dname = frameName + "/class/P";
         this->P.clear();
         df.read_contained_vals (dname.c_str(), this->P);
@@ -1285,6 +1410,33 @@ public:
         dname = frameName + "/class/pp_idx";
         df.read_val (dname.c_str(), this->pp_idx);
 
+        // Curve 2
+        dname = frameName + "/class/P2";
+        this->P2.clear();
+        df.read_contained_vals (dname.c_str(), this->P2);
+        dname = frameName + "/class/sP2";
+        this->sP2.clear();
+        df.read_contained_vals (dname.c_str(), this->sP2);
+
+        dname = frameName + "/class/PP2_n";
+        unsigned int pp2_size = 0;
+        df.read_val (dname.c_str(), pp2_size);
+        //std::cout << "pp2_size = " << pp2_size << std::endl;
+
+        this->PP2.resize(pp2_size);
+        for (size_t i = 0; i<pp2_size; ++i) {
+            std::stringstream ss;
+            ss << frameName + "/class/PP2";
+            ss.width(3);
+            ss.fill('0');
+            ss << i;
+            df.read_contained_vals (ss.str().c_str(), this->PP2[i]);
+        }
+
+        dname = frameName + "/class/pp_idx2";
+        df.read_val (dname.c_str(), this->pp_idx2);
+
+        // Bins
         dname = frameName + "/class/nBins";
         int _nBins = 0;
         try {
@@ -1304,6 +1456,11 @@ public:
     void importFreehand (morph::HdfData& df)
     {
         std::string frameName = this->getFrameName();
+        this->importFreehand (df, frameName);
+    }
+
+    void importFreehand (morph::HdfData& df, const std::string& frameName)
+    {
         // Freehand-drawn regions
         std::string dname = frameName + "/class/FL";
         this->FL.clear();
@@ -1377,6 +1534,7 @@ public:
     //! Export the user-supplied points for curve drawing
     void exportCurves (morph::HdfData& df) const
     {
+        // Save data for the main curve
         std::string frameName = this->getFrameName();
         std::string dname = frameName + "/class/P";
         df.add_contained_vals (dname.c_str(), this->P);
@@ -1396,6 +1554,28 @@ public:
         }
         dname = frameName + "/class/pp_idx";
         df.add_val (dname.c_str(), this->pp_idx);
+
+        // Save data for second curve
+        dname = frameName + "/class/P2";
+        df.add_contained_vals (dname.c_str(), this->P2);
+        dname = frameName + "/class/sP2";
+        df.add_contained_vals (dname.c_str(), this->sP2);
+
+        dname = frameName + "/class/PP2_n";
+        unsigned int pp2_size = this->PP2.size();
+        df.add_val (dname.c_str(), pp2_size);
+        for (size_t i = 0; i<pp2_size; ++i) {
+            std::stringstream ss;
+            ss << frameName + "/class/PP2";
+            ss.width(3);
+            ss.fill('0');
+            ss << i;
+            df.add_contained_vals (ss.str().c_str(), this->PP2[i]);
+        }
+        dname = frameName + "/class/pp_idx2";
+        df.add_val (dname.c_str(), this->pp_idx2);
+
+        // Save the number of bins and bin lengths
         dname = frameName + "/class/nBins";
         df.add_val (dname.c_str(), this->nBins);
         dname = frameName + "/class/binA";
@@ -1614,6 +1794,10 @@ public:
             df.add_val (dname.c_str(), this->luminosity_cutoff);
         }
 
+        // Save the colour model itself
+        dname = frameName + "/class/cmodel";
+        df.add_val (dname.c_str(), static_cast<unsigned int>(this->cmodel));
+
         // The frame data itself
         if (this->saveFrameToH5 == true) {
             dname = frameName + "/class/frame";
@@ -1646,6 +1830,26 @@ public:
         df.add_contained_vals (dname.c_str(), this->box_signal_sds);
         dname = frameName + "/signal/bits8/boxes/sds";
         df.add_contained_vals (dname.c_str(), this->box_pixel_sds);
+
+        // Save mean non-zero signal of whole frame. Can be useful when dealing with 2D maps.
+        int nzpixels = 0;
+        if (this->frame_signal.channels() == 3) {
+            std::vector<cv::Mat> rgbChannels(3);
+            cv::split(this->frame_signal, rgbChannels);
+            nzpixels = cv::countNonZero (rgbChannels[0]);
+        } else if (this->frame_signal.channels() == 1) {
+            nzpixels = cv::countNonZero (this->frame_signal);
+        }
+        dname = frameName + "/signal/postproc/frame/mean_nonzero";
+        cv::Scalar pix_sum = cv::sum (this->frame_signal);
+        float mean_nonzero = pix_sum[0] / static_cast<float>(nzpixels);
+        df.add_val (dname.c_str(), mean_nonzero);
+
+        if (this->cmodel == ColourModel::RawColour) {
+            // Save raw colour
+            dname = frameName + "/signal/bits8/boxes/bgr";
+            df.add_contained_vals (dname.c_str(), this->boxes_bgr); // if can save array, then convert cv::Vec to std::array first
+        }
 
         // Autoscale box_signal_means and save a copy
         dname = frameName + "/signal/postproc/boxes/means_autoscaled";
@@ -2203,51 +2407,61 @@ public:
         return n;
     }
 
+    // Set true if the slice images are already aligned, such as for Allen template brain
+    bool slices_prealigned = false;
+
 private:
     void updateAutoAlignments()
     {
         std::cout << __FUNCTION__ << " called\n";
-        if (this->previous < 0) {
-            // get centroid of this->fitted_scaled (the 0th slice
+        if (this->slices_prealigned) {
+            // No transform required
+            this->autoalign_theta = 0;
             cv::Point2d slice0centroid = morph::MathAlgo::centroid (this->fitted_scaled);
-            // The translation to record for the first slice is the inverse of the centroid
-            this->autoalign_translation = -slice0centroid;
-            this->autoalign_theta = 0.0;
-
+            this->autoalign_translation = -slice0centroid;//{0,0};
         } else {
-            // now, if we're aligning partly to the mid slice, shouldn't we centroid it
-            // first? Perhaps that's why the computeSos3d function is heavily weighted
-            // to the neighbouring (i.e. to the previous) slice?
-            size_t alignment_slice = this->parentStack->size()/2; // align to mid slice
-            std::cout << "Alignment slice: " << alignment_slice << std::endl;
+            if (this->previous < 0) {
+                // get centroid of this->fitted_scaled (the 0th slice
+                cv::Point2d slice0centroid = morph::MathAlgo::centroid (this->fitted_scaled);
+                // The translation to record for the first slice is the inverse of the centroid
+                this->autoalign_translation = -slice0centroid;
+                this->autoalign_theta = 0.0;
 
-            // set number of bins in the alignment_slice and in the previous slice to
-            // match the number of bins in this frame.
-            int alignment_slice_bins = (*this->parentStack)[alignment_slice].getBins();
-            int previous_slice_bins = (*this->parentStack)[this->previous].getBins();
-            if (alignment_slice_bins != this->nBins) {
-                (*this->parentStack)[alignment_slice].setBins (this->nBins);
-                (*this->parentStack)[alignment_slice].updateFit();
-            }
-            if (previous_slice_bins != this->nBins) {
-                (*this->parentStack)[this->previous].setBins (this->nBins);
-                (*this->parentStack)[this->previous].updateFit();
-            }
+            } else {
+                // now, if we're aligning partly to the mid slice, shouldn't we centroid it
+                // first? Perhaps that's why the computeSos3d function is heavily weighted
+                // to the neighbouring (i.e. to the previous) slice?
+                size_t alignment_slice = this->parentStack->size()/2; // align to mid slice
+                std::cout << "Alignment slice: " << alignment_slice << std::endl;
 
-            // Call the optimization function
-            this->alignOptimally (this->fitted_scaled,
-                                  (*this->parentStack)[alignment_slice].fitted_autoaligned,
-                                  (*this->parentStack)[this->previous].fitted_autoaligned,
-                                  this->autoalign_translation, this->autoalign_theta);
+                // set number of bins in the alignment_slice and in the previous slice to
+                // match the number of bins in this frame.
+                int alignment_slice_bins = (*this->parentStack)[alignment_slice].getBins();
+                int previous_slice_bins = (*this->parentStack)[this->previous].getBins();
+                if (alignment_slice_bins != this->nBins) {
+                    (*this->parentStack)[alignment_slice].setBins (this->nBins);
+                    (*this->parentStack)[alignment_slice].updateFit();
+                }
+                if (previous_slice_bins != this->nBins) {
+                    (*this->parentStack)[this->previous].setBins (this->nBins);
+                    (*this->parentStack)[this->previous].updateFit();
+                }
 
-            // Restore number of bins.
-            if (alignment_slice_bins != this->nBins) {
-                (*this->parentStack)[alignment_slice].setBins (alignment_slice_bins);
-                (*this->parentStack)[alignment_slice].updateFit();
-            }
-            if (previous_slice_bins != this->nBins) {
-                (*this->parentStack)[this->previous].setBins (previous_slice_bins);
-                (*this->parentStack)[this->previous].updateFit();
+                // Call the optimization function
+                this->alignOptimally (this->fitted_scaled,
+                                      (*this->parentStack)[alignment_slice].fitted_autoaligned,
+                                      (*this->parentStack)[this->previous].fitted_autoaligned,
+                                      this->autoalign_translation, this->autoalign_theta);
+
+                // Restore number of bins.
+                if (alignment_slice_bins != this->nBins) {
+                    (*this->parentStack)[alignment_slice].setBins (alignment_slice_bins);
+                    (*this->parentStack)[alignment_slice].updateFit();
+                }
+                if (previous_slice_bins != this->nBins) {
+                    (*this->parentStack)[this->previous].setBins (previous_slice_bins);
+                    (*this->parentStack)[this->previous].updateFit();
+                }
             }
         }
         this->transform (this->fitted_scaled, this->fitted_autoaligned, this->autoalign_translation, this->autoalign_theta);
@@ -2447,7 +2661,12 @@ public:
     }
 
     //! Public wrapper around updateFitBezier()
-    void updateFit() { this->updateFitBezier(); }
+    void updateFit() {
+        this->updateFitBezier();
+        if (!this->PP2.empty()) {
+            this->updateFitBezier2();
+        }
+    }
 
     //! Re-compute the boxes from the curve (taking ints)
     void refreshBoxes (const int lenA, const int lenB) { this->refreshBoxes ((double)lenA, (double)lenB); }
@@ -2464,8 +2683,62 @@ public:
         for (int i=0; i<this->nFit; i++) {
             cv::Point2d normLenA = this->normals[i]*lenA;
             cv::Point2d normLenB = this->normals[i]*lenB;
-            this->pointsInner[i] = cv::Point(this->fitted[i] + cv::Point2d(normLenA.x, normLenA.y));
-            this->pointsOuter[i] = cv::Point(this->fitted[i] + cv::Point2d(normLenB.x, normLenB.y));
+            this->pointsInner[i] = cv::Point(this->fitted[i] + normLenA);
+            if (this->fitted2.empty()) {
+                this->pointsOuter[i] = cv::Point(this->fitted[i] + normLenB);
+            } else {
+                // We have a second curve, so extend boxes to the second curve fit.
+                size_t cc = 0;
+                // p1 to q1 is fitted[i] to fitted[i]+normLenB
+                // p1 to q2 is one of the segments on fitted2.
+                cv::Point2d p1_end = this->fitted[i] + normLenB;
+                morph::Vector<float, 2> p1 = { static_cast<float>(this->fitted[i].x),
+                                               static_cast<float>(this->fitted[i].y) };
+                morph::Vector<float, 2> q1 = { static_cast<float>(p1_end.x),
+                                               static_cast<float>(p1_end.y) };
+
+                for (size_t cj = 0; cj < this->fitted2.size(); ++cj) {
+
+                    morph::Vector<float, 2> p2;
+                    morph::Vector<float, 2> q2;
+                    if (cj == 0) {
+                        p2 = { static_cast<float>(this->fitted2[cj].x), static_cast<float>(this->fitted2[cj].y) };
+                        q2 = { static_cast<float>(this->fitted2[cj+1].x), static_cast<float>(this->fitted2[cj+1].y) };
+                    } else {
+                        p2 = { static_cast<float>(this->fitted2[cj-1].x), static_cast<float>(this->fitted2[cj-1].y) };
+                        q2 = { static_cast<float>(this->fitted2[cj].x), static_cast<float>(this->fitted2[cj].y) };
+                    }
+                    // This should never get triggered here
+                    if (p1 == p2 || p1 == q2 || q1 == p2 || q1 == q2) {
+                        // Don't count intersections between line segments that are connected ANYWAY
+                        continue;
+                    }
+
+                    morph::rotation_sense p1q1p2 = morph::MathAlgo::orientation (p1,q1,p2);
+                    morph::rotation_sense p1q1q2 = morph::MathAlgo::orientation (p1,q1,q2);
+                    morph::rotation_sense p2q2p1 = morph::MathAlgo::orientation (p2,q2,p1);
+                    morph::rotation_sense p2q2q1 = morph::MathAlgo::orientation (p2,q2,q1);
+
+                    if (p1q1p2 != p1q1q2 && p2q2p1 != p2q2q1) {
+                        // ci and cj intersect
+                        ++cc;
+                    } else {
+                        // Are they colinear?
+                        if (p1q1p2 == morph::rotation_sense::colinear && morph::MathAlgo::onsegment (p1, p2, q1)) { ++cc; }
+                        else if (p1q1q2 == morph::rotation_sense::colinear && morph::MathAlgo::onsegment (p1, q2, q1)) { ++cc; }
+                        else if (p2q2p1 == morph::rotation_sense::colinear && morph::MathAlgo::onsegment (p2, p1, q2)) { ++cc; }
+                        else if (p2q2q1 == morph::rotation_sense::colinear && morph::MathAlgo::onsegment (p2, q1, q2)) { ++cc; }
+                    }
+                    // If cc incremented, then there was a crossover. Need to figure out
+                    // where that is, or do something simple, like take distance from
+                    // fitted2 to fitted and use that as length (yes, this)
+                    if (cc) {
+                        normLenB = this->normals[i] * cv::norm(this->fitted2[cj]-this->fitted[i]);
+                        break;
+                    }
+                }
+                this->pointsOuter[i] = cv::Point(this->fitted[i] + normLenB);
+            }
         }
 
         // Make the boxes from pointsInner and pointsOuter
@@ -2559,6 +2832,64 @@ private:
         return regionSignalVals;
     }
 
+    // Return the mean colour for the region.
+    std::array<float, 3> getRegionMeanColour (const std::vector<cv::Point>& region)
+    {
+        std::array<float, 3> meanColour = {0.0f, 0.0f, 0.0f};
+        size_t i = 0;
+        for (auto px : region) {
+            cv::Vec<unsigned char, 3> val = this->frame.at<cv::Vec<unsigned char, 3>>(px.y, px.x);
+            meanColour[2] += static_cast<float>(val[0]); // Note reversal of colour so it'll come out right in sfview
+            meanColour[1] += static_cast<float>(val[1]);
+            meanColour[0] += static_cast<float>(val[2]);
+            ++i;
+        }
+        meanColour[0] /= (static_cast<float>(i) * 255.0f);
+        meanColour[1] /= (static_cast<float>(i) * 255.0f);
+        meanColour[2] /= (static_cast<float>(i) * 255.0f);
+        // meanColour is in range 0-1 for each channel.
+        return meanColour;
+    }
+
+    // Return the most frequently occurring colour for the region.
+    std::array<float, 3> getRegionModeColour (const std::vector<cv::Point>& region)
+    {
+        size_t i = 0;
+        std::map< morph::Vector<float, 3>, unsigned int > colourCounts;
+        for (auto px : region) {
+
+            cv::Vec<unsigned char, 3> val_ = this->frame.at<cv::Vec<unsigned char, 3>>(px.y, px.x);
+            morph::Vector<float, 3> val = {0.0f, 0.0f, 0.0f};
+            val[0] = static_cast<float>(val_[0]) / 255.0f;
+            val[1] = static_cast<float>(val_[1]) / 255.0f;
+            val[2] = static_cast<float>(val_[2]) / 255.0f;
+            try {
+                colourCounts.at(val) = colourCounts.at(val) + 1;
+            } catch (const std::out_of_range& e) {
+                colourCounts[val] = 1;
+            }
+            ++i;
+        }
+
+        morph::Vector<float, 3> modeCol;
+        unsigned int countbest = 0;
+        for (auto c : colourCounts) {
+            if (c.second > countbest) {
+                countbest = c.second;
+                modeCol = c.first;
+            }
+        }
+
+        // Return as std::array rather than morph::Vector (can probably cast)
+        std::array<float, 3> modeColour = {0.0f, 0.0f, 0.0f};
+        modeColour[2] = modeCol[0]; // Testing reverse order of colour
+        modeColour[1] = modeCol[1];
+        modeColour[0] = modeCol[2];
+
+        // modeColour is in range 0-1 for each channel.
+        return modeColour;
+    }
+
     //! Get the pixel values from the region from the original image window (frame, red channel).
     std::vector<unsigned int> getRegionPixelVals (const std::vector<cv::Point>& region)
     {
@@ -2609,6 +2940,20 @@ private:
         return this->getRegionSignalVals (maskpositives);
     }
 
+    // Return the mean colour
+    std::array<float, 3> getBoxedMeanColour (const std::vector<cv::Point> boxVtxs)
+    {
+        std::vector<cv::Point> maskpositives = this->getBoxRegion (boxVtxs);
+        return this->getRegionMeanColour (maskpositives);
+    }
+
+    // Return the mode colour
+    std::array<float, 3> getBoxedModeColour (const std::vector<cv::Point> boxVtxs)
+    {
+        std::vector<cv::Point> maskpositives = this->getBoxRegion (boxVtxs);
+        return this->getRegionModeColour (maskpositives);
+    }
+
     //! Compute the mean values for the bins. Not const. But means don't need to be a
     //! member as they're only computed to be written out to file.
     void computeBoxMeans()
@@ -2618,7 +2963,7 @@ private:
         this->box_coords_pixels.resize (this->boxes.size());
         this->box_coords_autoalign.resize (this->boxes.size());
         this->box_coords_lmalign.resize (this->boxes.size());
-        this->boxes_pixels_bgr.resize (this->boxes.size());
+        this->boxes_bgr.resize (this->boxes.size());
         this->box_signal_means.resize (this->boxes.size());
         this->box_pixel_means.resize (this->boxes.size());
         this->box_signal_sds.resize (this->boxes.size());
@@ -2637,6 +2982,10 @@ private:
             this->boxes_signal[i] = this->getBoxedSignalVals (this->boxes[i]);
             this->box_pixel_sds[i] = morph::MathAlgo::compute_mean_sd<unsigned int> (this->boxes_pixels[i], this->box_pixel_means[i]);
             this->box_signal_sds[i] = morph::MathAlgo::compute_mean_sd<float> (this->boxes_signal[i], this->box_signal_means[i]);
+            // In ColourModel::RawColour, I want to determine the mean (or maybe mode) colour of the box.
+            this->boxes_bgr[i] = this->getBoxedMeanColour (this->boxes[i]);
+            //this->boxes_bgr[i] = this->getBoxedModeColour (this->boxes[i]);
+
             // transform box_coords_pixels into box_coords_autoalign and box_coords_lmalign
             std::vector<cv::Point2d> bcpix(this->box_coords_pixels[i].size());
             this->scalePoints (this->box_coords_pixels[i], bcpix);
@@ -2654,6 +3003,16 @@ private:
         this->translate (this->fitted_scaled, this->fitted_autoalign_translated, this->autoalign_translation);
         this->rotate (this->fitted_autoalign_translated, this->fitted_autoaligned, _theta);
     }
+#if 0
+    void updateFit2 (double _theta)
+    {
+        this->updateFitBezier2();
+        this->scalePoints (this->fitted2, this->fitted_scaled2);
+        this->autoalign_translation2 = -morph::MathAlgo::centroid (this->fitted_scaled2);
+        this->translate (this->fitted_scaled2, this->fitted_autoalign_translated2, this->autoalign_translation);
+        this->rotate (this->fitted_autoalign_translated2, this->fitted_autoaligned2, _theta);
+    }
+#endif
 
     //! Recompute the Bezier fit
     void updateFitBezier()
@@ -2706,6 +3065,50 @@ private:
             this->fitted[i] = cv::Point2d(coords[i].x(),coords[i].y());
             this->tangents[i] = cv::Point2d(tans[i].x(),tans[i].y());
             this->normals[i] = cv::Point2d(norms[i].x(),norms[i].y());
+        }
+    }
+
+    //! Recompute the Bezier2 fit
+    void updateFitBezier2()
+    {
+        if (this->PP2.empty()) {
+            this->bcp2.reset();
+            this->fitted2.clear();
+            //this->clearBoxes();
+            return;
+        }
+
+        this->bcp2.reset();
+
+        // Loop over PP2 first
+        for (auto _P : this->PP2) {
+            std::vector<std::pair<double,double>> user_points;
+            user_points.clear();
+            for (auto pt : _P) { user_points.push_back (std::make_pair(pt.x, pt.y)); }
+
+            morph::BezCurve<double> bc;
+            if (this->bcp2.isNull()) {
+                // No previous curves; fit just on user_points
+                bc.fit (user_points);
+                this->bcp2.addCurve (bc);
+            } else {
+                // Have previous curve, use last control of previous curve to make
+                // smooth transition.
+                morph::BezCurve<double> last = this->bcp2.curves.back();
+                bc.fit (user_points, last);
+                this->bcp2.removeCurve();
+                this->bcp2.addCurve (last);
+                this->bcp2.addCurve (bc);
+            }
+        }
+
+        // Update this->fitted
+        this->bcp2.computePoints (static_cast<unsigned int>(this->nFit));
+        std::vector<morph::BezCoord<double>> coords = this->bcp2.getPoints();
+        // tangents and normals not required on this curve
+        this->fitted2.resize (this->nFit);
+        for (int i = 0; i < this->nFit; ++i) {
+            this->fitted2[i] = cv::Point2d(coords[i].x(),coords[i].y());
         }
     }
 

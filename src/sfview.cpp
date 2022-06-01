@@ -29,6 +29,8 @@
 #include <morph/Matrix33.h>
 #include <morph/MathConst.h>
 #include <popt.h>
+#include "PointRowsVisExt.h"
+#include "QuadsVisualExt.h"
 
 using namespace std;
 
@@ -133,6 +135,10 @@ struct CmdOptions
     int show_example;
     //! If true, use ambient/diffuse lighting
     int lighting;
+    //! Diffuse intensity, default to 127/255. Range 0-255.
+    int diffuse_intensity;
+    //! Ambient intensity, default to 127/255. Range 0-255.
+    int ambient_intensity;
     //! If true, use white background
     int whitebg;
     //! If true, hide colour map and plot in white.
@@ -151,12 +157,18 @@ struct CmdOptions
     int linear_transforms;
     //! If >0, then show slice thicknesses, rather than drawing boxes from current x position to the next slice's x position.
     int show_slice_thickness;
+    //! Whether to renormalise when resampling
+    int resample_renormalise;
     //! Temporary datafile, for adding to datafiles.
     char* datafile;
     //! extents string
     char* extents_str;
     //! The extents extracted from extents_str
     morph::Vector<float, 4> extents;
+    //! map_offsets string
+    char* map_offsets_str;
+    //! The map_offsets extracted from map_offsets_str
+    morph::Vector<float, 2> map_offsets;
     //! The h5 files to visualize
     std::vector<string> datafiles;
     //! The output directory for saving *.TF.*.h5 files - the 2D map files.
@@ -172,6 +184,8 @@ void zeroCmdOptions (CmdOptions* copts)
     copts->show_mesh = 0;
     copts->show_example = 0;
     copts->lighting = 0;
+    copts->diffuse_intensity = -1; // -1 means un-set
+    copts->ambient_intensity = -1; // -1 means un-set
     copts->whitebg = 0;
     copts->hide_colour = 0; // Default to showing colour
     copts->show_landmarks = 1;
@@ -180,9 +194,12 @@ void zeroCmdOptions (CmdOptions* copts)
     copts->flattened_type = 0;
     copts->linear_transforms = 0;
     copts->show_slice_thickness = 0;
+    copts->resample_renormalise = 0;
     copts->datafile = nullptr;
     copts->extents_str = nullptr;
     copts->extents = {0.0f, 0.0f, 0.0f, 0.0f};
+    copts->map_offsets_str = nullptr;
+    copts->map_offsets = {8.0f, 8.0f}; // zero to default values
     copts->datafiles.clear();
     copts->output_dir = nullptr;
 }
@@ -224,6 +241,21 @@ void popt_option_callback (poptContext con,
                 }
             } else {
                 throw std::runtime_error ("extents string is not well formed (give 4 comma-separated numbers)");
+            }
+        } else if (opt->shortName == 'M') { // map_offsets
+            // Process cmdOptions.map_offsets_str
+            std::string mo(cmdOptions.map_offsets_str);
+            std::vector<std::string> mon = morph::Tools::stringToVector (mo, ",");
+            if (mon.size() == 2) {
+                for (size_t i = 0; i < 2; ++i) {
+                    std::stringstream ss;
+                    float f = 0.0f;
+                    ss << mon[i];
+                    ss >> f;
+                    cmdOptions.map_offsets[i] = f;
+                }
+            } else {
+                throw std::runtime_error ("map_offsets string is not well formed (give 2 comma-separated numbers)");
             }
         }
         break;
@@ -341,7 +373,11 @@ void computeTransforms (const vector<string>& datafiles,
                         vector<morph::TransformMatrix<float>>& M,
                         const CmdOptions& co)
 {
+    std::cout << __FUNCTION__ << " called\n";
+
     if (datafiles.size() < 2) {
+        std::cout << "Need 2+ data files to compute transforms (have "
+                  << datafiles.size() <<"). Returning.\n";
         // nothing to do though ensure M[0] contains identity, if necessary
         if (datafiles.size()==1 && M.size()==1) { M[0].setToIdentity(); }
         return;
@@ -462,19 +498,26 @@ int addLandmarks (SFVisual& v, const string& datafile, const CmdOptions& co,
                 }
                 frameName = ss.str();
                 vector<array<float, 3>> GLM;
-                //std::cout << "A Reading global landmark in " << frameName << " (file: " << datafile << ")" << std::endl;
+                //std::cout << "Reading global landmark in " << frameName << " (file: " << datafile << ")" << std::endl;
                 d.read_contained_vals (frameName.c_str(), GLM);
                 //std::cout << "GLM size: " << GLM.size() << std::endl;
-                for (auto glm : GLM) {
-                    morph::Vector<float, 4> _glm = M * morph::Vector<float, 3>({glm[0],glm[1],glm[2]});
-                    if (lmalignComputed == true && align_lm == true) {
-                        globlm_lmaligned.push_back ({_glm[0], _glm[1], _glm[2]});
-                    } else {
-                        globlm_autoaligned.push_back ({_glm[0], _glm[1], _glm[2]});
+                size_t glm_idx = 0;
+                for (auto glm2 : GLM) {
+                    if (glm_idx == glm.second) {
+                        morph::Vector<float, 4> _glm = M * morph::Vector<float, 3>({glm2[0],glm2[1],glm2[2]});
+                        if (lmalignComputed == true && align_lm == true) {
+                            globlm_lmaligned.push_back ({_glm[0], _glm[1], _glm[2]});
+                        } else {
+                            // Push back only if it matches Frame/Index.
+                            globlm_autoaligned.push_back ({_glm[0], _glm[1], _glm[2]});
+                        }
+                        glm_id.push_back (glmcount);
+                        glmcount -= 0.2f;
+                        std::cout << "Added global landmark sphere, glm_id = " << glm_id.back()
+                                  << " at location " << morph::Vector<float, 3>({_glm[0], _glm[1], _glm[2]})
+                                  << std::endl;
                     }
-                    glm_id.push_back (glmcount);
-                    glmcount -= 0.2f;
-                    std::cout << "Added global landmark sphere, glm_id = " << glm_id.back() << std::endl;
+                    ++glm_idx;
                 }
             }
 
@@ -565,6 +608,9 @@ int addVisMod (SFVisual& v, const string& datafile, const CmdOptions& co, const 
     morph::ColourMapType cmt = morph::ColourMapType::Monochrome;
     if (showcolour == false) { cmt = morph::ColourMapType::Fixed; }
 
+    // Colour model. Read from .h5
+    int cmodel = 0;
+
     try {
         morph::Vector<float> offset = { 0.0, 0.0, 0.0 };
 
@@ -582,6 +628,7 @@ int addVisMod (SFVisual& v, const string& datafile, const CmdOptions& co, const 
         vector<morph::Vector<float>> points_lmaligned; // Centres of boxes; for smooth surface (points rows)
         vector<morph::Vector<float>> points_scaled; // Centres of boxes; for smooth surface (points rows)
         vector<float> means;
+        vector<std::array<float, 3>> boxColours;
 
         // For the 'centres' These are the locations, around the curve that are an equal
         // angle about the user-defined brain axis.
@@ -823,7 +870,7 @@ int addVisMod (SFVisual& v, const string& datafile, const CmdOptions& co, const 
                     }
                 } catch (const exception& ee) {
                     // Perhaps this slice has not curve on it. Handle this by leaving frameMeans empty and continuing
-                    std::cout << "No curve?\n";
+                    // std::cout << "No curve?\n";
                     continue;
                 }
                 // Gah, convert frameMeans to float (there's a better way to do this)
@@ -832,12 +879,31 @@ int addVisMod (SFVisual& v, const string& datafile, const CmdOptions& co, const 
                     frameMeansF.push_back (static_cast<float>(frameMeans[j]));
                 }
 
+                // Special action for extracting raw colours from the .h5 (for RawColour mode)
+                str = frameName+"/class/cmodel";
+                try {
+                    d.read_val (str.c_str(), cmodel);
+                } catch (const exception& ee) {}
+
+                vector<std::array<float, 3>> frameBoxColours;
+                if (cmodel == 3 /* ColourModel::RawColour */) {
+                    try {
+                        str = frameName+"/signal/bits8/boxes/bgr";
+                        d.read_contained_vals (str.c_str(), frameBoxColours);
+                        //for (auto fbc : frameBoxColours) {
+                        //    std::cout << "Read colour: " << fbc[0] << "," << fbc[1] << "," << fbc[2] << std::endl;
+                        //}
+                    } catch (const exception& ee) {
+                        continue; // No curve
+                    }
+                }
+
                 // Append the frameQuads for the curve on one slice onto the container that has the quads for the *entire slice set*.
                 quads_autoaligned.insert (quads_autoaligned.end(), frameQuads_autoaligned.begin(), frameQuads_autoaligned.end());
                 quads_lmaligned.insert (quads_lmaligned.end(), frameQuads_lmaligned.begin(), frameQuads_lmaligned.end());
                 quads_scaled.insert (quads_scaled.end(), frameQuads_scaled.begin(), frameQuads_scaled.end());
                 means.insert (means.end(), frameMeansF.begin(), frameMeansF.end());
-
+                boxColours.insert (boxColours.end(), frameBoxColours.begin(), frameBoxColours.end());
                 // Similar, for points
                 points_lmaligned.insert (points_lmaligned.end(), framePoints_lmaligned.begin(), framePoints_lmaligned.end());
                 points_autoaligned.insert (points_autoaligned.end(), framePoints_autoaligned.begin(), framePoints_autoaligned.end());
@@ -869,18 +935,28 @@ int addVisMod (SFVisual& v, const string& datafile, const CmdOptions& co, const 
                     // Want to be able to pass colour==off to these. That means ability to pass sat as well as hue.
                     if (showmesh) {
                         std::cout << "Adding pointRowsMeshVisual with hue=" << hue << std::endl;
-                        // hue: 1/6 for yellow. 130/360 for a green. 0 for read
+                        // hue: 1/6 for yellow. 130/360 for a green. 0 for red
                         visId = v.addVisualModel (new morph::PointRowsMeshVisual<float> (v.shaderprog,
                                                                                          &points_lmaligned, offset,
                                                                                          &means, scale,
                                                                                          cmt, hue, colour_sat, 0.9f, 0.005f,
-                                                                                         cmt, (0.0/360.0f), 1.0f, 1.0f, 0.015f));
+                                                                                         cmt, hue/*(0.0/360.0f)*/, 1.0f, 1.0f, 0.015f));
                     } else {
                         std::cout << "Adding PointRowsVisual with hue=" << hue << std::endl;
-                        visId = v.addVisualModel (new morph::PointRowsVisual<float> (v.shaderprog,
-                                                                                     &points_lmaligned, offset,
-                                                                                     &means, scale,
-                                                                                     cmt, hue));
+                        if (cmodel == 3) {
+                            // rcm for 'raw colour model'
+                            std::cout << "RAW COLOUR MODEL\n";
+                            morph::PointRowsVisExt<float>* rcm = new morph::PointRowsVisExt<float> (v.shaderprog,
+                                                                                                    &points_lmaligned, offset,
+                                                                                                    boxColours, scale,
+                                                                                                    cmt, hue);
+                            visId = v.addVisualModel (rcm);
+                        } else {
+                            visId = v.addVisualModel (new morph::PointRowsVisual<float> (v.shaderprog,
+                                                                                         &points_lmaligned, offset,
+                                                                                         &means, scale,
+                                                                                         cmt, hue));
+                        }
                     }
                 }
                 v.surfaces_3d.push_back (visId);
@@ -935,10 +1011,20 @@ int addVisMod (SFVisual& v, const string& datafile, const CmdOptions& co, const 
                     } else {
                         std::cout << "NO mesh. Adding PointRowsVisual\n";
                         std::cout << "points_autoaligned contains " << points_autoaligned.size() << " points\n";
-                        visId = v.addVisualModel (new morph::PointRowsVisual<float> (v.shaderprog,
-                                                                                     &points_autoaligned, offset,
-                                                                                     &means, scale,
-                                                                                     cmt, hue));
+                        if (cmodel == 3) {
+                            // rcm for 'raw colour model'
+                            std::cout << "RAW COLOUR MODEL\n";
+                            morph::PointRowsVisExt<float>* rcm = new morph::PointRowsVisExt<float> (v.shaderprog,
+                                                                                                    &points_autoaligned, offset,
+                                                                                                    boxColours, scale,
+                                                                                                    cmt, hue);
+                            visId = v.addVisualModel (rcm);
+                        } else {
+                            visId = v.addVisualModel (new morph::PointRowsVisual<float> (v.shaderprog,
+                                                                                         &points_autoaligned, offset,
+                                                                                         &means, scale,
+                                                                                         cmt, hue));
+                        }
                     }
                 }
                 v.surfaces_3d.push_back (visId);
@@ -1163,6 +1249,15 @@ void computeFlatTransforms (const CmdOptions& co,
     if (co.datafiles.size() < 2) {
         // nothing to do though ensure M[0] contains identity, if necessary
         if (co.datafiles.size()==1 && M.size()==1) { M[0].setToIdentity(); }
+        // ...also set A up with the global landmark positions.
+        if (co.datafiles.size()==1 && A.size()==1) {
+            std::cout << "readGlobalPositions...\n";
+            std::array<unsigned int, 3> frame_indices;
+            morph::Matrix33<float> _A3D = readGlobalPositions (co.datafiles[0], frame_indices);
+            // How to get frame_indices? With readGlobalPositions i guess.
+            morph::Matrix33<float> D = convertTwoDims (co.datafiles[0], co, _A3D, frame_indices);
+            A[0] = D;
+        }
         return;
     }
 
@@ -1188,6 +1283,25 @@ void computeFlatTransforms (const CmdOptions& co,
         M[di] = D * Ainv;
     }
 }
+
+/*
+ * What kind of normalisation to carry out in the resampling code, when requested? Choose one of these.
+ */
+
+// CORRECT_NORMALISATION does sum(w * signal) / sum(weight) which gives good results,
+// but leads to a slightly annoying boundary effect
+#define CORRECT_NORMALISATION 1
+
+// This is like CORRECT_NORMALISATION with a bit of thresholding to reduce the
+// annoying boundary effect, but it's a bit hacky.
+//#define CORRECT_NORMALISATION_WITH_THRESH 1
+
+// Alternative workaround is to simply clip the summed signal at 1
+//#define CLIP_AT_ONE 1
+
+/*
+ * Else, no normalisation.
+ */
 
 /*!
  * Resampling function.
@@ -1216,7 +1330,7 @@ void computeFlatTransforms (const CmdOptions& co,
 std::pair<unsigned int, unsigned int>
 resample_twod (const vector<morph::Vector<float, 2>>& coords, // input coords
                const vector<float>& expression,               // input values
-               const morph::Vector<float, 4>& extents,        // parameter - sets output extents
+               const CmdOptions& co, // For parameters - extents (sets output extents) and switch for normalisation
                vector<morph::Vector<float, 2>>& cartgrid,     // output domain (resized per extents)
                vector<float>& expr_resampled,                 // output values (resized per extents)
                const vector<morph::Vector<float, 3>> sigma,   // parameter - sigmas for ellip gaussians
@@ -1230,7 +1344,7 @@ resample_twod (const vector<morph::Vector<float, 2>>& coords, // input coords
         throw std::runtime_error (ee.str());
     }
     if (coords.size() < 2) {
-        throw std::runtime_error ("Expect more than 1 coordinate!");
+        throw std::runtime_error ("Expect more than 1 coordinate (got " + std::to_string(coords.size()) + ")!");
     }
     // Grid spacing is l (passed in)
     std::cout << "Image grid length, l is "<< l << std::endl;
@@ -1242,12 +1356,12 @@ resample_twod (const vector<morph::Vector<float, 2>>& coords, // input coords
 
     // Determine the output extents
     float minx = 1e9, miny = 1e9, maxx = -1e9, maxy = -1e9;
-    if (extents.length() > 0.0f) {
+    if (co.extents.length() > 0.0f) {
         // Use passed-in extents
-        minx = extents[0];
-        maxx = extents[1];
-        miny = extents[2];
-        maxy = extents[3];
+        minx = co.extents[0];
+        maxx = co.extents[1];
+        miny = co.extents[2];
+        maxy = co.extents[3];
     } else {
         // Find the extents of the output grid
         for (auto c : coords) {
@@ -1269,6 +1383,9 @@ resample_twod (const vector<morph::Vector<float, 2>>& coords, // input coords
     std::cout << "Image size " << width_px << "x" << height_px << std::endl
               << "EXTENTS: [" << minx << "," << maxx << "," << miny << "," << maxy << "]" << std::endl;
 
+#if defined CORRECT_NORMALISATION_WITH_THRESH
+    static constexpr float wsum_thresh = 0.0001f;
+#endif
     size_t csz = coords.size();
     unsigned int yi = 0;
     for (float _y = miny; _y < maxy; _y += l[1], ++yi) {
@@ -1277,26 +1394,64 @@ resample_twod (const vector<morph::Vector<float, 2>>& coords, // input coords
             unsigned int idx = yi * width_px + xi;
             morph::Vector<float, 2> cartpos = {_x,_y};
             float expr = 0.0f;
+            float wsum = 0.0f;
+
+#ifndef CLIP_AT_ONE
+            if (co.resample_renormalise) {
+# pragma omp parallel for reduction(+:expr,wsum)
+                for (unsigned int i = 0; i < csz; ++i) {
+                    // Compute contributions to each pixel, using a rotated elliptical Gaussian
+                    float theta = sigma[i][2];
+                    float costheta = std::cos(theta);
+                    float sintheta = std::sin(theta);
+                    float sin2theta = std::sin(2.0f * theta);
+                    float a = costheta * costheta / (2.0f * sigma[i][0] * sigma[i][0])
+                    + sintheta * sintheta / (2.0f *  sigma[i][1] * sigma[i][1]);
+                    float b = (sin2theta/(4.0f * sigma[i][1] * sigma[i][1]))
+                    - (sin2theta/(4.0f * sigma[i][0] * sigma[i][0]));
+                    float c = sintheta * sintheta/(2.0f * sigma[i][0] * sigma[i][0])
+                    + costheta * costheta / (2.0f *  sigma[i][1] * sigma[i][1]);
+                    morph::Vector<float, 2> d = cartpos - coords[i];
+                    float w = std::exp ( -(a * d[0] * d[0]  +  2.0f * b * d[0] * d[1]  +  c * d[1] * d[1]));
+                    expr += w * expression[i];
+                    wsum += w;
+                }
+            } else {
+#endif
 #pragma omp parallel for reduction(+:expr)
-            for (unsigned int i = 0; i < csz; ++i) {
-                // Compute contributions to each pixel, using a rotated elliptical Gaussian
-                float theta = sigma[i][2];
-                float costheta = std::cos(theta);
-                float sintheta = std::sin(theta);
-                float sin2theta = std::sin(2.0f * theta);
-                float a = costheta * costheta / (2.0f * sigma[i][0] * sigma[i][0])
-                + sintheta * sintheta / (2.0f *  sigma[i][1] * sigma[i][1]);
-                float b = (sin2theta/(4.0f * sigma[i][1] * sigma[i][1]))
-                - (sin2theta/(4.0f * sigma[i][0] * sigma[i][0]));
-                float c = sintheta * sintheta/(2.0f * sigma[i][0] * sigma[i][0])
-                + costheta * costheta / (2.0f *  sigma[i][1] * sigma[i][1]);
-                morph::Vector<float, 2> d = cartpos - coords[i];
-                float w = std::exp ( -(a * d[0] * d[0]  +  2.0f * b * d[0] * d[1]  +  c * d[1] * d[1]));
-                expr += w * expression[i];
+                for (unsigned int i = 0; i < csz; ++i) {
+                    // Compute contributions to each pixel, using a rotated elliptical Gaussian
+                    float theta = sigma[i][2];
+                    float costheta = std::cos(theta);
+                    float sintheta = std::sin(theta);
+                    float sin2theta = std::sin(2.0f * theta);
+                    float a = costheta * costheta / (2.0f * sigma[i][0] * sigma[i][0])
+                    + sintheta * sintheta / (2.0f *  sigma[i][1] * sigma[i][1]);
+                    float b = (sin2theta/(4.0f * sigma[i][1] * sigma[i][1]))
+                    - (sin2theta/(4.0f * sigma[i][0] * sigma[i][0]));
+                    float c = sintheta * sintheta/(2.0f * sigma[i][0] * sigma[i][0])
+                    + costheta * costheta / (2.0f *  sigma[i][1] * sigma[i][1]);
+                    morph::Vector<float, 2> d = cartpos - coords[i];
+                    float w = std::exp ( -(a * d[0] * d[0]  +  2.0f * b * d[0] * d[1]  +  c * d[1] * d[1]));
+                    expr += w * expression[i];
+                }
+#ifndef CLIP_AT_ONE
             }
+#endif
             //std::cout << "idx: " << idx << " cartpos: " << cartpos << " expr: " << expr << std::endl;
             cartgrid[idx] = cartpos;
-            expr_resampled[idx] = expr;
+            if (co.resample_renormalise) {
+#if defined CORRECT_NORMALISATION
+                expr_resampled[idx] = (wsum > 0.0f) ? expr/wsum : 0.0f;
+#elif defined CORRECT_NORMALISATION_WITH_THRESH // Reduces the size of the edge region
+                expr_resampled[idx] = (expr > wsum_thresh && wsum > wsum_thresh) ? expr/wsum : 0.0f;
+#elif defined CLIP_AT_ONE // Clip at 1.0f
+                expr_resampled[idx] = expr > 1.0f ? 1.0f : expr;
+#endif
+            } else {
+                expr_resampled[idx] = expr;
+            }
+
         }
     }
 
@@ -1307,6 +1462,153 @@ resample_twod (const vector<morph::Vector<float, 2>>& coords, // input coords
     return std::make_pair (width_px, height_px);
 }
 
+// Special version of resample for colours
+std::pair<unsigned int, unsigned int>
+resample_twod (const vector<morph::Vector<float, 2>>& coords, // input coords
+               const vector<std::array<float, 3>>& expressionColours, // input values
+               const CmdOptions& co, // For parameters - extents (sets output extents) and switch for normalisation
+               vector<morph::Vector<float, 2>>& cartgrid,     // output domain (resized per extents)
+               vector<std::array<float, 3>>& expr_resampled,  // output values (resized per extents)
+               const vector<morph::Vector<float, 3>> sigma,   // parameter - sigmas for ellip gaussians
+               const morph::Vector<float, 2> l)               // parameter - how big are the output pixels?
+{
+    // Check input
+    if (coords.size() != expressionColours.size()) {
+        std::stringstream ee;
+        ee << "Expect coords (length " << coords.size()
+           << ") and expression vectors (length " << expressionColours.size() << ") to be same size";
+        throw std::runtime_error (ee.str());
+    }
+    if (coords.size() < 2) {
+        throw std::runtime_error ("Expect more than 1 coordinate!");
+    }
+    // Grid spacing is l (passed in)
+    std::cout << "Image grid length, l is "<< l << std::endl;
+    if (l.length() == 0.0f) { throw std::runtime_error ("l must be non-zero"); }
+
+    // Determine the output extents
+    float minx = 1e9, miny = 1e9, maxx = -1e9, maxy = -1e9;
+    if (co.extents.length() > 0.0f) {
+        // Use passed-in extents
+        minx = co.extents[0];
+        maxx = co.extents[1];
+        miny = co.extents[2];
+        maxy = co.extents[3];
+    } else {
+        // Find the extents of the output grid
+        for (auto c : coords) {
+            minx = c[0] < minx ? c[0] : minx;
+            miny = c[1] < miny ? c[1] : miny;
+            maxx = c[0] > maxx ? c[0] : maxx;
+            maxy = c[1] > maxy ? c[1] : maxy;
+        }
+    }
+
+    // Count width and height to determine size of output
+    unsigned int width_px = 0;
+    for (float _x = minx; _x < maxx; _x += l[0]) { ++width_px; }
+    unsigned int height_px = 0;
+    for (float _y = miny; _y < maxy; _y += l[1]) { ++height_px; }
+    cartgrid.resize (width_px * height_px);
+    expr_resampled.resize (width_px * height_px);
+
+    std::cout << "Image size " << width_px << "x" << height_px << std::endl
+              << "EXTENTS: [" << minx << "," << maxx << "," << miny << "," << maxy << "]" << std::endl;
+
+#if defined CORRECT_NORMALISATION_WITH_THRESH
+    static constexpr float wsum_thresh = 0.0001f;
+#endif
+    size_t csz = coords.size();
+    unsigned int yi = 0;
+    for (float _y = miny; _y < maxy; _y += l[1], ++yi) {
+        unsigned int xi = 0;
+        for (float _x = minx; _x < maxx; _x += l[0], ++xi) {
+            unsigned int idx = yi * width_px + xi;
+            morph::Vector<float, 2> cartpos = {_x,_y};
+            float expr0 = 0.0f;
+            float expr1 = 0.0f;
+            float expr2 = 0.0f;
+            float wsum = 0.0f;
+
+#ifndef CLIP_AT_ONE
+            if (co.resample_renormalise) {
+# pragma omp parallel for reduction(+:expr0,expr1,expr2,wsum)
+                for (unsigned int i = 0; i < csz; ++i) {
+                    // Compute contributions to each pixel, using a circular Gaussian
+                    float theta = sigma[i][2];
+                    float costheta = std::cos(theta);
+                    float sintheta = std::sin(theta);
+                    float sin2theta = std::sin(2.0f * theta);
+                    float a = costheta * costheta / (2.0f * sigma[i][0] * sigma[i][0])
+                    + sintheta * sintheta / (2.0f *  sigma[i][1] * sigma[i][1]);
+                    float b = (sin2theta/(4.0f * sigma[i][1] * sigma[i][1]))
+                    - (sin2theta/(4.0f * sigma[i][0] * sigma[i][0]));
+                    float c = sintheta * sintheta/(2.0f * sigma[i][0] * sigma[i][0])
+                    + costheta * costheta / (2.0f *  sigma[i][1] * sigma[i][1]);
+                    morph::Vector<float, 2> d = cartpos - coords[i];
+                    float w = std::exp ( -(a * d[0] * d[0]  +  2.0f * b * d[0] * d[1]  +  c * d[1] * d[1]));
+                    expr0 += w * expressionColours[i][0];
+                    expr1 += w * expressionColours[i][1];
+                    expr2 += w * expressionColours[i][2];
+                    wsum += w;
+                }
+            } else {
+#endif
+# pragma omp parallel for reduction(+:expr0,expr1,expr2)
+                for (unsigned int i = 0; i < csz; ++i) {
+                    // Compute contributions to each pixel, using a circular Gaussian
+                    float theta = sigma[i][2];
+                    float costheta = std::cos(theta);
+                    float sintheta = std::sin(theta);
+                    float sin2theta = std::sin(2.0f * theta);
+                    float a = costheta * costheta / (2.0f * sigma[i][0] * sigma[i][0])
+                    + sintheta * sintheta / (2.0f *  sigma[i][1] * sigma[i][1]);
+                    float b = (sin2theta/(4.0f * sigma[i][1] * sigma[i][1]))
+                    - (sin2theta/(4.0f * sigma[i][0] * sigma[i][0]));
+                    float c = sintheta * sintheta/(2.0f * sigma[i][0] * sigma[i][0])
+                    + costheta * costheta / (2.0f *  sigma[i][1] * sigma[i][1]);
+                    morph::Vector<float, 2> d = cartpos - coords[i];
+                    float w = std::exp ( -(a * d[0] * d[0]  +  2.0f * b * d[0] * d[1]  +  c * d[1] * d[1]));
+                    expr0 += w * expressionColours[i][0];
+                    expr1 += w * expressionColours[i][1];
+                    expr2 += w * expressionColours[i][2];
+                }
+#ifndef CLIP_AT_ONE
+            }
+#endif
+
+            //std::cout << "idx: " << idx << " cartpos: " << cartpos << " expr: " << expr << std::endl;
+            cartgrid[idx] = cartpos;
+
+            if (co.resample_renormalise) {
+#if defined CORRECT_NORMALISATION
+                if (wsum > 0.0f) {
+                    expr_resampled[idx] = {expr0/wsum, expr1/wsum, expr2/wsum};
+                } else {
+                    expr_resampled[idx] = {1.0f, 1.0f, 1.0f};
+                }
+#elif defined CORRECT_NORMALISATION_WITH_THRESH // Reduces the size of the edge region
+                if ((expr0 > wsum_thresh || expr1 > wsum_thresh || expr2 > wsum_thresh) && wsum > wsum_thresh) {
+                    //std::cout << "expr0: " << expr0 << " and expr0/" << wsum << " = " << expr0/wsum << std::endl;
+                    expr_resampled[idx] = {expr0/wsum, expr1/wsum, expr2/wsum};
+                } else {
+                    expr_resampled[idx] = {1.0f, 1.0f, 1.0f};
+                }
+#elif defined CLIP_AT_ONE // Clip at 1.0f
+                expr_resampled[idx] = {expr0 > 1.0f ? 1.0f : expr0,
+                                       expr1 > 1.0f ? 1.0f : expr1,
+                                       expr2 > 1.0f ? 1.0f : expr2};
+#endif
+            } else {
+                expr_resampled[idx] = {expr0, expr1, expr2};
+            }
+        }
+    }
+
+    std::cout << "Computed resample for image of " << width_px << "x" << height_px << std::endl;
+    return std::make_pair (width_px, height_px);
+}
+
 //! Add flattened map. 'A' contains the locations of the global landmarks, in 2D
 //! coords. M contains the transformation matrices, to apply.
 int addFlattened (SFVisual& v, const string& datafile, const CmdOptions& co,
@@ -1314,10 +1616,13 @@ int addFlattened (SFVisual& v, const string& datafile, const CmdOptions& co,
                   morph::Matrix33<float>& M,
                   morph::Vector<float> offset = { 0.0f, 0.0f, 0.0f })
 {
+    std::cout << __FUNCTION__ << " called\n";
     int rtn = 0;
 
     bool autoscale_per_slice = co.scale_perslice > 0 ? true : false;
     bool align_lm = co.use_autoalign > 0 ? false : true;
+
+    int cmodel = 0;
 
     // THIS needs to handle missing data in some slices
     try {
@@ -1332,6 +1637,7 @@ int addFlattened (SFVisual& v, const string& datafile, const CmdOptions& co,
         vector<morph::Vector<float, 2>> fmids; // Mid points of the quads
         vector<float> means;
         vector<float> fmeans;
+        vector<std::array<float, 3>> boxColours;
 
         {
             string datafile2(datafile);
@@ -1378,13 +1684,13 @@ int addFlattened (SFVisual& v, const string& datafile, const CmdOptions& co,
             // Need this loop to graciously handle missing slice data
             string frameName("");
             for (int i = 1; i<=nf; ++i) {
-
                 stringstream ss;
                 ss << "/Frame";
                 ss.width(3);
                 ss.fill('0');
                 ss << i;
                 frameName = ss.str();
+                std::cout << "Processing " << frameName << std::endl;
 
                 // x position comes from FrameNNN/class/layer_x
                 string str = frameName+"/class/layer_x";
@@ -1430,6 +1736,22 @@ int addFlattened (SFVisual& v, const string& datafile, const CmdOptions& co,
 
                 // now - if the linbins we loaded were the sbox_angles, then we need to
                 // sort linbins, while sorting, at the same time, the signals.
+
+                // Special action for extracting raw colours from the .h5 (for RawColour mode)
+                str = frameName+"/class/cmodel";
+                try {
+                    d.read_val (str.c_str(), cmodel);
+                } catch (const exception& ee) {}
+                vector<std::array<float, 3>> frameBoxColours;
+                if (cmodel == 3 /* ColourModel::RawColour */) {
+                    try {
+                        str = frameName+"/signal/bits8/boxes/bgr";
+                        d.read_contained_vals (str.c_str(), frameBoxColours);
+                    } catch (const exception& ee) {
+                        continue; // No curve
+                    }
+                    std::cout << "frameBoxColours size: " << frameBoxColours.size() << "\n";
+                }
 
                 // The corners of the boxes to be drawn, in 3D (though z will be 0)
                 vector<array<float,12>> flatsurf_boxes;
@@ -1497,22 +1819,32 @@ int addFlattened (SFVisual& v, const string& datafile, const CmdOptions& co,
 
                 try {
                     // Try inserting frameMeansF first, as this may throw an error, in which case, move on
+                    if (cmodel == 3) {
+                        boxColours.insert (boxColours.end(), frameBoxColours.begin(), --frameBoxColours.end());
+                    }
                     fmeans.insert (fmeans.end(), frameMeansF.begin(), --frameMeansF.end());
                     fquads.insert (fquads.end(), flatsurf_boxes.begin(), flatsurf_boxes.end());
                     fmids.insert (fmids.end(), flat_mids.begin(), flat_mids.end());
                 } catch (...) {
-                    // std::cout << "Failed; there was no 2D ribbon for slice " << i << std::endl;
+                    std::cout << "Failed; there was no 2D ribbon for slice " << i << std::endl;
                 }
                 lastxx = xx;
             }
             unsigned int visId = 0;
 
             // This is the flattened map; showing it alongside the 3D map for now
-            offset[0]+=-5.5;
-            visId = v.addVisualModel (new morph::QuadsVisual<float> (v.shaderprog,
-                                                                     &fquads, offset,
-                                                                     &fmeans, scale,
-                                                                     morph::ColourMapType::Greyscale));
+            offset[0]+=-co.map_offsets[0]; // Move left enough to place the 2D map next to the 3D visualisation.
+            if (cmodel == 3) {
+                // Going to need special QuadsVisual now..
+                visId = v.addVisualModel (new morph::QuadsVisualExt<float> (v.shaderprog,
+                                                                            &fquads, offset,
+                                                                            boxColours, scale));
+            } else {
+                visId = v.addVisualModel (new morph::QuadsVisual<float> (v.shaderprog,
+                                                                         &fquads, offset,
+                                                                         &fmeans, scale,
+                                                                         morph::ColourMapType::Greyscale));
+            }
             v.surfaces_2d.push_back (visId);
 
             // Add the newly-generated expression and coordinates to the data file.
@@ -1522,6 +1854,7 @@ int addFlattened (SFVisual& v, const string& datafile, const CmdOptions& co,
             // Resample onto a rectangular grid
             vector<morph::Vector<float, 2>> fmids_resampled;
             vector<float> fmeans_resampled;
+            vector<std::array<float, 3>> boxColours_resampled;
             //float x1, x2;
             //d.read_val ("/Frame001/class/layer_x", x1);
             //d.read_val ("/Frame002/class/layer_x", x2);
@@ -1547,11 +1880,21 @@ int addFlattened (SFVisual& v, const string& datafile, const CmdOptions& co,
                 sigma[i][2] = std::atan2 (xprime[1], xprime[0]);
             }
 
-            // extents is: { minx, maxx, miny, maxy, }. Set all 0 to auto-determine
-            std::pair<unsigned int, unsigned int> wh = resample_twod (fmids, fmeans,
-                                                                      cmdOptions.extents, fmids_resampled,
-                                                                      fmeans_resampled, sigma, l);
-
+            std::pair<unsigned int, unsigned int> wh;
+            if (cmodel == 3) {
+                // resample for colour map into boxColours_resampled
+                std::cout << "Resample 2D with *colours*\n";
+                wh = resample_twod (fmids, boxColours,
+                                    cmdOptions, fmids_resampled,
+                                    boxColours_resampled, sigma, l);
+            } else {
+                // extents is: { minx, maxx, miny, maxy, }. Set all 0 to auto-determine
+                std::cout << "Resample with fmids size: " << fmids.size()
+                          << " and fmeans size " << fmeans.size() << std::endl;
+                wh = resample_twod (fmids, fmeans,
+                                    cmdOptions, fmids_resampled,
+                                    fmeans_resampled, sigma, l);
+            }
             // Convert fmids_resampled into quads
             size_t n_re = fmids_resampled.size();
             std::cout << "There are " << n_re << " resampled coordinates\n";
@@ -1578,24 +1921,29 @@ int addFlattened (SFVisual& v, const string& datafile, const CmdOptions& co,
                 fquads_re[i][11] = 0.0f;
             }
             // And turn them into a graph
-            offset[1]+=7.5f;
+            offset[1]+=co.map_offsets[1];
             //scale.setAutoscale (fmeans_resampled); or something
             std::cout << "Adding resampled graph at offset " << offset << std::endl;
-            visId = v.addVisualModel (new morph::QuadsVisual<float> (v.shaderprog,
-                                                                     &fquads_re, offset,
-                                                                     &fmeans_resampled, scale,
-                                                                     morph::ColourMapType::Greyscale));
+            if (cmodel == 3) {
+                visId = v.addVisualModel (new morph::QuadsVisualExt<float> (v.shaderprog,
+                                                                            &fquads_re, offset,
+                                                                            boxColours_resampled, scale));
+            } else {
+                visId = v.addVisualModel (new morph::QuadsVisual<float> (v.shaderprog,
+                                                                         &fquads_re, offset,
+                                                                         &fmeans_resampled, scale,
+                                                                         morph::ColourMapType::Greyscale));
+            }
             v.surfaces_2d.push_back (visId);
 
             // Add a plain VisualModel whose reason for inclusion is just for text
-            offset[1]+=5.0f;
+            offset[1]+=co.map_offsets[1]/2.0f;
             auto jtvm = new morph::VisualModel (v.shaderprog, v.tshaderprog, offset);
             jtvm->addLabel (datafile, {1.0f, 0.0f, 0.0f},
                             (cmdOptions.whitebg > 0 ? morph::colour::black : morph::colour::white),
                             morph::VisualFont::Vera, 0.2, 24);
             v.addVisualModel (jtvm);
-            offset[1]-=5.0f;
-            offset[1]-=7.5f;
+            offset[1] -= co.map_offsets[1] * 1.5f;
 
             d2.add_contained_vals ("/output_map/twod/M", M.mat);
 
@@ -1619,7 +1967,6 @@ int addFlattened (SFVisual& v, const string& datafile, const CmdOptions& co,
                 centres_id.push_back (0.1f*(float)i);
             }
 
-
             auto sv1 = new morph::ScatterVisual<float> (v.shaderprog, offset);
             sv1->setDataCoords (&centres_);
             sv1->setScalarData (&centres_id);
@@ -1632,6 +1979,7 @@ int addFlattened (SFVisual& v, const string& datafile, const CmdOptions& co,
             v.angle_centres.push_back (visId);
 
             // Plot A (the landmarks) if necessary.
+            std::cout << "AAAA What is A? " << A << std::endl;
             std::vector<morph::Vector<float,3>> sc_coords(3);
             std::vector<float> sc_data = { 0.2f, 0.4f, 0.6f };
             sc_coords[0] = A.col(0); sc_coords[0][2] = 1.0f;
@@ -1656,7 +2004,8 @@ int addFlattened (SFVisual& v, const string& datafile, const CmdOptions& co,
             // Save the resampled stuff to file
             std::cout << "saving resampled...\n" << std::endl;
             d2.add_contained_vals ("/output_map/twod/widthheight_resampled", wh);
-            d2.add_contained_vals ("/output_map/twod/expression_resampled", fmeans_resampled);
+            d2.add_contained_vals ("/output_map/twod/expression_resampled", fmeans_resampled); // Maybe save colours too?
+            d2.add_contained_vals ("/output_map/twod/boxcolours_resampled", boxColours_resampled);
             d2.add_contained_vals ("/output_map/twod/coordinates_resampled", fmids_resampled);
             // FIXME: Convert to 2D then save. Here are landmarks in 3D:
             d2.add_contained_vals ("/output_map/twod/global_landmarks", sc_coords);
@@ -1733,6 +2082,14 @@ int main (int argc, char** argv)
          POPT_ARG_NONE, &(cmdOptions.lighting), 0,
          "If set, apply ambient/diffuse lighting in the shader."},
 
+        {"diffuse_intensity", 'D',
+         POPT_ARG_INT, &(cmdOptions.diffuse_intensity), 0,
+         "Lighting diffuse intensity, range 0 to 255."},
+
+        {"ambient_intensity", 'A',
+         POPT_ARG_INT, &(cmdOptions.ambient_intensity), 0,
+         "Lighting ambient intensity, range 0 to 255."},
+
         {"whitebg", 'w',
          POPT_ARG_NONE, &(cmdOptions.whitebg), 0,
          "If set, make the sfview background white, not black."},
@@ -1748,6 +2105,10 @@ int main (int argc, char** argv)
         {"show_landmarks_all", 'L',
          POPT_ARG_NONE, &(cmdOptions.show_landmarks_all), 0,
          "If set, display landmarks from ALL first data files."},
+
+        {"resample_renormalise", 'N',
+         POPT_ARG_NONE, &(cmdOptions.resample_renormalise), 0,
+         "If set, apply normalisation when performing 2D resampling."},
 
         {"show_flattened", 'm',
          POPT_ARG_INT, &(cmdOptions.show_flattened), 0,
@@ -1790,6 +2151,12 @@ int main (int argc, char** argv)
          "Provide a string for the extents of the resampled map (when you produce 2D maps)"
          ". Allows all resampled maps to be same size. Format: xmin,xmax,ymin,ymax so "
          "e.g.: -0.22,4.65,-3.03,3.85"},
+
+        {"map_offsets", 'M',
+         POPT_ARG_STRING, &(cmdOptions.map_offsets_str), 0,
+         "Provide a string for the x and y offsets between resampled maps (when you produce "
+         "2D maps). Format: xspace,yspace so "
+         "e.g.: 5.5,16.0"},
 
         POPT_AUTOALIAS
         POPT_TABLEEND
@@ -1862,13 +2229,37 @@ int main (int argc, char** argv)
         v.addLabel (exmsg.str(), {-0.05f, 0.005f, 0.0f});
 #endif
     }
+
+    // To hack around with lighting, change these
     v.diffuse_position = {-1, 2, -3};
 
+    int ai = -1;
+    ai = cmdOptions.ambient_intensity < 0 ? -1 : cmdOptions.ambient_intensity;
+    ai = ai > 255 ? 255 : ai;
+    if (ai == -1) {
+        // No user setting. Set ambient intensity based on lighting/mesh.
+        v.ambient_intensity = (cmdOptions.lighting > 0 || cmdOptions.show_mesh > 0) ?  0.5f : 1.0f;
+    } else { // apply user setting
+        v.ambient_intensity = static_cast<float>(ai) / 255.0f;
+    }
+
+    int di = -1;
+    di = cmdOptions.diffuse_intensity < 0 ? -1 : cmdOptions.diffuse_intensity;
+    di = di > 255 ? 255 : di;
+    if (di == -1) {
+        v.diffuse_intensity = (cmdOptions.lighting > 0 || cmdOptions.show_mesh > 0) ?  0.5f : 0.0f;
+    } else {
+        v.diffuse_intensity = static_cast<float>(di) / 255.0f;
+    }
+
     unsigned int n_global_landmarks = 0;
-    if (cmdOptions.datafiles.size() > 1) {
+    if (cmdOptions.datafiles.size() > 0) {
         // Count how many landmarks in the first datafile:
         n_global_landmarks = countGlobalLandmarks (cmdOptions.datafiles[0]);
-        std::cout << "First data file contains " << n_global_landmarks << " global landmarks.\n";
+        for (size_t di = 0; di < cmdOptions.datafiles.size(); ++di) {
+            unsigned int ngl = countGlobalLandmarks (cmdOptions.datafiles[di]);
+            std::cout << "data file " << di << "contains " << ngl << " global landmarks.\n";
+        }
     }
 
     // Before addVisMod(), addLandmarks(), etc, and if there is more than 1 model and if
@@ -1912,7 +2303,6 @@ int main (int argc, char** argv)
         for (size_t ai = 0; ai < A2.size(); ++ai) { std::cout << "A2["<<ai<<"]=" << A2[ai] << std::endl; }
 
         if (cmdOptions.linear_transforms > 0 && cmdOptions.datafiles.size() > 1 && n_global_landmarks == 3) {
-
             std::cout << "Applying 2D linear transforms...\n";
             computeFlatTransforms (cmdOptions, A2, M2);
             // Display flattened (and transformed) maps
@@ -1920,7 +2310,7 @@ int main (int argc, char** argv)
             size_t dfi = 0;
             for (auto df : cmdOptions.datafiles) {
                 rtn += addFlattened (v, df, cmdOptions, A2[dfi], M2[dfi], {xoffs, 0, 0});
-                xoffs += -6.0f;
+                xoffs += -cmdOptions.map_offsets[0];
                 dfi++;
             }
 
@@ -1939,13 +2329,25 @@ int main (int argc, char** argv)
 #endif
 
         } else {
-            std::cout << "NB: There was not the right number of global landmarks for transformations, just show untransformed flattened maps.\n";
+            if (cmdOptions.linear_transforms != 0) {
+                std::cout << "NB: There was not the right number of global landmarks for transformations, just show untransformed flattened maps.\n";
+            } // else user didn't give the -T command line arg.
+
             // Display flattened (but UNtransformed) maps
+            std::cout << "Display flattened but UNtransformed maps...\n";
+            // If we have global landmarks, then set A2 up with their locations.
+            if (n_global_landmarks == 3) {
+                std::vector<morph::Matrix33<float>> Mdummy(cmdOptions.datafiles.size());
+                computeFlatTransforms (cmdOptions, A2, Mdummy);
+                // A2 should now contain the global landmark positions
+            } else {
+                std::cout << "n_global_landmarks = " << n_global_landmarks << std::endl;
+            }
             float xoffs = 0.0f;
             size_t dfi = 0;
             for (auto df : cmdOptions.datafiles) {
                 rtn += addFlattened (v, df, cmdOptions, A2[dfi], M2[dfi], {xoffs, 0, 0});
-                xoffs += -6.0f;
+                xoffs += -cmdOptions.map_offsets[0];
                 dfi++;
             }
         }
