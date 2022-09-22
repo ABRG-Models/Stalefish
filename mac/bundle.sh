@@ -20,7 +20,7 @@ cp sf_icons.icns Stalefish.app/Contents/Resources/
 cp /usr/local/share/vole_65_7E_id2_L23.h5 Stalefish.app/Contents/Resources/
 
 # Copy the freshly built executable(s)
-PROGRAM_LIST="stalefish sfview sfresave sfgetjson"
+PROGRAM_LIST="stalefish sfview sfresave sfgetjson sfmakejson"
 for j in ${PROGRAM_LIST}; do
     cp ../build/src/${j} Stalefish.app/Contents/MacOS/
 done
