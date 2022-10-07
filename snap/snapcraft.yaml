@@ -6,7 +6,7 @@ description: |
   Stalefish is a tool to analyse gene expression.
   From your brain slice images you can build 3D
   expression surfaces and then convert these into
-  2D expression maps. For more details see...
+  2D expression maps. For more details see the paper https://www.pnas.org/doi/10.1073/pnas.2113896119
 grade: stable
 confinement: strict
 base: core20
