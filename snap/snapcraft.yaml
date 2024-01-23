@@ -10,6 +10,7 @@ description: |
 grade: stable
 confinement: strict
 base: core20
+architectures: [amd64, arm64]
 
 parts:
   stalefish:
